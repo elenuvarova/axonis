@@ -8,39 +8,35 @@ const GraphCanvas = lazy(() => import('../components/GraphCanvas'))
 
 import EntityCard from '../components/EntityCard'
 import GraphLegend from '../components/GraphLegend'
+import GraphControls from '../components/GraphControls'
 import ClusterPanel from '../components/ClusterPanel'
 import OpportunityBoard from '../components/OpportunityBoard'
 import AskPanel from '../components/AskPanel'
-import ThemeToggle from '../components/ThemeToggle'
 import { BuildingScreen, StateScreen, Toast } from '../components/states'
 import HelpButton from '../components/HelpButton'
 import Tour from '../components/Tour'
-import { useTheme } from '../theme'
+import usePrefersReducedMotion from '../usePrefersReducedMotion'
+import { pad } from '../format'
 import { renderMarkdown, escapeHtml } from '../markdown'
-
-const TABS = [
-  { id: 'graph',         label: 'Graph' },
-  { id: 'clusters',      label: 'Clusters' },
-  { id: 'opportunities', label: 'Opps' },
-  { id: 'ask',           label: 'Ask' },
-]
+import Wordmark from '../components/Wordmark'
 
 const PANEL_ID   = 'project-sidebar-panel'
 const TAB_ID     = (id) => `tab-${id}`
 const BRIEF_TITLE_ID = 'brief-modal-title'
 
-// Prefer no animation when the user has opted into reduced motion.
-const prefersReducedMotion =
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const STATUS_GLYPH = { ready: '●', building: '◐', pending: '◐', error: '×' }
 
 function StatusBadge({ status }) {
-  return <span className={`badge badge-${status}`}>{status}</span>
+  return (
+    <span className={`badge badge-${status}`}>
+      <span aria-hidden="true">{STATUS_GLYPH[status] || '●'}</span> {status}
+    </span>
+  )
 }
 
 function UploadIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   )
@@ -48,7 +44,7 @@ function UploadIcon() {
 
 function BriefIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" />
     </svg>
   )
@@ -57,11 +53,13 @@ function BriefIcon() {
 export default function ProjectPage() {
   const { id } = useParams()
   const qc = useQueryClient()
-  const { theme } = useTheme()
+  const reducedMotion = usePrefersReducedMotion()
   const fileInputRef = useRef(null)
   const briefBtnRef  = useRef(null)
   const briefModalRef = useRef(null)
   const [tab, setTab] = useState('graph')
+  const [askOpen, setAskOpen] = useState(false)
+  const [askedText, setAskedText] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [highlightClusterId, setHighlightClusterId] = useState(null)
   const [cy, setCy] = useState(null)
@@ -71,17 +69,18 @@ export default function ProjectPage() {
   const [toast, setToast] = useState('')
   const [tourOpen, setTourOpen] = useState(false)
   const tourStarted = useRef(false)
+  const pendingCluster = useRef(null)
 
   const projectTour = [
     { target: '.graph-canvas-wrap', placement: 'center', before: () => setTab('graph'),
       title: 'Your knowledge map',
-      body: 'Each node is an entity, sized by how central it is. Drag nodes, scroll to zoom, double-click to refit — and hover any node to reveal its label and connections.' },
+      body: 'Each node is an entity, sized by how central it is, and its shape tells you the type. Drag nodes, scroll to zoom, double-click to refit — and hover any node to reveal its label and connections.' },
     { target: '.graph-legend', placement: 'bottom', before: () => setTab('graph'),
-      title: 'Colour = type',
-      body: 'The legend maps each colour to an entity type — concepts, research papers, institutions and more.' },
+      title: 'Shape = type',
+      body: 'The legend maps each shape to an entity type — concepts, research papers, organisations and products.' },
     { target: '.project-tab-bar', placement: 'bottom',
-      title: 'Four ways to read it',
-      body: 'Clusters groups related concepts, Opps surfaces scored product openings, and Ask answers plain-English questions about the domain.' },
+      title: 'Three ways to read it',
+      body: 'Clusters groups related concepts and Opportunities surfaces scored product openings. Use “ask the map” on the canvas to question the domain in plain English.' },
     { target: '.header-actions', placement: 'bottom',
       title: 'Enrich & export',
       body: 'Upload a PDF or CSV to fold new entities into the map, or generate a one-click research Brief you can download or print.' },
@@ -118,13 +117,13 @@ export default function ProjectPage() {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
   }, [])
 
-  // ── Mobile bottom-sheet Escape to close (C-3) ────────────────────────────
+  // ── Panel Escape to close (mobile sheet / ask mode) (C-3) ────────────────
   useEffect(() => {
-    if (!panelOpen) return
-    const handler = (e) => { if (e.key === 'Escape') closePanel() }
+    if (!panelOpen && !askOpen) return
+    const handler = (e) => { if (e.key === 'Escape' && !brief && !tourOpen) closePanel() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [panelOpen])
+  }, [panelOpen, askOpen, brief, tourOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const briefMutation = useMutation({
@@ -202,61 +201,100 @@ export default function ProjectPage() {
     if (nodeData) {
       setSelectedId(nodeData.id)
       setTab('graph')
+      setAskOpen(false)
       setPanelOpen(true)
     } else {
       setSelectedId(null)
-      setPanelOpen(false)
+      if (!askOpen) setPanelOpen(false)
     }
+  }
+
+  const clearHighlights = (c) => {
+    c.batch(() => {
+      c.elements().removeClass('faded')
+      c.nodes().removeClass('highlighted')
+      c.edges().removeClass('highlighted')
+    })
+    c._highlightedCluster = null
+  }
+
+  const highlightCluster = (c, clusterId, { fit = true } = {}) => {
+    clearHighlights(c)
+    const inCluster = c.nodes(`[cluster_id = "${clusterId}"]`)
+    c.batch(() => {
+      inCluster.addClass('highlighted')
+      inCluster.connectedEdges().addClass('highlighted')
+    })
+    c._highlightedCluster = clusterId
+    if (fit && inCluster.length) c.animate({ fit: { eles: inCluster, padding: 60 }, duration: reducedMotion ? 0 : 400 })
   }
 
   const handleClusterClick = (clusterId) => {
     const isDeselect = highlightClusterId === clusterId
     setHighlightClusterId(isDeselect ? null : clusterId)
     setPanelOpen(!isDeselect)
-
     if (!cy) return
-    cy.batch(() => {
-      cy.elements().removeClass('faded')
-      cy.nodes().removeClass('highlighted')
-      cy.edges().removeClass('highlighted')
-    })
+    if (isDeselect) clearHighlights(cy)
+    else highlightCluster(cy, clusterId)
+  }
 
-    if (!isDeselect) {
-      const inCluster = cy.nodes(`[cluster_id = "${clusterId}"]`)
-      cy.batch(() => {
-        inCluster.addClass('highlighted')
-        inCluster.connectedEdges().addClass('highlighted')
-      })
-      cy._highlightedCluster = clusterId
-      if (inCluster.length) cy.animate({ fit: { eles: inCluster, padding: 60 }, duration: prefersReducedMotion ? 0 : 400 })
-    } else {
-      cy._highlightedCluster = null
-    }
+  // Opportunities → map: switch to the map and highlight that opportunity's cluster.
+  const showOppOnMap = (opp) => {
+    const cluster = (clustersData?.clusters ?? []).find((c) => c.id === opp.cluster_db_id)
+    if (!cluster) return
+    pendingCluster.current = cluster.cluster_id
+    setTab('graph')
+    setAskOpen(false)
+    setSelectedId(null)
+    setHighlightClusterId(cluster.cluster_id)
+    setPanelOpen(false)
+  }
+
+  // The canvas remounts when returning from Opportunities; apply once its layout has settled.
+  useEffect(() => {
+    if (!cy || !pendingCluster.current) return
+    const clusterId = pendingCluster.current
+    pendingCluster.current = null
+    highlightCluster(cy, clusterId, { fit: false })
+    const t = setTimeout(() => {
+      const els = cy.nodes(`[cluster_id = "${clusterId}"]`)
+      if (els.length) cy.animate({ fit: { eles: els, padding: 60 }, duration: reducedMotion ? 0 : 400 })
+    }, reducedMotion ? 100 : 1700)
+    return () => clearTimeout(t)
+  }, [cy]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clearAskHighlight = () => {
+    if (cy && cy._highlightedCluster === '__ask__') clearHighlights(cy)
   }
 
   const handleTabClick = (tabId) => {
     setTab(tabId)
-    if (tabId !== 'ask') clearAskHighlight()
-    if (tabId === 'clusters' || tabId === 'ask') setPanelOpen(true)
-    else if (tabId === 'graph') { if (!selectedId) setPanelOpen(false) }
+    if (askOpen) { setAskOpen(false); clearAskHighlight() }
+    if (tabId === 'clusters') setPanelOpen(true)
+    else if (tabId === 'graph') setPanelOpen(!!selectedId)
     else setPanelOpen(false)
   }
 
+  const openAsk = () => {
+    setTab('graph')
+    setAskOpen(true)
+    setPanelOpen(true)
+  }
+
+  const closeAsk = () => {
+    setAskOpen(false)
+    clearAskHighlight()
+    setPanelOpen(!!selectedId)
+  }
+
   const closePanel = useCallback(() => {
+    if (askOpen) { closeAsk(); return }
     setPanelOpen(false)
-    if (tab === 'ask') clearAskHighlight()
     if (tab === 'clusters') {
       setHighlightClusterId(null)
-      if (cy) {
-        cy.batch(() => {
-          cy.nodes().removeClass('highlighted')
-          cy.edges().removeClass('highlighted')
-          cy.elements().removeClass('faded')
-        })
-        cy._highlightedCluster = null
-      }
+      if (cy) clearHighlights(cy)
     }
-  }, [tab, cy])
+  }, [tab, cy, askOpen, selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const highlightNodes = (ids) => {
     if (!cy) return
@@ -266,27 +304,18 @@ export default function ProjectPage() {
       cy.nodes().removeClass('highlighted')
       cy.edges().removeClass('highlighted')
       cy.elements().removeClass('faded')
+      cy.elements().difference(coll.union(coll.connectedEdges())).addClass('faded')
       coll.addClass('highlighted')
       coll.connectedEdges().addClass('highlighted')
     })
     cy._highlightedCluster = '__ask__'
-    if (coll.length) cy.animate({ fit: { eles: coll, padding: 60 }, duration: prefersReducedMotion ? 0 : 400 })
+    if (coll.length) cy.animate({ fit: { eles: coll, padding: 60 }, duration: reducedMotion ? 0 : 400 })
   }
 
   const centreNode = (nid) => {
     if (!cy) return
     const n = cy.getElementById(nid)
-    if (n && n.length) cy.animate({ center: { eles: n }, zoom: Math.max(cy.zoom(), 1.1), duration: prefersReducedMotion ? 0 : 300 })
-  }
-
-  const clearAskHighlight = () => {
-    if (cy && cy._highlightedCluster === '__ask__') {
-      cy.batch(() => {
-        cy.nodes().removeClass('highlighted')
-        cy.edges().removeClass('highlighted')
-      })
-      cy._highlightedCluster = null
-    }
+    if (n && n.length) cy.animate({ center: { eles: n }, zoom: Math.max(cy.zoom(), 1.1), duration: reducedMotion ? 0 : 300 })
   }
 
   // ── Error / not-found ──────────────────────────────────────────────────────
@@ -294,11 +323,11 @@ export default function ProjectPage() {
     const notFound = /404/.test(projErr.message || '')
     return (
       <div className="project-page">
-        <div className="project-header">
-          <Link to="/" className="project-header-back" aria-label="Back to home">←</Link>
-          <span className="project-header-title">Project</span>
-          <div className="header-actions"><ThemeToggle size="sm" /></div>
-        </div>
+        <header className="topbar">
+          <Link to="/" className="crumb-brand" aria-label="Back to home"><Wordmark /></Link>
+          <span className="crumb-sep" aria-hidden="true">/</span>
+          <span className="crumb-name">Project</span>
+        </header>
         <StateScreen
           variant="error"
           title={notFound ? 'Project not found' : 'Could not load this project'}
@@ -317,25 +346,46 @@ export default function ProjectPage() {
   }
 
   if (!project) {
-    return <div className="full-center" style={{ minHeight: '100vh' }}><div className="spinner" /></div>
+    return <div className="full-center" style={{ minHeight: '100vh' }}><div className="spinner" role="status" aria-label="Loading project" /></div>
   }
 
-  const oppCount  = oppsData?.opportunities?.length ?? 0
+  const clusters  = clustersData?.clusters ?? []
+  const opps      = oppsData?.opportunities ?? []
+  const oppCount  = opps.length
   const nodeCount = graphData?.stats?.node_count ?? 0
   const edgeCount = graphData?.stats?.edge_count ?? 0
   const isBuilding = project.status === 'building' || project.status === 'pending'
-  const sidebarLabel = tab === 'clusters' ? 'Clusters' : tab === 'ask' ? 'Ask the graph' : 'Entity detail'
+  const showClusters = tab === 'clusters'
+  const sidebarLabel = showClusters ? 'Clusters' : askOpen ? 'Ask the map' : 'Entity detail'
+  const briefDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const tabs = [
+    { id: 'graph', label: 'Map', short: 'Map' },
+    { id: 'clusters', label: 'Clusters', short: 'Clust', count: clusters.length },
+    { id: 'opportunities', label: 'Opportunities', short: 'Opps', count: oppCount },
+  ]
 
   return (
     <div className={`project-page${panelOpen ? ' panel-open' : ''}`}>
 
-      {/* ── Header ── */}
-      <div className="project-header">
-        {/* aria-label supplements the ← glyph — title alone is not a reliable name (M-5) */}
-        <Link to="/" className="project-header-back" aria-label="Back to home">←</Link>
-        <span className="project-header-title">{project.topic}</span>
-        {nodeCount > 0 && <span className="project-header-count">{nodeCount} nodes</span>}
+      {/* ── Top bar ── */}
+      <header className="topbar">
+        {/* aria-label supplements the visible glyphs — the crumb alone is not a reliable name (M-5) */}
+        <Link to="/" className="crumb-brand" aria-label="Back to home">
+          <span className="crumb-back" aria-hidden="true">←</span>
+          <span className="crumb-kge" aria-hidden="true"><Wordmark /></span>
+        </Link>
+        <span className="crumb-sep" aria-hidden="true">/</span>
+        <h1 className="crumb-name crumb-topic">{project.topic}</h1>
         <StatusBadge status={project.status} />
+        {nodeCount > 0 && (
+          <span className="topbar-meta">
+            {pad(nodeCount, 3)} nodes · {pad(edgeCount, 3)} edges · {pad(clusters.length)} clusters
+          </span>
+        )}
+        {isBuilding && (
+          <span className="topbar-meta">{project.region} · {project.goal}</span>
+        )}
         <div className="header-actions">
           {isReady && (
             <>
@@ -350,7 +400,7 @@ export default function ProjectPage() {
               />
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="btn btn-ghost btn-icon-mobile"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadMutation.isPending}
                 title="Add a PDF or CSV to enrich the graph"
@@ -361,7 +411,7 @@ export default function ProjectPage() {
               <button
                 ref={briefBtnRef}
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-icon-mobile"
                 onClick={() => briefMutation.mutate()}
                 disabled={briefMutation.isPending}
                 title="Generate a research brief"
@@ -369,43 +419,37 @@ export default function ProjectPage() {
               >
                 {briefMutation.isPending ? '…' : <><BriefIcon /><span className="btn-label">Brief</span></>}
               </button>
+              <HelpButton size="sm" className="hide-on-mobile" onClick={() => setTourOpen(true)} label="Replay the tour" />
             </>
           )}
-          {isReady && (
-            <HelpButton size="sm" className="hide-on-mobile" onClick={() => setTourOpen(true)} label="Replay the tour" />
-          )}
-          <ThemeToggle size="sm" />
         </div>
-      </div>
+      </header>
 
       {/* ── Tab bar — exposed as tablist (M-2, WCAG 4.1.2) ── */}
-      <div
-        className="project-tab-bar"
-        role="tablist"
-        aria-label="Project views"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            id={TAB_ID(t.id)}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            aria-controls={PANEL_ID}
-            className={`tab-btn${tab === t.id ? ' active' : ''}`}
-            onClick={() => handleTabClick(t.id)}
-          >
-            {t.label}
-            {t.id === 'opportunities' && oppCount > 0 && (
-              <span className="tab-count" aria-label={`${oppCount} opportunities`}>{oppCount}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      {isReady && nodeCount > 0 && (
+        <div className="project-tab-bar" role="tablist" aria-label="Project views">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              id={TAB_ID(t.id)}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              aria-controls={PANEL_ID}
+              className={`tab-btn${tab === t.id ? ' active' : ''}`}
+              onClick={() => handleTabClick(t.id)}
+            >
+              <span className="tab-long">{t.label}</span>
+              <span className="tab-short">{t.short}</span>
+              {t.count > 0 && <span className="tab-count">{`\u00a0·\u00a0${pad(t.count)}`}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Body ── */}
       {isBuilding ? (
-        <BuildingScreen />
+        <BuildingScreen topic={project.topic} />
 
       ) : project.status === 'error' ? (
         <StateScreen
@@ -435,74 +479,82 @@ export default function ProjectPage() {
           id={PANEL_ID}
           role="tabpanel"
           aria-labelledby={TAB_ID('opportunities')}
-          style={{ display: 'flex', flex: 1, overflow: 'hidden' }}
+          style={{ display: 'flex', flex: 1, overflow: 'auto' }}
         >
-          <OpportunityBoard opportunities={oppsData?.opportunities ?? []} loading={isReady && !oppsData} />
+          <OpportunityBoard opportunities={opps} loading={isReady && !oppsData} onShowOnMap={showOppOnMap} />
         </div>
 
       ) : (
-        <div className="graph-view" id={PANEL_ID} role="tabpanel" aria-labelledby={TAB_ID(tab)}>
+        <div className={`graph-view${showClusters ? ' mode-clusters' : ''}`} id={PANEL_ID} role="tabpanel" aria-labelledby={TAB_ID(tab)}>
           {/* Canvas — always mounted so cluster highlights persist across tabs */}
           <div className="graph-canvas-wrap">
             {graphData ? (
-              <Suspense fallback={<div className="full-center"><div className="spinner" /></div>}>
+              <Suspense fallback={<div className="full-center"><div className="spinner" role="status" aria-label="Loading graph" /></div>}>
                 <GraphCanvas
                   nodes={graphData.nodes}
                   edges={graphData.edges}
-                  theme={theme}
                   selectedId={selectedId}
                   onNodeClick={handleNodeClick}
                   onCyInit={setCy}
                 />
                 <GraphLegend nodes={graphData.nodes} />
-                <div className="graph-hint" aria-hidden="true">Drag nodes · scroll to zoom · double-click to fit</div>
+                <GraphControls cy={cy} reducedMotion={reducedMotion} />
+                {!askOpen && (
+                  <button type="button" className="ask-bar" onClick={openAsk}>
+                    <span aria-hidden="true">&gt;&nbsp;</span>
+                    <span className="ask-bar-long">ask the map</span>
+                    <span className="ask-bar-short">ask</span>
+                  </button>
+                )}
               </Suspense>
             ) : (
-              <div className="full-center"><div className="spinner" /></div>
+              <div className="full-center"><div className="spinner" role="status" aria-label="Loading graph" /></div>
             )}
           </div>
 
           {/* Backdrop — dims canvas when the panel is open on mobile */}
           <div className="panel-backdrop" onClick={closePanel} aria-hidden="true" />
 
-          {/* Sidebar / bottom sheet */}
-          <div
-            className="graph-sidebar"
-            aria-label={sidebarLabel}
-          >
+          {/* Right panel (inspector / ask) · left list for clusters · bottom sheet on mobile */}
+          <aside className="graph-sidebar" aria-label={sidebarLabel}>
             <div className="sidebar-drag-handle" aria-hidden="true" />
             <div className="sidebar-mobile-header">
-              <span className="sidebar-mobile-label">{sidebarLabel}</span>
-              <button className="sidebar-close" onClick={closePanel} aria-label="Close panel">✕</button>
+              <span className="label">{sidebarLabel}</span>
+              <button className="panel-close" onClick={closePanel} aria-label="Close panel">×</button>
             </div>
 
-            {tab === 'clusters' ? (
+            {showClusters ? (
               <ClusterPanel
-                clusters={clustersData?.clusters ?? []}
+                clusters={clusters}
                 activeClusterId={highlightClusterId}
                 onClusterClick={handleClusterClick}
                 loading={isReady && !clustersData}
+                oppCountFor={(c) => opps.filter((o) => o.cluster_db_id === c.id).length}
+                onSeeOpportunities={() => handleTabClick('opportunities')}
               />
-            ) : tab === 'ask' ? (
+            ) : askOpen ? (
               <AskPanel
-                onAsk={(q) => askMutation.mutate(q)}
+                onAsk={(q) => { setAskedText(q); askMutation.mutate(q) }}
+                question={askedText}
                 pending={askMutation.isPending}
                 result={askResult}
                 error={askMutation.isError ? (askMutation.error?.message || 'Ask failed') : ''}
                 onPickSource={centreNode}
+                onClose={closeAsk}
               />
             ) : (
               <EntityCard
                 entity={entityData}
                 loading={!!selectedId && !entityData}
                 onNeighborClick={(nid) => setSelectedId(nid)}
+                onAsk={selectedId ? openAsk : undefined}
               />
             )}
-          </div>
+          </aside>
         </div>
       )}
 
-      {/* ── Brief modal ──
+      {/* ── Brief modal — reading view ──
           role="dialog" + aria-modal + aria-labelledby + focus trap + Escape (C-3)  */}
       {brief && (
         <div
@@ -520,11 +572,14 @@ export default function ProjectPage() {
             onKeyDown={handleBriefKeyDown}
           >
             <div className="brief-modal-header">
-              <span id={BRIEF_TITLE_ID} className="brief-modal-title">Research Brief</span>
+              <span id={BRIEF_TITLE_ID} className="label brief-modal-title">
+                Research brief · {project.topic} · {project.region} · {briefDate}
+              </span>
               <div className="brief-modal-actions">
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary"
+                  aria-label="Download brief as Markdown"
                   onClick={() => {
                     const blob = new Blob([brief.markdown], { type: 'text/markdown' })
                     const a = document.createElement('a')
@@ -534,11 +589,12 @@ export default function ProjectPage() {
                     URL.revokeObjectURL(a.href)
                   }}
                 >
-                  <span className="btn-label">Download</span> .md
+                  .md
                 </button>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary"
+                  aria-label="Print brief"
                   onClick={() => {
                     const win = window.open('', '_blank')
                     if (!win) { setToast('Allow pop-ups to print the brief.'); return }
@@ -568,7 +624,7 @@ export default function ProjectPage() {
                 >
                   Print
                 </button>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setBrief(null)} aria-label="Close brief">✕</button>
+                <button type="button" className="btn btn-ghost brief-close" onClick={() => setBrief(null)} aria-label="Close brief">×</button>
               </div>
             </div>
             <div

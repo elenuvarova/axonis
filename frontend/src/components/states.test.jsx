@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { StateScreen, InlineError, BuildingScreen } from './states'
 
 describe('StateScreen', () => {
@@ -28,8 +29,8 @@ describe('InlineError', () => {
 
 describe('BuildingScreen', () => {
   it('shows the heading and the first pipeline step', () => {
-    render(<BuildingScreen />)
-    expect(screen.getByText('Building your knowledge graph')).toBeInTheDocument()
+    render(<MemoryRouter><BuildingScreen /></MemoryRouter>)
+    expect(screen.getByText('Building your map')).toBeInTheDocument()
     expect(screen.getByText('Expanding the topic into search terms')).toBeInTheDocument()
   })
 })

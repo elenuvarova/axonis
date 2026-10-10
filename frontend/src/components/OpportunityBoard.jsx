@@ -1,65 +1,78 @@
 import { useState } from 'react'
 import { OppSkeleton, StateScreen } from './states'
+import CellBar from './CellBar'
+import { pad } from '../format'
 
-function RiskBadge({ level }) {
-  return <span className={`badge risk-${level}`}>{level} risk</span>
-}
-
-function OppCard({ opp }) {
+function OppCard({ opp, index, onShowOnMap }) {
   const [expanded, setExpanded] = useState(false)
+  const score = Math.round(Math.min(1, Math.max(0, opp.score || 0)) * 100)
+  const evidence = Math.round(Math.min(1, Math.max(0, opp.evidence_strength || 0)) * 5)
 
   return (
-    <div className="opp-card">
-      <div className="opp-card-header">
-        <div className="opp-card-title">{opp.title}</div>
-        <RiskBadge level={opp.risk_level} />
+    <article className="opp-card">
+      <div className="opp-card-top label">
+        <span>Opp_{pad(index + 1)}</span>
+        <span>Risk · {opp.risk_level}</span>
       </div>
+
+      <div className="opp-score">
+        <span className="opp-score-num" aria-label={`Score ${score} out of 100`}>{score}</span>
+        <span className="opp-score-max" aria-hidden="true">/100</span>
+      </div>
+
+      <h3 className="opp-card-title">{opp.title}</h3>
 
       {opp.cluster_name && (
         <div className="opp-cluster-meta">
           Cluster: {opp.cluster_name}
           {opp.cluster_size && <span> · {opp.cluster_size} nodes</span>}
+          {opp.generated_by_ai && <span className="opp-ai-flag"> · AI-written</span>}
         </div>
       )}
 
       <p className="opp-why">{opp.why_it_matters}</p>
 
       {expanded && (
-        <>
+        <div className="opp-more">
           {opp.risks?.length > 0 && (
             <div>
-              <div className="opp-section-label">Risks</div>
+              <div className="label">Risks</div>
               <ul className="opp-list">{opp.risks.map((r, i) => <li key={i}>{r}</li>)}</ul>
             </div>
           )}
           {opp.next_questions?.length > 0 && (
             <div>
-              <div className="opp-section-label">Next research questions</div>
+              <div className="label">Next research questions</div>
               <ul className="opp-list">{opp.next_questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
             </div>
           )}
-        </>
+        </div>
       )}
 
-      <div>
-        <div className="opp-section-label">Evidence strength</div>
-        <div className="opp-score-bar">
-          <div className="opp-score-fill" style={{ width: `${(opp.evidence_strength || 0) * 100}%` }} />
-        </div>
+      <div className="opp-evidence">
+        <span className="label">Evidence</span>
+        <CellBar value={evidence / 5} cells={5} size="lg" />
+        <span className="opp-evidence-n">{evidence}/5</span>
       </div>
 
       <div className="opp-footer">
-        <span>score {(opp.score || 0).toFixed(3)}</span>
-        {opp.generated_by_ai && <span className="opp-ai-flag">✦ AI</span>}
-        <button className="btn btn-secondary btn-sm" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? 'Less' : 'More'}
+        {onShowOnMap && opp.cluster_db_id && (
+          <button type="button" className="btn btn-secondary" onClick={() => onShowOnMap(opp)}>Show on map</button>
+        )}
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'Less' : 'Risks & questions'}<span aria-hidden="true">&nbsp;→</span>
         </button>
       </div>
-    </div>
+    </article>
   )
 }
 
-export default function OpportunityBoard({ opportunities = [], loading }) {
+export default function OpportunityBoard({ opportunities = [], loading, onShowOnMap }) {
   if (loading) return <OppSkeleton />
 
   if (!opportunities.length) {
@@ -72,11 +85,13 @@ export default function OpportunityBoard({ opportunities = [], loading }) {
     )
   }
 
+  const sorted = [...opportunities].sort((a, b) => (b.score || 0) - (a.score || 0))
+
   return (
     <div className="opp-board">
-      <h3>Opportunities · {opportunities.length}</h3>
+      <h2 className="label opp-board-head">{pad(sorted.length)} opportunities · sorted by score</h2>
       <div className="opp-grid">
-        {opportunities.map((o) => <OppCard key={o.id} opp={o} />)}
+        {sorted.map((o, i) => <OppCard key={o.id} opp={o} index={i} onShowOnMap={onShowOnMap} />)}
       </div>
     </div>
   )

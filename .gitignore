@@ -13,3 +13,11 @@ backend/public/
 .DS_Store
 *.sqlite
 *.sqlite-journal
+
+# Design work: renders and scenes stay local, third-party reference screenshots
+# stay out of the public repo (they live in Figma), course notes are not this app.
+design-assets/
+docs/design-research/b2/refs/
+docs/design-research/b2/principal/
+docs/design-research/new-project-ideas/
+vibecoding master/

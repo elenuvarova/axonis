@@ -7,7 +7,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:3001",
+      // Set API_PROXY_TARGET to point the dev server at another backend (e.g. a deployed site).
+      "/api": { target: process.env.API_PROXY_TARGET || "http://localhost:3001", changeOrigin: true, secure: true },
     },
   },
   build: {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Knowledge Graph Explorer</title>
+    <title>Axonis — knowledge graph explorer</title>
     <meta
       name="description"
       content="Type any domain and get a structured, interactive knowledge graph of its concepts, research, organisations and product-opportunity areas — built from open data in about thirty seconds."
@@ -15,39 +15,28 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 
-    <!-- Theme colour follows the active scheme -->
-    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)" />
+    <!-- B² is dark only -->
+    <meta name="theme-color" content="#0E0E0E" />
 
     <!-- Social preview -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Knowledge Graph Explorer" />
+    <meta property="og:title" content="Axonis — knowledge graph explorer" />
     <meta
       property="og:description"
       content="From a typed topic to a navigable map of a domain — and where the product openings are — in one tab."
     />
     <meta property="og:image" content="/icon-512.png" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Knowledge Graph Explorer" />
+    <meta name="twitter:title" content="Axonis — knowledge graph explorer" />
     <meta
       name="twitter:description"
       content="From a typed topic to a navigable map of a domain — and where the product openings are — in one tab."
     />
     <script>
-      // Set the theme before first paint to avoid a flash of the wrong colours.
-      (function () {
-        try {
-          var k = 'kge-theme', t = localStorage.getItem(k);
-          if (t !== 'light' && t !== 'dark') {
-            t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-          }
-          document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-      })();
+      // B² is dark only; set it before first paint.
+      document.documentElement.setAttribute('data-theme', 'dark');
     </script>
-    <script defer src="https://stats.ontwrpn.com/script.js" data-exclude-search="true" data-exclude-hash="true" data-website-id="49493b63-b14b-43bf-8b6a-8500fbd64b33" data-domains="knowledge-graph-explorer.ontwrpn.com"></script>
+    <script defer src="https://stats.ontwrpn.com/script.js" data-exclude-search="true" data-exclude-hash="true" data-website-id="49493b63-b14b-43bf-8b6a-8500fbd64b33" data-domains="axonis.app,knowledge-graph-explorer.ontwrpn.com"></script>
   </head>
   <body>
     <div id="root"></div>

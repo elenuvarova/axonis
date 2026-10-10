@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useCallback } from 'react'
 import CytoscapeComponent from 'react-cytoscapejs'
 import Cytoscape from 'cytoscape'
 import cola from 'cytoscape-cola'
-import { TYPE_COLOR, DEFAULT_COLOR } from '../graphTypes'
+import { typeShape } from '../graphTypes'
+import usePrefersReducedMotion from '../usePrefersReducedMotion'
 
 // Register the cola physics layout once (guard against HMR double-registration).
 try { Cytoscape.use(cola) } catch { /* already registered */ }
@@ -14,51 +15,73 @@ function cssVar(name, fallback) {
   } catch { return fallback }
 }
 
-// Stylesheet is rebuilt per theme so labels/edges read from the design tokens.
+// B² graph style: type is encoded by SHAPE (set in buildElements), every node is
+// the text colour, selection/highlight is the single accent. Colours are read
+// from the CSS tokens so the canvas and the page never drift apart.
 function makeStylesheet() {
-  const label   = cssVar('--graph-label', '#cbd5e1')
-  const outline = cssVar('--graph-label-out', '#0d1117')
-  const edge    = cssVar('--graph-edge', '#30363d')
-  const accent  = cssVar('--accent-bright', '#a78bfa')
-  const select  = cssVar('--text', '#e6edf3')
+  const text    = cssVar('--text', '#EDEDED')
+  const text2   = cssVar('--text-2', '#8A8A8A')
+  const bg      = cssVar('--bg', '#0E0E0E')
+  const edge    = cssVar('--line-strong', '#3A3A3A')
+  const accent  = cssVar('--accent', '#FF2BD6')
+  const mono    = '"Martian Mono", ui-monospace, monospace'
 
   return [
     {
       selector: 'node',
       style: {
-        'background-color': 'data(color)',
+        'shape': 'data(shape)',
+        'background-color': text,
         // Only prominent nodes keep a persistent label so dense graphs stay
         // readable; the rest reveal theirs on hover / selection / highlight.
         'label': 'data(displayLabel)',
         'width': 'data(size)',
         'height': 'data(size)',
-        'font-size': 9,
-        'min-zoomed-font-size': 7,
-        'color': label,
-        'text-wrap': 'wrap',
-        'text-max-width': '78px',
-        'text-valign': 'bottom',
-        'text-margin-y': 4,
-        'text-outline-color': outline,
-        'text-outline-width': 2,
+        'font-family': mono,
+        'font-size': 11,
+        'min-zoomed-font-size': 6,
+        'color': text2,
+        'text-valign': 'center',
+        'text-halign': 'right',
+        'text-margin-x': 6,
+        // Label plate: a bg-coloured block behind the text so crossing edges
+        // and neighbouring labels never run through the letters.
+        'text-background-color': bg,
+        'text-background-opacity': 0.88,
+        'text-background-padding': 2,
+        'text-background-shape': 'rectangle',
         'border-width': 0,
         'overlay-padding': 8,
         'overlay-opacity': 0,
-        'transition-property': 'border-width, border-color, opacity, background-color',
+        'transition-property': 'opacity, background-color',
         'transition-duration': '0.15s',
       },
     },
+    // Hubs read larger and in the full text colour.
+    { selector: 'node[?hub]', style: { 'font-size': 13, 'color': text } },
     // Reveal the full label whenever a node is focused (hover/select/highlight).
-    { selector: 'node.show-label', style: { 'label': 'data(label)', 'z-index': 19 } },
-    { selector: 'node:selected', style: { 'border-width': 3, 'border-color': select, 'label': 'data(label)', 'z-index': 20 } },
-    { selector: 'node.highlighted', style: { 'border-width': 2.5, 'border-color': '#fbbf24', 'label': 'data(label)', 'z-index': 18 } },
-    { selector: 'node.faded', style: { 'opacity': 0.16 } },
+    { selector: 'node.show-label', style: { 'label': 'data(label)', 'color': text, 'z-index': 19 } },
+    {
+      selector: 'node:selected',
+      style: {
+        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': 13, 'z-index': 20,
+        'outline-width': 1, 'outline-style': 'dashed', 'outline-color': accent, 'outline-offset': 6,
+      },
+    },
+    {
+      selector: 'node.highlighted',
+      style: {
+        'border-width': 1.5, 'border-color': accent, 'color': accent, 'label': 'data(label)', 'z-index': 18,
+        'outline-width': 1, 'outline-style': 'solid', 'outline-color': accent, 'outline-offset': 5,
+      },
+    },
+    { selector: 'node.faded', style: { 'opacity': 0.2 } },
     {
       selector: 'edge',
-      style: { 'width': 1, 'line-color': edge, 'opacity': 0.65, 'curve-style': 'bezier' },
+      style: { 'width': 1, 'line-color': edge, 'opacity': 1, 'curve-style': 'straight' },
     },
-    { selector: 'edge.highlighted', style: { 'line-color': accent, 'opacity': 0.9, 'width': 1.6 } },
-    { selector: 'edge.faded', style: { 'opacity': 0.06 } },
+    { selector: 'edge.highlighted', style: { 'line-color': accent, 'opacity': 1, 'width': 1 } },
+    { selector: 'edge.faded', style: { 'opacity': 0.2 } },
   ]
 }
 
@@ -69,9 +92,9 @@ const COLA = {
   animate: true,
   refresh: 2,
   fit: true,
-  padding: 48,
-  nodeSpacing: 10,
-  edgeLength: 95,
+  padding: 72,  // clears the legend, controls and the ask bar that float over the canvas
+  nodeSpacing: 14,
+  edgeLength: 100,
   randomize: false,
   handleDisconnected: true,
   convergenceThreshold: 0.04,
@@ -91,7 +114,7 @@ const COLA_LIVE = {
   infinite: true,
   fit: false,
   nodeSpacing: 22,
-  edgeLength: 85,
+  edgeLength: 100,
   handleDisconnected: false,
   ungrabifyWhileSimulating: false,
 }
@@ -102,22 +125,29 @@ function buildElements(nodes, edges) {
   // isn't an unreadable wall of overlapping text. Everything else reveals its
   // label on hover / selection / cluster highlight. Small graphs label all.
   const N = nodes.length
-  const K = N <= 14 ? N : Math.min(28, Math.max(12, Math.round(N * 0.28)))
+  const K = N <= 12 ? N : Math.min(20, Math.max(10, Math.round(N * 0.2)))
   const labelled = new Set(
     [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, K).map((n) => n.id)
   )
 
+  // Hubs = the three best-connected nodes. A star graph's leaves all share one
+  // degree, so a degree cut-off alone would promote every leaf to a hub.
+  const hubs = new Set(
+    [...nodes].filter((n) => (n.degree || 0) > 0)
+      .sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, 3).map((n) => n.id)
+  )
   const els = []
   for (const n of nodes) {
     const degree = n.degree || 0
     const bridge = n.bridge_score || 0
-    const size = Math.max(16, Math.min(52, 16 + degree * 160 + bridge * 40))
+    const size = Math.max(7, Math.min(22, 7 + degree * 60 + bridge * 14))
     const label = n.name.length > 24 ? n.name.slice(0, 22) + '…' : n.name
+    const isHub = hubs.has(n.id)
     els.push({
       data: {
         id: n.id, label, displayLabel: labelled.has(n.id) ? label : '',
-        fullName: n.name, type: n.type,
-        color: TYPE_COLOR[n.type] || DEFAULT_COLOR, size,
+        fullName: n.name, type: n.type, shape: typeShape(n.type), hub: isHub,
+        size,
         cluster_id: n.cluster_id || '0',
         source: n.source, source_url: n.source_url, description: n.description,
         degree: n.degree, bridge_score: n.bridge_score, betweenness: n.betweenness,
@@ -130,16 +160,15 @@ function buildElements(nodes, edges) {
   return els
 }
 
-// Respect the user's motion preference: disable Cytoscape physics animation and
-// cy.animate() calls when prefers-reduced-motion is active (WCAG 2.3.3 / M-1).
-const prefersReducedMotion =
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 export default function GraphCanvas({
-  nodes = [], edges = [], theme = 'dark',
+  nodes = [], edges = [],
   selectedId, onNodeClick, onCyInit,
 }) {
+  // Respect the user's motion preference: disable Cytoscape physics animation and
+  // cy.animate() calls when prefers-reduced-motion is active (WCAG 2.3.3).
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const reducedRef = useRef(prefersReducedMotion)
+  reducedRef.current = prefersReducedMotion
   const cyRef = useRef(null)
   const liveLayout = useRef(null)
   // Stable ref so Cytoscape event handlers always call the current prop.
@@ -158,10 +187,22 @@ export default function GraphCanvas({
     // Phase 1: settle nodes into position (finite, fits viewport).
     // Phase 2: once settled, switch to infinite physics so nodes stay alive
     // even without user interaction. Skipped under prefers-reduced-motion.
-    const bootLayout = cy.layout({ ...COLA, animate: !prefersReducedMotion })
+    // Small graphs get longer edges so they fill the frame instead of clumping
+    // in the middle with their labels piled on top of each other.
+    const edgeLength = cy.nodes().length < 40 ? 120 : COLA.edgeLength
+    const bootLayout = cy.layout({ ...COLA, edgeLength, animate: !reducedRef.current })
     bootLayout.one('layoutstop', () => {
-      if (prefersReducedMotion) return
-      liveLayout.current = cy.layout(COLA_LIVE)
+      if (cy.destroyed()) return
+      // Keep labels at a readable size: a small graph should not be fitted to a huge zoom.
+      if (cy.zoom() > 1.1) { cy.zoom(1.1); cy.center() }
+      // On a phone a fitted graph is a speck; start at a zoom where labels read (~9px), centred on the biggest hub.
+      if (cy.width() < 600 && cy.zoom() < 0.85 && cy.nodes().length) {
+        const hub = cy.nodes().max((n) => n.data('size')).ele
+        cy.zoom({ level: 0.85, position: hub.position() })
+        cy.center(hub)
+      }
+      if (reducedRef.current) return
+      liveLayout.current = cy.layout({ ...COLA_LIVE, edgeLength })
       liveLayout.current.run()
     })
     bootLayout.run()
@@ -176,7 +217,7 @@ export default function GraphCanvas({
     })
 
     cy.on('dbltap', (evt) => {
-      if (evt.target === cy) cy.animate({ fit: { padding: 48 }, duration: prefersReducedMotion ? 0 : 400 })
+      if (evt.target === cy) cy.animate({ fit: { padding: 72 }, duration: reducedRef.current ? 0 : 400 })
     })
 
     // Hover → fade non-neighbours. Debounced 40 ms so fast mouse movement
@@ -210,11 +251,6 @@ export default function GraphCanvas({
 
   useEffect(() => {
     const cy = cyRef.current
-    if (cy) cy.style(makeStylesheet())
-  }, [theme])
-
-  useEffect(() => {
-    const cy = cyRef.current
     if (!cy) return
     cy.batch(() => {
       cy.nodes().unselect()
@@ -236,7 +272,7 @@ export default function GraphCanvas({
     >
       <p className="sr-only">
         This is an interactive force-directed graph showing {nodeCount} entities and {edgeCount} relationships.
-        Use the Clusters tab in the sidebar to explore groups of related nodes, or the Ask tab to query the graph.
+        Use the Clusters tab in the sidebar to explore groups of related nodes, or the Ask the map bar to query the graph.
       </p>
       <CytoscapeComponent
         elements={elements}
