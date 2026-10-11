@@ -6,6 +6,7 @@ import { canEdit } from '../myProjects'
 import Ticker from '../components/Ticker'
 import SheetHandle, { SNAPS } from '../components/SheetHandle'
 import BriefModal from '../components/BriefModal'
+import GapReveal from '../components/GapReveal'
 import { fitFree } from '../graphFit'
 import { getProject, getGraph, getClusters, getOpportunities, getEntity, getBrief, buildProject, uploadDocument, askQuestion } from '../api'
 
@@ -77,7 +78,6 @@ export default function ProjectPage() {
   const [askResult, setAskResult] = useState(null)
   const [toast, setToast] = useState('')
   const [tourOpen, setTourOpen] = useState(false)
-  const tourStarted = useRef(false)
   const pendingCluster = useRef(null)
 
   const projectTour = [
@@ -176,19 +176,36 @@ export default function ProjectPage() {
     queryKey: ['entity', id, selectedId], queryFn: () => getEntity(id, selectedId), enabled: !!selectedId,
   })
 
-  // First-time project tour — auto-starts once the graph is on screen.
+  // The tour no longer opens by itself (it covered the map on first sight);
+  // the gap reveal below is the first-run moment. "?" and ⌘K replay the tour.
+
+  // Gap reveal: once per map per session, after the first layout settles,
+  // light the top opportunity clusters with callouts (GapReveal).
+  const [reveal, setReveal] = useState(null)
   useEffect(() => {
-    if (tourStarted.current) return
-    const nodes = graphData?.stats?.node_count ?? 0
-    if (project?.status !== 'ready' || !graphData || nodes === 0) return
-    tourStarted.current = true
-    let done = false
-    try { done = !!localStorage.getItem('kge-tour-project') } catch { /* ignore */ }
-    if (done) return
-    setTab('graph')
-    const t = setTimeout(() => setTourOpen(true), 750)
-    return () => clearTimeout(t)
-  }, [project, graphData])
+    if (!cy || !oppsData || !clustersData || project?.status !== 'ready') return
+    const key = `axonis-reveal-${id}`
+    try { if (sessionStorage.getItem(key)) return } catch { return }
+    const byId = new Map((clustersData.clusters || []).map((c) => [c.id, c]))
+    const seen = new Set()
+    const items = [...(oppsData.opportunities || [])]
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .map((o) => ({ o, c: byId.get(o.cluster_db_id) }))
+      .filter(({ c }) => c && !seen.has(c.cluster_id) && seen.add(c.cluster_id))
+      .slice(0, window.matchMedia?.('(max-width: 767px)').matches ? 2 : 3)
+      .map(({ o, c }, i) => ({ rank: i + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
+    if (!items.length) return
+    // marked as seen only when it actually shows, so an effect that is set
+    // up and torn down early (StrictMode, a quick tab switch) can't eat it
+    const show = () => {
+      if (cy.destroyed()) return
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1') } catch { return }
+      setReveal(items)
+    }
+    cy.one('layoutstop', show)
+    const t = setTimeout(show, reducedMotion ? 300 : 1800)
+    return () => { clearTimeout(t); cy.off('layoutstop', show) }
+  }, [cy, oppsData, clustersData, project?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only demo maps put their topic in the title and description. Umami and
   // Clarity both send document.title with every event, so a visitor's own
@@ -668,6 +685,10 @@ export default function ProjectPage() {
                   />
                 )}
                 {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
+                {reveal && tab === 'graph' && !listView && (
+                  <GapReveal cy={cy} items={reveal} onDone={() => setReveal(null)}
+                    onOpen={() => { setReveal(null); handleTabClick('opportunities') }} />
+                )}
                 <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId}
                   listView={listView} onToggleList={() => { track('list_view', { on: !listView }); setListView(!listView) }}
                   onFind={() => { track('cmdk_open', { via: 'rail' }); setPaletteOpen(true) }}

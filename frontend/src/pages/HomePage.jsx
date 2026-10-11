@@ -147,14 +147,8 @@ export default function HomePage() {
     try { sessionStorage.setItem(INTRO_KEY, '1') } catch { /* ignore */ }
   }, [])
 
-  // First-visit tour (once); replayable via HOW IT WORKS.
-  useEffect(() => {
-    let done = false
-    try { done = !!localStorage.getItem(TOUR_KEY) } catch { /* ignore */ }
-    if (done) return
-    const t = setTimeout(() => setTourOpen(true), 650)
-    return () => clearTimeout(t)
-  }, [])
+  // The tour no longer opens by itself: the home is one field and a button,
+  // and an overlay in the first seconds hid exactly that. HOW IT WORKS opens it.
 
   const closeTour = () => {
     setTourOpen(false)

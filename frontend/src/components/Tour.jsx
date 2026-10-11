@@ -94,7 +94,9 @@ export default function Tour({ steps = [], open, onClose }) {
       {rect && !centered ? (
         <div
           className="tour-spotlight"
-          style={{ top: rect.top - 6, left: rect.left - 6, width: rect.width + 12, height: rect.height + 12 }}
+          // moved with transform, not top/left: moving a fixed box by its offsets
+          // is reported as layout shift (CLS) on every step
+          style={{ top: 0, left: 0, transform: `translate(${rect.left - 6}px, ${rect.top - 6}px)`, width: rect.width + 12, height: rect.height + 12 }}
           aria-hidden="true"
         />
       ) : (

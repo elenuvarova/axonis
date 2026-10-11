@@ -69,11 +69,21 @@ export default function LetterSphere({ paused = false, reducedMotion = false, as
     let w = 0, h = 0, dpr = 1, raf = 0, last = 0, visible = true
     // Entrance: letters fly from scattered positions into the sphere (easeOutCubic).
     const introDelay = cssMs('--hero-t-sphere', 200), introDur = cssMs('--hero-sphere-dur', 1200)
-    const introStart = performance.now()
+    // The clock starts once the glyph font is ready: started at mount, most
+    // of the entrance ran while the page was still loading and was missed.
+    let introStart = null
     let intro = assembleRef.current
+    if (intro) {
+      const begin = () => { if (introStart == null) introStart = performance.now() }
+      Promise.race([
+        document.fonts?.load?.('500 16px "Martian Mono"') ?? Promise.resolve(),
+        new Promise((r) => setTimeout(r, 1500)), // never wait longer than this
+      ]).then(begin, begin)
+    }
     // 0 = scattered, 1 = assembled
     const progress = () => {
       if (!intro) return 1
+      if (introStart == null) return 0
       const p = (performance.now() - introStart - introDelay) / introDur
       if (p >= 1) { intro = false; return 1 }
       return Math.max(0, p)
