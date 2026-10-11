@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import ProjectPage from './pages/ProjectPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ErrorBoundary from './components/ErrorBoundary'
+import ConsentBar from './components/ConsentBar'
 import './styles.css'
 import './ux.css'
 
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/project/:id" element={<ProjectPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
+            <ConsentBar />
           </div>
         </ErrorBoundary>
       </BrowserRouter>
