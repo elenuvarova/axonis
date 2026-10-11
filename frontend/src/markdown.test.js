@@ -40,4 +40,11 @@ describe('renderMarkdown', () => {
   it('escapeHtml escapes the five HTML-significant characters', () => {
     expect(escapeHtml(`<>&"'`)).toBe('&lt;&gt;&amp;&quot;&#39;')
   })
+
+  it('keeps a loose ordered list (blank lines between items) as one list', () => {
+    const html = renderMarkdown('1. One\n\n2. Two\n\n3. Three\n\nAfter')
+    expect(html.match(/<ol>/g)).toHaveLength(1)
+    expect(html.match(/<li>/g)).toHaveLength(3)
+    expect(html).toContain('<p>After</p>')
+  })
 })
