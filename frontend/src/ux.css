@@ -201,3 +201,42 @@ html.vt-route::view-transition-new(root) { animation: vt-fade-in 280ms 120ms ste
 .build-field { display: block; width: 100%; height: 100%; }
 /* the build field grows into the map canvas when a watched build finishes */
 .build-preview-canvas { view-transition-name: graph-canvas; }
+
+/* Absolutely positioned helpers (the Ticker's screen-reader copy, callouts)
+   need a positioned ancestor inside the page; without one they anchor to
+   the document, stretch it, and the page scrolls behind the panel that
+   should be the only scroller (double scroll on Opportunities). */
+.project-page { position: relative; }
+.ticker { position: relative; }
+
+/* ── Print (⌘P from the app) ─────────────────────────────────────────
+   The app is a fixed-height window with internal scrollers, so a plain
+   print kept the dark theme and cut everything below the first screen.
+   In print: light colours, full height, no app chrome. With the brief
+   open, only the brief prints. (The brief's own Print button writes a
+   separate print-ready page.) */
+@media print {
+  @page { size: A4; margin: 18mm 18mm 20mm; }
+  :root, :root[data-theme="dark"] { color-scheme: light; }
+  :root, :root[data-theme="dark"] {
+    --bg: #fff; --panel: #fff; --raised: #fff; --panel-glass: #fff;
+    --line: #dcdcdc; --line-strong: #bdbdbd; --line-control: #9a9a9a;
+    --text: #111; --text-2: #555; --text-3: #8a8a8a; --accent: #c4009f; --accent-soft: rgba(196, 0, 159, 0.08);
+  }
+  html, body, #root, .app, .project-page, .project-main, [role="tabpanel"], .home-body {
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+    overflow: visible !important; background: #fff !important; color: #111 !important;
+  }
+  .project-main, [role="tabpanel"] { display: block !important; flex: none !important; }
+  .skip-link, .consent-bar, .toast, .graph-controls, .ask-bar, .header-actions, .project-tab-bar,
+  .hero-toggle, .gap-reveal, .graph-overlay, .panel-backdrop, .sidebar-drag-handle, .home-footer, .demo-row { display: none !important; }
+
+  /* brief open: print only the brief, as a document */
+  body:has(.brief-overlay) .project-page > :not(.brief-overlay) { display: none !important; }
+  .brief-overlay { position: static !important; inset: auto !important; padding: 0 !important; display: block !important; background: #fff !important; }
+  .brief-modal { display: block !important; max-width: none !important; border: 0 !important; background: #fff !important; }
+  .brief-modal-header, .brief-progress { display: none !important; }
+  .brief-content { overflow: visible !important; height: auto !important; flex: none !important; padding: 0 !important; }
+  .brief-rendered h2, .brief-rendered h3 { break-after: avoid; }
+  .brief-rendered tr, .brief-rendered blockquote, .opp-card { break-inside: avoid; } /* rows stay whole; a long table may span pages */
+}

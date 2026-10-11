@@ -781,7 +781,7 @@ export default function ProjectPage() {
       </main>
 
       {/* ── Brief reading view ── */}
-      {brief && <BriefModal brief={brief} project={project} onClose={() => setBrief(null)} returnFocusRef={briefBtnRef} onNotice={setToast} />}
+      {brief && <BriefModal brief={brief} project={project} onClose={() => setBrief(null)} returnFocusRef={briefBtnRef} onNotice={setToast} nodeCount={nodeCount} />}
 
       {/* ── Toast — transient errors (replaces alert()) ── */}
       <Toast message={toast} onClose={() => setToast('')} />
