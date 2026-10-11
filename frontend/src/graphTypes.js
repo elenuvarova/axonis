@@ -1,25 +1,32 @@
-// Single source of truth for entity-type colours and labels, shared by the
-// graph canvas (node fill), the entity card (type tag) and the graph legend.
+// Single source of truth for entity-type shapes and labels, shared by the
+// graph canvas (node shape), the entity card (type tag) and the graph legend.
+// B² encodes type by SHAPE, not colour: every node is the text colour.
 // Keep in sync with backend entity `type` values in models.py.
 
-export const TYPE_COLOR = {
-  concept:      '#a78bfa', // violet
-  organisation: '#34d399', // emerald
-  institution:  '#60a5fa', // blue
-  paper:        '#93c5fd', // light blue
-  regulation:   '#fbbf24', // amber
-  product:      '#f87171', // red
-  person:       '#f472b6', // pink
-  dataset:      '#2dd4bf', // teal
+export const TYPE_SHAPE = {
+  concept:      'ellipse',
+  paper:        'diamond',
+  organisation: 'rectangle',
+  institution:  'rectangle',
+  regulation:   'rectangle',
+  product:      'triangle',
+  person:       'ellipse',
+  dataset:      'diamond',
 }
 
-export const DEFAULT_COLOR = '#64748b'
+// Legend / tag glyphs matching the Cytoscape shapes (all exist in Martian Mono).
+export const SHAPE_GLYPH = {
+  ellipse:   '●',
+  diamond:   '◆',
+  rectangle: '■',
+  triangle:  '▲',
+}
 
 export const TYPE_LABEL = {
   concept:      'Concept',
-  organisation: 'Organisation',
+  organisation: 'Org',
   institution:  'Institution',
-  paper:        'Research paper',
+  paper:        'Paper',
   regulation:   'Regulation',
   product:      'Product',
   person:       'Person',
@@ -32,8 +39,12 @@ export const TYPE_ORDER = [
   'regulation', 'product', 'person', 'dataset',
 ]
 
-export function typeColor(type) {
-  return TYPE_COLOR[type] || DEFAULT_COLOR
+export function typeShape(type) {
+  return TYPE_SHAPE[type] || 'ellipse'
+}
+
+export function typeGlyph(type) {
+  return SHAPE_GLYPH[typeShape(type)]
 }
 
 export function typeLabel(type) {

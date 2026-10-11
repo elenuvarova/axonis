@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { clock, mmss, pad } from '../format'
 
 /* ── Icons ── */
 export function AlertIcon() {
@@ -13,13 +15,6 @@ export function GhostIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  )
-}
-function CheckIcon() {
-  return (
-    <svg className="build-step-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
     </svg>
   )
 }
@@ -57,8 +52,8 @@ export function InlineError({ message, onDismiss }) {
   )
 }
 
-/* ── Transient toast ── */
-export function Toast({ message, onClose }) {
+/* ── Transient toast ──  [OK] / [ERR] · message · ×  */
+export function Toast({ message, onClose, tone = 'error' }) {
   useEffect(() => {
     if (!message) return
     const t = setTimeout(() => onClose?.(), 4000)
@@ -67,7 +62,8 @@ export function Toast({ message, onClose }) {
   if (!message) return null
   return (
     <div className="toast" role="status">
-      <span>{message}</span>
+      <span className={`toast-tag${tone === 'ok' ? ' is-ok' : ''}`} aria-hidden="true">{tone === 'ok' ? '[OK]' : '[ERR]'}</span>
+      <span className="toast-message">{message}</span>
       <button className="toast-close" onClick={onClose} aria-label="Dismiss"><CloseIcon /></button>
     </div>
   )
@@ -117,51 +113,101 @@ export function EntitySkeleton() {
 /* ── Staged building screen ──
    The backend reports only "building", so these stages advance on a timer to
    show what the pipeline is doing during the ~30s build. They are the real
-   pipeline steps, in order. */
+   pipeline steps, in order. The elapsed counter and the log timestamps are
+   real clock time; no entity counts are shown because none are reported. */
 const BUILD_STEPS = [
-  'Expanding the topic into search terms',
-  'Fetching concepts from Wikidata',
-  'Querying OpenAlex for research & institutions',
-  'Resolving & de-duplicating entities',
-  'Building the graph & computing metrics',
-  'Detecting knowledge clusters',
-  'Scoring product opportunities',
-  'Writing AI insights',
+  { label: 'Expanding the topic into search terms', source: 'topic' },
+  { label: 'Fetching concepts from Wikidata', source: 'wikidata' },
+  { label: 'Querying OpenAlex for research & institutions', source: 'openalex' },
+  { label: 'Resolving & de-duplicating entities', source: 'resolve' },
+  { label: 'Building the graph & computing metrics', source: 'graph' },
+  { label: 'Detecting knowledge clusters', source: 'cluster' },
+  { label: 'Scoring product opportunities', source: 'score' },
+  { label: 'Writing AI insights', source: 'insights' },
 ]
+const STEP_MS = 3800
 
-export function BuildingScreen() {
+export function BuildingScreen({ topic }) {
   const [active, setActive] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
+  const [log, setLog] = useState(() => [{ time: clock(), source: BUILD_STEPS[0].source, message: `step 1/${BUILD_STEPS.length} · ${BUILD_STEPS[0].label}` }])
+
   useEffect(() => {
     const id = setInterval(() => {
       setActive((i) => (i < BUILD_STEPS.length - 1 ? i + 1 : i))
-    }, 3800)
+    }, STEP_MS)
     return () => clearInterval(id)
   }, [])
 
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setElapsed((Date.now() - t0) / 1000), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Append one real-timestamped line each time the active step changes.
+  useEffect(() => {
+    if (active === 0) return
+    const step = BUILD_STEPS[active]
+    setLog((l) => [...l, { time: clock(), source: step.source, message: `step ${active + 1}/${BUILD_STEPS.length} · ${step.label}` }])
+  }, [active])
+
   return (
-    // role="status" / aria-live="polite" announces build progress to screen readers (S-5)
-    <div className="build-screen" role="status" aria-live="polite" aria-atomic="false">
-      <div className="build-screen-head">
-        <div className="spinner" aria-hidden="true" />
-        <div className="build-title">Building your knowledge graph</div>
-        <div className="build-subtitle">Pulling open data and mapping the domain</div>
-      </div>
+    <div className="build-screen">
+      <section className="build-left">
+        <div className="label build-kicker">Build{topic ? ` · ${topic}` : ''}</div>
+        <h1 className="build-title">Building your map</h1>
+        <p className="build-subtitle">
+          This usually takes about 30 seconds, sometimes longer. You can leave — the map keeps building and appears in Recent when ready.
+        </p>
 
-      <div className="build-steps">
-        {BUILD_STEPS.map((label, i) => {
-          const state = i < active ? 'is-done' : i === active ? 'is-active' : ''
-          return (
-            <div key={label} className={`build-step ${state}`}>
-              <span className="build-step-icon">
-                {i < active ? <CheckIcon /> : <span className="build-step-dot" />}
-              </span>
-              <span>{label}</span>
-            </div>
-          )
-        })}
-      </div>
+        {/* role="status" / aria-live="polite" announces build progress to screen readers (S-5) */}
+        <ol className="build-steps" role="status" aria-live="polite" aria-atomic="false">
+          {BUILD_STEPS.map((step, i) => {
+            const state = i < active ? 'is-done' : i === active ? 'is-active' : ''
+            const mark = i < active ? '[✓]' : i === active ? '[>]' : '[ ]'
+            return (
+              <li key={step.label} className={`build-step ${state}`}>
+                <span className="build-step-mark" aria-hidden="true">{mark}</span>
+                <span>{step.label}</span>
+                {i < active && <span className="sr-only"> (done)</span>}
+                {i === active && <span className="sr-only"> (in progress)</span>}
+              </li>
+            )
+          })}
+        </ol>
 
-      <div className="build-note">This usually takes about 30 seconds.</div>
+        <Link to="/" className="btn btn-ghost build-back">Back to home</Link>
+      </section>
+
+      <section className="build-right">
+        <div className="counters">
+          <div className="counter">
+            <div className="label">Elapsed</div>
+            <div className="counter-num">{mmss(elapsed)}</div>
+          </div>
+          <div className="counter">
+            <div className="label">Step</div>
+            <div className="counter-num">{pad(active + 1)}<span className="counter-of">/{pad(BUILD_STEPS.length)}</span></div>
+          </div>
+        </div>
+
+        <div className="log-panel">
+          <div className="log-head">
+            <span className="label">Live log</span>
+            <span className="live-tag"><span className="accent-dot" aria-hidden="true" />live</span>
+          </div>
+          <ul className="log-list">
+            {log.map((line, i) => (
+              <li key={i} className={`log-line${i === log.length - 1 ? ' is-live' : ''}`}>
+                <span className="log-time">{line.time}</span>
+                <span className="log-source">{line.source}</span>
+                <span className="log-msg">{line.message}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
     </div>
   )
 }

@@ -1,11 +1,11 @@
 {
-  "name": "Knowledge Graph Explorer",
-  "short_name": "KG Explorer",
+  "name": "Axonis — knowledge graph explorer",
+  "short_name": "Axonis",
   "description": "Type any domain and get a structured, interactive knowledge graph of its concepts, research, organisations and product opportunities.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d1117",
-  "theme_color": "#7c3aed",
+  "background_color": "#0E0E0E",
+  "theme_color": "#0E0E0E",
   "icons": [
     { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
     { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },

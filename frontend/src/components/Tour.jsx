@@ -1,19 +1,18 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import usePrefersReducedMotion from '../usePrefersReducedMotion'
 
 // Dependency-free guided tour: a spotlight cut-out over each target element plus
 // a positioned tooltip card. Controlled via `open`; the parent owns first-run /
 // replay logic and persistence. Keyboard: → / Enter next, ← back, Esc skip.
 
-const reduceMotion =
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const CARD_W = 300
 const EST_H = 196
 const GAP = 14
 
 export default function Tour({ steps = [], open, onClose }) {
+  const reduceMotion = usePrefersReducedMotion()
   const [i, setI] = useState(0)
   const [rect, setRect] = useState(null)
   const cardRef = useRef(null)

@@ -7,3 +7,8 @@ build
 .git
 *.log
 .DS_Store
+# Design sources and docs are not part of the image
+design-assets
+docs
+vibecoding master
+.playwright-mcp

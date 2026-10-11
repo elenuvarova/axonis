@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProjects, createProject, buildProject, deleteProject } from '../api'
-import ThemeToggle from '../components/ThemeToggle'
-import HelpButton from '../components/HelpButton'
 import Tour from '../components/Tour'
 import { InlineError, Toast, StateScreen } from '../components/states'
+import usePrefersReducedMotion from '../usePrefersReducedMotion'
+import { pad, relTime } from '../format'
+import Wordmark from '../components/Wordmark'
 
 const TOUR_KEY = 'kge-tour-home'
 const HOME_TOUR = [
@@ -27,8 +28,16 @@ const GOALS = [
 
 const REGIONS = ['Global', 'EU', 'UK', 'US', 'Asia']
 
+const EXAMPLES = ['AI tutoring', 'CSRD reporting', 'e-waste circularity']
+
+const STATUS_GLYPH = { ready: '●', building: '◐', pending: '◐', error: '×' }
+
 function StatusBadge({ status }) {
-  return <span className={`badge badge-${status}`}>{status}</span>
+  return (
+    <span className={`badge badge-${status}`}>
+      <span aria-hidden="true">{STATUS_GLYPH[status] || '●'}</span> {status}
+    </span>
+  )
 }
 
 function ProjectsSkeleton() {
@@ -36,8 +45,40 @@ function ProjectsSkeleton() {
     <div className="recent-projects">
       <div className="skeleton skeleton-line" style={{ width: '30%', height: 10, marginBottom: 16 }} />
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="skeleton skeleton-card" style={{ height: 52 }} />
+        <div key={i} className="skeleton skeleton-card" style={{ height: 48 }} />
       ))}
+    </div>
+  )
+}
+
+// Looping letter-sphere. Reduced motion: poster image only, no video, no toggle.
+function Hero() {
+  const reduced = usePrefersReducedMotion()
+  const videoRef = useRef(null)
+  const [playing, setPlaying] = useState(true)
+
+  const toggle = () => {
+    const v = videoRef.current
+    if (!v) return
+    if (v.paused) { v.play().catch(() => {}); setPlaying(true) } else { v.pause(); setPlaying(false) }
+  }
+
+  if (reduced) {
+    return (
+      <div className="home-hero-media">
+        <img src="/media/letter-sphere-poster.jpg" alt="" width="640" height="640" />
+      </div>
+    )
+  }
+  return (
+    <div className="home-hero-media">
+      <video ref={videoRef} autoPlay muted loop playsInline poster="/media/letter-sphere-poster.jpg" aria-hidden="true">
+        <source src="/media/letter-sphere.webm" type="video/webm" />
+        <source src="/media/letter-sphere.mp4" type="video/mp4" />
+      </video>
+      <button type="button" className="btn btn-ghost hero-toggle" onClick={toggle} aria-label={playing ? 'Pause background animation' : 'Play background animation'}>
+        {playing ? 'Pause' : 'Play'}
+      </button>
     </div>
   )
 }
@@ -51,8 +92,9 @@ export default function HomePage() {
   const [err, setErr] = useState('')
   const [toast, setToast] = useState('')
   const [tourOpen, setTourOpen] = useState(false)
+  const tryRef = useRef(null)
 
-  // First-visit tour (once); replayable via the help button.
+  // First-visit tour (once); replayable via HOW IT WORKS.
   useEffect(() => {
     let done = false
     try { done = !!localStorage.getItem(TOUR_KEY) } catch { /* ignore */ }
@@ -102,93 +144,129 @@ export default function HomePage() {
 
   return (
     <div className="home">
-      <div className="home-topbar">
-        <HelpButton onClick={() => setTourOpen(true)} label="Take a tour" />
-        <ThemeToggle />
-      </div>
+      <header className="topbar">
+        <Link to="/" className="crumb-brand"><Wordmark /></Link>
+        <span className="crumb-sep" aria-hidden="true">/</span>
+        <span className="crumb-name">axonis.app</span>
+        <nav className="topbar-right" aria-label="Page help">
+          <button type="button" className="btn btn-ghost" onClick={() => setTourOpen(true)}>How it works</button>
+          <button type="button" className="btn btn-ghost" onClick={() => tryRef.current?.querySelector('button')?.focus()}>Examples</button>
+        </nav>
+      </header>
 
-      <div className="home-body">
-      <div className="home-hero">
-        <h1>Knowledge Graph Explorer</h1>
-        <p>Enter a domain — get a structured map of its concepts, research, organisations and product opportunities.</p>
-      </div>
+      <main className="home-body">
+        <div className="home-left">
+          <div className="label home-kicker">Knowledge Graph Explorer · open data <span aria-hidden="true">→</span> graph <span aria-hidden="true">→</span> gaps</div>
+          <h1 className="display home-title">
+            <span>Map any domain</span>
+            <span><span aria-hidden="true">→ </span>Concepts</span>
+            <span><span aria-hidden="true">→ </span>Research</span>
+            <span className="accent"><span aria-hidden="true">→ </span>Opportunities</span>
+          </h1>
+          <p className="body home-lede">
+            Type a topic. We read Wikidata and OpenAlex, build the graph, and mark where research exists but products don’t.
+          </p>
 
-      <form className="form-card" onSubmit={handleSubmit}>
-        <div className="form-row">
-          <label htmlFor="topic">Topic</label>
-          <textarea
-            id="topic"
-            rows={2}
-            placeholder="e.g. AI tutoring, CSRD reporting, e-waste circularity…"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-        <div className="form-selects">
-          <div className="form-row">
-            <label htmlFor="region">Region</label>
-            <select id="region" value={region} onChange={(e) => setRegion(e.target.value)} disabled={busy}>
-              {REGIONS.map((r) => <option key={r}>{r}</option>)}
-            </select>
-          </div>
-          <div className="form-row">
-            <label htmlFor="goal">Research goal</label>
-            <select id="goal" value={goal} onChange={(e) => setGoal(e.target.value)} disabled={busy}>
-              {GOALS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <InlineError message={err} onDismiss={() => setErr('')} />
-
-        <button className="btn btn-primary btn-full" type="submit" disabled={busy} data-umami-event="build-map">
-          {busy ? <><span className="spinner spinner-sm" />Building map…</> : 'Build knowledge map →'}
-        </button>
-      </form>
-
-      {isLoading && <ProjectsSkeleton />}
-
-      {isError && (
-        <div className="recent-projects">
-          <StateScreen
-            variant="error"
-            title="Couldn't load your projects"
-            message="The server didn't respond. Check your connection and try again."
-            actions={<button className="btn btn-secondary" onClick={() => refetch()}>Retry</button>}
-          />
-        </div>
-      )}
-
-      {!isLoading && !isError && projects.length > 0 && (
-        <div className="recent-projects">
-          <h2>Recent projects</h2>
-          {projects.map((p) => (
-            // Row is an inert container; the main area is a keyboard-operable button
-            // and the delete is a sibling button — avoids button-in-interactive-div (C-2).
-            <div key={p.id} className="project-row">
-              <button
-                type="button"
-                className="project-row-main"
-                onClick={() => navigate(`/project/${p.id}`)}
-                aria-label={`Open project: ${p.topic}`}
-              >
-                <span className="project-row-name">{p.topic}</span>
-                <span className="project-row-meta">{p.region}</span>
-                <StatusBadge status={p.status} />
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(p.id)}
-                aria-label={`Delete ${p.topic}`}
-              >✕</button>
+          <form className="query-block" onSubmit={handleSubmit}>
+            <div className="query-line">
+              <span className="query-prompt" aria-hidden="true">&gt;</span>
+              <label htmlFor="topic" className="sr-only">Topic</label>
+              <input
+                id="topic"
+                type="text"
+                autoComplete="off"
+                placeholder="e-waste circularity"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                disabled={busy}
+              />
             </div>
-          ))}
+            <div className="query-controls">
+              <div className="form-selects">
+                <label className="pill" htmlFor="region">
+                  <span className="pill-key">Region:</span>
+                  <select id="region" value={region} onChange={(e) => setRegion(e.target.value)} disabled={busy}>
+                    {REGIONS.map((r) => <option key={r}>{r}</option>)}
+                  </select>
+                </label>
+                <label className="pill" htmlFor="goal">
+                  <span className="pill-key">Goal:</span>
+                  <select id="goal" value={goal} onChange={(e) => setGoal(e.target.value)} disabled={busy}>
+                    {GOALS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={busy} data-umami-event="build-map">
+                {busy ? <><span className="spinner spinner-sm" aria-hidden="true" />Building…</> : <>Build<span aria-hidden="true">&nbsp;↵</span></>}
+              </button>
+            </div>
+            <InlineError message={err} onDismiss={() => setErr('')} />
+          </form>
+
+          <div className="try-row" ref={tryRef}>
+            <span className="label">Try</span>
+            {EXAMPLES.map((ex) => (
+              <button key={ex} type="button" className="chip" disabled={busy} onClick={() => { setTopic(ex); document.getElementById('topic')?.focus() }}>
+                {ex}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
-      </div>
+
+        <Hero />
+
+        <section className="home-recent" aria-label="Recent projects">
+          {isLoading && <ProjectsSkeleton />}
+
+          {isError && (
+            <div className="recent-projects">
+              <StateScreen
+                variant="error"
+                title="Couldn't load your projects"
+                message="The server didn't respond. Check your connection and try again."
+                actions={<button className="btn btn-secondary" onClick={() => refetch()}>Retry</button>}
+              />
+            </div>
+          )}
+
+          {!isLoading && !isError && projects.length > 0 && (
+            <div className="recent-projects">
+              <div className="project-head label" aria-hidden="true">
+                <div className="project-cols">
+                  <span>ID</span><span>Topic</span><span>Region</span><span>Status</span><span>Updated</span>
+                </div>
+                <span className="project-del-spacer" />
+              </div>
+              <h2 className="sr-only">Recent projects</h2>
+              {projects.map((p, i) => (
+                // Row is an inert container; the main area is a keyboard-operable button
+                // and the delete is a sibling button — avoids button-in-interactive-div (C-2).
+                <div key={p.id} className="project-row">
+                  <button
+                    type="button"
+                    className="project-row-main project-cols"
+                    onClick={() => navigate(`/project/${p.id}`)}
+                    aria-label={`Open project: ${p.topic}`}
+                  >
+                    <span className="project-row-id">{pad(i + 1)}</span>
+                    <span className="project-row-name">{p.topic}</span>
+                    <span className="project-row-meta">{p.region}</span>
+                    <span><StatusBadge status={p.status} /></span>
+                    <span className="project-row-meta">{relTime(p.created_at)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost project-del"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate(p.id)}
+                    aria-label={`Delete ${p.topic}`}
+                  >Delete</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
 
       <Toast message={toast} onClose={() => setToast('')} />
       <Tour steps={HOME_TOUR} open={tourOpen} onClose={closeTour} />
