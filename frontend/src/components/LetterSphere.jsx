@@ -16,6 +16,13 @@ function cssVar(name, fallback) {
   return v || fallback
 }
 
+// Entrance timing comes from the hero.css timeline (--hero-t-sphere / --hero-sphere-dur).
+function cssMs(name, fallback) {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name))
+  return Number.isFinite(v) ? v : fallback
+}
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
+
 function buildPoints() {
   const pts = []
   const golden = Math.PI * (3 - Math.sqrt(5))
@@ -26,21 +33,28 @@ function buildPoints() {
     const y = 1 - (i / (COUNT - 1)) * 2
     const r = Math.sqrt(1 - y * y)
     const t = golden * i
+    const ch = LETTERS[Math.floor(rand() * LETTERS.length)]
+    const accent = rand() < 0.06
+    // Scattered start for the entrance: a random direction, outside the sphere
+    // but short of the camera plane (z stays < 2.2 so perspective never blows up).
+    const a = rand() * Math.PI * 2, b = rand() * 2 - 1, d = 1.5 + rand() * 0.7
+    const rb = Math.sqrt(1 - b * b)
     pts.push({
-      x: Math.cos(t) * r, y, z: Math.sin(t) * r,
-      ch: LETTERS[Math.floor(rand() * LETTERS.length)],
-      accent: rand() < 0.06,
+      x: Math.cos(t) * r, y, z: Math.sin(t) * r, ch, accent,
+      sx: Math.cos(a) * rb * d, sy: b * d, sz: Math.sin(a) * rb * d,
+      lag: rand() * 0.3, // per-letter stagger, as a share of the entrance
     })
   }
   return pts
 }
 
-export default function LetterSphere({ paused = false, reducedMotion = false }) {
+export default function LetterSphere({ paused = false, reducedMotion = false, assemble = false }) {
   const canvasRef = useRef(null)
   const state = useRef({ yaw: 0.6, pitch: -0.25, vYaw: 0, vPitch: 0, dragging: false, ring: 0 })
   const startRef = useRef(() => {})
   const pausedRef = useRef(paused)
   const reducedRef = useRef(reducedMotion)
+  const assembleRef = useRef(assemble && !reducedMotion)
   pausedRef.current = paused
   reducedRef.current = reducedMotion
 
@@ -53,6 +67,17 @@ export default function LetterSphere({ paused = false, reducedMotion = false }) 
     const accent = cssVar('--accent', '#FF2BD6')
     const font = '"Martian Mono", ui-monospace, monospace'
     let w = 0, h = 0, dpr = 1, raf = 0, last = 0, visible = true
+    // Entrance: letters fly from scattered positions into the sphere (easeOutCubic).
+    const introDelay = cssMs('--hero-t-sphere', 200), introDur = cssMs('--hero-sphere-dur', 1200)
+    const introStart = performance.now()
+    let intro = assembleRef.current
+    // 0 = scattered, 1 = assembled
+    const progress = () => {
+      if (!intro) return 1
+      const p = (performance.now() - introStart - introDelay) / introDur
+      if (p >= 1) { intro = false; return 1 }
+      return Math.max(0, p)
+    }
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
@@ -67,7 +92,8 @@ export default function LetterSphere({ paused = false, reducedMotion = false }) 
       const s = state.current
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      const R = Math.min(w, h) * 0.31
+      // wide, short boxes (the phone band) size the sphere from the height so it isn't a speck
+      const R = Math.min(w * 0.31, h * 0.42)
       const cx = w / 2, cy = h / 2, cam = 3.2
       // glyph size follows the sphere so a phone-sized sphere isn't a solid blob
       const glyphPx = Math.max(8, Math.min(15, R / 11)), ringPx = Math.max(6, Math.min(9, R / 18))
@@ -75,14 +101,21 @@ export default function LetterSphere({ paused = false, reducedMotion = false }) 
       const cp = Math.cos(s.pitch), sp = Math.sin(s.pitch)
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
 
+      const prog = progress()
       const items = []
       for (const p of pts) {
+        let px = p.x, py = p.y, pz = p.z, fade = 1
+        if (prog < 1) {
+          const e = easeOutCubic(Math.min(1, Math.max(0, (prog - p.lag) / (1 - p.lag))))
+          px = p.sx + (p.x - p.sx) * e; py = p.sy + (p.y - p.sy) * e; pz = p.sz + (p.z - p.sz) * e
+          fade = Math.min(1, e * 3)
+        }
         // yaw around Y, then pitch around X
-        const x1 = p.x * cyw + p.z * syw
-        const z1 = -p.x * syw + p.z * cyw
-        const y2 = p.y * cp - z1 * sp
-        const z2 = p.y * sp + z1 * cp
-        items.push({ x: x1, y: y2, z: z2, ch: p.ch, accent: p.accent, ring: false })
+        const x1 = px * cyw + pz * syw
+        const z1 = -px * syw + pz * cyw
+        const y2 = py * cp - z1 * sp
+        const z2 = py * sp + z1 * cp
+        items.push({ x: x1, y: y2, z: z2, ch: p.ch, accent: p.accent, ring: false, fade })
       }
       // Equator ring, tilted with the sphere's pitch, counter-rotating slowly.
       const n = RING.length
@@ -92,17 +125,17 @@ export default function LetterSphere({ paused = false, reducedMotion = false }) 
         // ring tilt is clamped so a hard drag never swings it out of the frame
         const tilt = Math.max(-0.55, Math.min(0.55, s.pitch + 0.35))
         const y = -z0 * Math.sin(tilt), z = z0 * Math.cos(tilt)
-        items.push({ x, y, z, ch: RING[i], accent: false, ring: true })
+        items.push({ x, y, z, ch: RING[i], accent: false, ring: true, fade: prog })
       }
       items.sort((a, b) => a.z - b.z)
 
       for (const it of items) {
         if (it.ch === ' ') continue
         const k = cam / (cam - it.z) // perspective
-        const depth = (it.z + 1.42) / 2.84 // 0 back … 1 front
+        const depth = Math.min(1, Math.max(0, (it.z + 1.42) / 2.84)) // 0 back … 1 front
         const size = (it.ring ? ringPx : glyphPx) * k
         ctx.font = `${it.ring ? 400 : 500} ${size.toFixed(1)}px ${font}`
-        ctx.globalAlpha = it.ring ? 0.25 + depth * 0.6 : 0.12 + depth * 0.88
+        ctx.globalAlpha = (it.ring ? 0.25 + depth * 0.6 : 0.12 + depth * 0.88) * it.fade
         ctx.fillStyle = it.accent ? accent : it.ring ? text2 : text
         ctx.fillText(it.ch, cx + it.x * R * k, cy + it.y * R * k)
       }
@@ -127,7 +160,7 @@ export default function LetterSphere({ paused = false, reducedMotion = false }) 
       draw()
       // Nothing moving (paused / reduced motion, no drag inertia left): stop
       // the loop until the next drag or un-pause instead of redrawing a still.
-      const idle = (pausedRef.current || reducedRef.current) && !s.dragging &&
+      const idle = !intro && (pausedRef.current || reducedRef.current) && !s.dragging &&
         Math.abs(s.vYaw) + Math.abs(s.vPitch) < 1e-3 && Math.abs(s.pitch + 0.25) < 1e-3
       raf = visible && !idle ? requestAnimationFrame(tick) : 0
     }
