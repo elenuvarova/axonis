@@ -103,25 +103,38 @@ export function renderMarkdown(md) {
       continue
     }
 
+    // LLM output often puts a blank line between list items ("loose" lists).
+    // Treat blank lines as part of the list when the next non-blank line is
+    // another item, or every item becomes its own one-item list (all "1.").
+    const nextItem = (j, re) => {
+      while (j < lines.length && !lines[j].trim()) j++
+      return j < lines.length && re.test(lines[j]) ? j : -1
+    }
+
     // unordered list
-    if (/^\s*[-*]\s+/.test(line)) {
+    const UL = /^\s*[-*]\s+/
+    if (UL.test(line)) {
       flushPara()
       const items = []
-      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-        items.push(`<li>${inline(lines[i].replace(/^\s*[-*]\s+/, '').trim())}</li>`); i++
+      while (i < lines.length && UL.test(lines[i])) {
+        items.push(`<li>${inline(lines[i].replace(UL, '').trim())}</li>`); i++
+        const j = nextItem(i, UL); if (j > i) i = j
       }
       out.push(`<ul>${items.join('')}</ul>`)
       continue
     }
 
-    // ordered list
-    if (/^\s*\d+\.\s+/.test(line)) {
+    // ordered list — keeps the author's first number via start=
+    const OL = /^\s*(\d+)\.\s+/
+    if (OL.test(line)) {
       flushPara()
+      const start = Number(line.match(OL)[1])
       const items = []
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(`<li>${inline(lines[i].replace(/^\s*\d+\.\s+/, '').trim())}</li>`); i++
+      while (i < lines.length && OL.test(lines[i])) {
+        items.push(`<li>${inline(lines[i].replace(OL, '').trim())}</li>`); i++
+        const j = nextItem(i, OL); if (j > i) i = j
       }
-      out.push(`<ol>${items.join('')}</ol>`)
+      out.push(start > 1 ? `<ol start="${start}">${items.join('')}</ol>` : `<ol>${items.join('')}</ol>`)
       continue
     }
 
