@@ -54,3 +54,27 @@ def test_expired_keys_are_swept(monkeypatch):
     guard._last_sweep = 0
     guard._sweep(time.time())
     assert ("1.2.3.4", "ask") not in guard._hits
+
+
+def test_overflow_evicts_oldest_not_everyone(monkeypatch):
+    import time
+    guard.reset()
+    monkeypatch.setattr(guard, "_MAX_KEYS", 10)
+    now = time.time()
+    for i in range(10):
+        guard._hits[(f"ip{i}", "ask")].append(now - 100 + i)  # ip9 most recent
+    guard._last_sweep = 0
+    guard._sweep(now)
+    assert ("ip0", "ask") not in guard._hits      # oldest evicted
+    assert ("ip9", "ask") in guard._hits          # active client keeps its count
+    guard.reset()
+
+
+def test_trusted_hops_picks_the_right_entry(monkeypatch):
+    from types import SimpleNamespace
+    req = SimpleNamespace(headers={"x-forwarded-for": "6.6.6.6, 1.1.1.1, 10.0.0.2"}, client=SimpleNamespace(host="10.0.0.9"))
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "1")
+    assert guard.client_ip(req) == "10.0.0.2"
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+    assert guard.client_ip(req) == "1.1.1.1"
+    assert guard.client_ip(SimpleNamespace(headers={}, client=SimpleNamespace(host="9.9.9.9"))) == "9.9.9.9"

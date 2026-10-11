@@ -54,18 +54,32 @@ def _sweep(now: float) -> None:
     longest = max(w for _, w in LIMITS.values())
     for key in [k for k, q in _hits.items() if not q or q[-1] <= now - longest]:
         del _hits[key]
-    if len(_hits) >= _MAX_KEYS:  # still full (e.g. a flood of fresh IPs): start over
-        _hits.clear()
+    if len(_hits) >= _MAX_KEYS:
+        # Still full (a flood of distinct clients). Evict the least recently
+        # active tenth instead of clearing everything: clearing would also
+        # reset the counters of whoever is being limited right now (fail-open).
+        by_age = sorted(_hits.items(), key=lambda kv: kv[1][-1] if kv[1] else 0)
+        for key, _ in by_age[: max(1, len(by_age) // 10)]:
+            del _hits[key]
 
 
 def client_ip(request: Request) -> str:
-    # Traefik (one trusted proxy) APPENDS the address it saw, so the last
-    # X-Forwarded-For entry is the real client. Earlier entries are whatever
-    # the client chose to send and must not be trusted, or a forged header
-    # would give every request a fresh "IP" and bypass the limit.
-    fwd = request.headers.get("x-forwarded-for", "")
-    if fwd:
-        return fwd.split(",")[-1].strip()
+    """The address the nearest trusted proxy saw.
+
+    Each trusted proxy appends the address it received from, so with N
+    trusted hops (TRUSTED_PROXY_HOPS, default 1 = Coolify's Traefik) the
+    client is the N-th entry from the right. Entries further left are
+    whatever the client sent and are ignored; a forged header can't mint a
+    fresh identity per request. With no header (direct hit) the socket peer
+    is used.
+    """
+    try:
+        hops = max(1, int(os.getenv("TRUSTED_PROXY_HOPS", "1")))
+    except ValueError:
+        hops = 1
+    chain = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    if len(chain) >= hops:
+        return chain[-hops]
     return request.client.host if request.client else "unknown"
 
 
