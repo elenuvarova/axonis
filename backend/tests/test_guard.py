@@ -28,9 +28,29 @@ def test_rate_limit_returns_429_per_ip(client, monkeypatch):
     monkeypatch.setenv("RATE_LIMITS_OFF", "0")
     monkeypatch.setitem(guard.LIMITS, "create", (2, 3600))
     guard.reset()
-    h = {"X-Forwarded-For": "203.0.113.7"}
+    h = {"X-Forwarded-For": "203.0.113.7"}  # single hop = what Traefik sends
     codes = [client.post("/api/projects", json={"topic": "t"}, headers=h).status_code for _ in range(3)]
     assert codes == [201, 201, 429]
     # another IP is unaffected
     assert client.post("/api/projects", json={"topic": "t"}, headers={"X-Forwarded-For": "198.51.100.1"}).status_code == 201
     guard.reset()
+
+
+def test_forged_forwarded_for_does_not_bypass(client, monkeypatch):
+    monkeypatch.setenv("RATE_LIMITS_OFF", "0")
+    monkeypatch.setitem(guard.LIMITS, "create", (2, 3600))
+    guard.reset()
+    # Traefik appends the real client last; the forged first hop changes each time.
+    codes = [client.post("/api/projects", json={"topic": "t"},
+                         headers={"X-Forwarded-For": f"10.0.0.{i}, 203.0.113.9"}).status_code for i in range(3)]
+    assert codes == [201, 201, 429]
+    guard.reset()
+
+
+def test_expired_keys_are_swept(monkeypatch):
+    import time
+    guard.reset()
+    guard._hits[("1.2.3.4", "ask")].append(time.time() - 10_000)
+    guard._last_sweep = 0
+    guard._sweep(time.time())
+    assert ("1.2.3.4", "ask") not in guard._hits
