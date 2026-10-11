@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TYPE_ORDER, typeGlyph, typeLabel } from '../graphTypes'
 import { pad } from '../format'
 import { track } from '../analytics'
@@ -13,6 +13,17 @@ export default function GraphLegend({ nodes = [], cy }) {
     typeof window === 'undefined' || !window.matchMedia?.('(max-width: 767px)').matches)
   const [hidden, setHidden] = useState(() => new Set())
   const [hideIsolated, setHideIsolated] = useState(false)
+  const rootRef = useRef(null)
+
+  // On phones the open list is an overlay: Escape or a tap outside closes it.
+  useEffect(() => {
+    if (!open || !window.matchMedia?.('(max-width: 767px)').matches) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
+  }, [open])
 
   const counts = {}
   for (const n of nodes) counts[n.type] = (counts[n.type] || 0) + 1
@@ -43,7 +54,7 @@ export default function GraphLegend({ nodes = [], cy }) {
   if (!types.length) return null
 
   return (
-    <div className={`graph-legend${open ? ' is-open' : ''}`}>
+    <div ref={rootRef} className={`graph-legend${open ? ' is-open' : ''}`}>
       <button
         type="button"
         className="graph-legend-toggle"

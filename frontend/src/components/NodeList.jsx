@@ -9,8 +9,8 @@ const COLUMNS = [
   { key: 'name', label: 'Name' },
   { key: 'type', label: 'Type' },
   { key: 'links', label: 'Links', numeric: true },
-  { key: 'degree', label: 'Degree', numeric: true },
-  { key: 'bridge_score', label: 'Bridge', numeric: true },
+  { key: 'degree', label: 'Degree', numeric: true, extra: true },
+  { key: 'bridge_score', label: 'Bridge', numeric: true, extra: true },
 ]
 
 export default function NodeList({ nodes = [], edges = [], selectedId, onSelect }) {
@@ -65,7 +65,7 @@ export default function NodeList({ nodes = [], edges = [], selectedId, onSelect 
           <thead>
             <tr>
               {COLUMNS.map((c) => (
-                <th key={c.key} scope="col" className={c.numeric ? 'is-num' : ''}
+                <th key={c.key} scope="col" className={`${c.numeric ? 'is-num' : ''}${c.extra ? ' col-extra' : ''}`}
                   aria-sort={sort.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                   <button type="button" className="node-sort" onClick={() => toggleSort(c.key)}>
                     {c.label}
@@ -83,8 +83,8 @@ export default function NodeList({ nodes = [], edges = [], selectedId, onSelect 
                 </td>
                 <td className="node-type"><span aria-hidden="true">{typeGlyph(n.type)} </span>{typeLabel(n.type)}</td>
                 <td className="is-num">{pad(n.links, 3)}</td>
-                <td className="is-num">{(n.degree || 0).toFixed(3)}</td>
-                <td className="is-num">{(n.bridge_score || 0).toFixed(3)}</td>
+                <td className="is-num col-extra">{(n.degree || 0).toFixed(3)}</td>
+                <td className="is-num col-extra">{(n.bridge_score || 0).toFixed(3)}</td>
               </tr>
             ))}
           </tbody>
