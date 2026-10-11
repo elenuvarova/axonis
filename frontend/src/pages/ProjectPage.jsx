@@ -809,20 +809,20 @@ export default function ProjectPage() {
                     if (!win) { setToast('Allow pop-ups to print the brief.'); return }
                     win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(brief.filename)}</title>
 <style>
-  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;max-width:780px;margin:40px auto;padding:0 24px;color:#1a1f26;line-height:1.7}
-  h1{font-size:2em;border-bottom:2px solid #eee;padding-bottom:.3em;margin-bottom:.5em;letter-spacing:-.02em}
-  h2{font-size:1.35em;border-bottom:1px solid #eee;padding-bottom:.2em;margin:2em 0 .6em}
+  body{font-family:'Mona Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;max-width:780px;margin:40px auto;padding:0 24px;color:#0E0E0E;line-height:1.6}
+  h1{font-family:'Martian Mono',ui-monospace,Menlo,monospace;font-weight:500;font-size:1.75em;border-bottom:2px solid #0E0E0E;padding-bottom:.3em;margin-bottom:.5em;letter-spacing:-.02em}
+  h2{font-family:'Martian Mono',ui-monospace,Menlo,monospace;font-weight:500;font-size:.75em;text-transform:uppercase;letter-spacing:.08em;color:#555;border-bottom:1px solid #2A2A2A;padding-bottom:.2em;margin:2em 0 .6em}
   h3{font-size:1.1em;margin:1.5em 0 .4em}
   p{margin:.7em 0}
   ul,ol{margin:.7em 0;padding-left:1.4em}
   li{margin:.25em 0}
   strong{font-weight:600}
-  a{color:#6d28d9;text-decoration:none}
-  code{background:#f0f0f3;padding:1px 5px;border-radius:4px;font-size:.9em}
+  a{color:#0E0E0E;text-decoration:underline}
+  code{font-family:'Martian Mono',ui-monospace,Menlo,monospace;background:#EDEDED;padding:0 4px;font-size:.85em}
   table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.95em}
-  th,td{border:1px solid #ddd;padding:7px 12px;text-align:left}
-  th{background:#f7f7f7;font-weight:600}
-  hr{border:none;border-top:1px solid #eee;margin:2em 0}
+  th,td{border:1px solid #2A2A2A;padding:7px 12px;text-align:left}
+  th{background:#EDEDED;font-weight:600}
+  hr{border:none;border-top:1px solid #2A2A2A;margin:2em 0}
   @media print{body{margin:20px}button{display:none}}
 </style></head><body>
 <button onclick="window.print()" style="margin-bottom:24px;padding:8px 16px;cursor:pointer">Print / Save PDF</button>

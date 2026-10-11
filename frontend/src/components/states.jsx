@@ -91,8 +91,8 @@ export function EntitySkeleton() {
       <SkeletonLine width="100%" /><SkeletonLine width="92%" /><SkeletonLine width="60%" />
       <div style={{ height: 16 }} />
       <div className="entity-meta">
-        <div className="skeleton" style={{ height: 52, borderRadius: 6 }} />
-        <div className="skeleton" style={{ height: 52, borderRadius: 6 }} />
+        <div className="skeleton" style={{ height: 52 }} />
+        <div className="skeleton" style={{ height: 52 }} />
       </div>
     </div>
   )
