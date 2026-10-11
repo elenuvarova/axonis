@@ -46,6 +46,7 @@
   /* layout */
   --topbar: 54px; --inspector: 360px; --panel-inset: 16px; --page-inset: 78px; --gutter: 8px;
   --w-controls: 74px;
+  --w-row-end: 88px;           /* home table: delete / demo cell, header spacer */
   --controls-rail: calc(var(--panel-inset) + var(--w-controls) + var(--s-2));  /* list view clears the canvas controls */
   --radius: 0;
 
@@ -342,13 +343,13 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .project-cols { display: grid; grid-template-columns: 56px minmax(0, 1fr) 120px 140px 110px; column-gap: var(--s-2); align-items: center; }
 .project-head { display: flex; align-items: center; padding: var(--s-1) 0; border-bottom: 1px solid var(--line); }
 .project-head .project-cols { flex: 1; }
-.project-del-spacer { width: 88px; flex-shrink: 0; }
+.project-del-spacer { width: var(--w-row-end); flex-shrink: 0; }
 .project-row { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
 .project-row-main { flex: 1; min-width: 0; text-align: left; min-height: var(--h-row); font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); }
 .project-row-main:hover { background: var(--raised); }
 .project-row-id, .project-row-meta { color: var(--text-2); text-transform: uppercase; }
 .project-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.project-del { width: 88px; flex-shrink: 0; padding: var(--s-1); font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--track-caps); }
+.project-del { width: var(--w-row-end); flex-shrink: 0; padding: var(--s-1); font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--track-caps); }
 
 /* ════════════════════════════════════════════════════════════
    PROJECT — tabs, canvas, panels
@@ -636,7 +637,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
    RESPONSIVE — tablet
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
-  :root { --page-inset: 40px; }
+  :root, :root[data-theme="dark"] { --page-inset: 40px; }
   .home-body { grid-template-columns: 1fr; padding-top: var(--s-6); }
   .home-hero-media { grid-column: 1; grid-row: 2; justify-self: center; margin-top: var(--s-5); width: min(100%, 420px); }
   .home-recent { grid-row: 3; }
@@ -649,7 +650,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
    RESPONSIVE — phone: 44px touch targets, bottom sheet
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
-  :root { --page-inset: 16px; --w-controls: 56px; --card-pad: var(--s-2); }
+  :root, :root[data-theme="dark"] { --page-inset: 16px; --w-controls: 56px; --card-pad: var(--s-2); }
 
   /* every control is 44px (cites stay 24px: they sit inside running text) */
   .btn, .chip, .pill, .tab-btn, .icon-btn, .ask-chip, .panel-close, .cmdk-tab, .node-list-filter,
@@ -682,7 +683,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .home-recent { margin-top: var(--s-5); }
   .project-cols { grid-template-columns: 28px minmax(0, 1fr) auto; column-gap: var(--s-1); }
   .project-cols > :nth-child(3), .project-cols > :nth-child(5) { display: none; }
-  .project-del-spacer, .project-del { width: 72px; }
+  :root, :root[data-theme="dark"] { --w-row-end: 72px; }
   .project-row-main { min-height: var(--h-ctl-touch); }
 
   /* Tabs — segmented */
