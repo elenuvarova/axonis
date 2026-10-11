@@ -1,0 +1,26 @@
+from sources.wikidata import is_namesake
+
+
+def test_namesakes_are_filtered():
+    for d in ["2017 video game", "family name", "Wikimedia disambiguation page",
+              "American economist (1925–2010)", "album by Radiohead", "1999 film directed by X",
+              "scientific article published on 24 May 2024", "edition; published in 1993", "book (work)"]:
+        assert is_namesake(d), d
+
+
+def test_concepts_are_kept():
+    for d in ["discarded electrical or electronic devices", "economic system aimed at eliminating waste",
+              "field of study", "logical fallacy in which the reasoner begins with what they are trying to end with", ""]:
+        assert not is_namesake(d), d
+
+
+def test_top_works_ranks_relevant_pool_by_citations(monkeypatch):
+    import sources.openalex as oa
+    seen = {}
+    def fake_get(path, params):
+        seen.update(params)
+        return {"results": [{"title": "a", "cited_by_count": 5}, {"title": "b", "cited_by_count": 50}, {"title": "c"}]}
+    monkeypatch.setattr(oa, "_get", fake_get)
+    works = oa.get_top_works("e-waste", per_page=2)
+    assert "sort" not in seen and seen["per-page"] == 25
+    assert [w["title"] for w in works] == ["b", "a"]
