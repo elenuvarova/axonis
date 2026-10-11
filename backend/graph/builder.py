@@ -105,14 +105,40 @@ def _build(project_id: str, db: Session) -> None:
             )
             raw_entities.append(paper)
 
-            for wc in (w.get("concepts") or [])[:2]:
+            # Paper → research topics. OpenAlex "topics" replaced the deprecated
+            # concept tagger, whose picks were often namesakes ("Course
+            # (navigation)", "Raising (metalworking)") with high scores.
+            for t in [t for t in (w.get("topics") or []) if (t.get("score") or 0) >= 0.15][:2]:
                 raw_entities.append(RawEntity(
-                    name=wc.get("display_name", ""),
+                    name=t.get("display_name", ""),
                     type="concept",
                     source="openalex",
                     parent_name=title[:200],
                     relation_type="co_concept",
                 ))
+                # topic → its subfield ("Intelligent Tutoring Systems…" → "Artificial
+                # Intelligence"): gives the map a real hierarchy to cluster on.
+                sub = (t.get("subfield") or {}).get("display_name")
+                if sub:
+                    raw_entities.append(RawEntity(
+                        name=sub, type="concept", source="openalex",
+                        parent_name=t.get("display_name", ""), relation_type="part_of",
+                    ))
+
+            # Paper → the institutions of its first authors: the actual actors
+            # behind the research (institution search by name finds few).
+            seen_inst = set()
+            for a in (w.get("authorships") or [])[:3]:
+                for inst in (a.get("institutions") or [])[:1]:
+                    iname = inst.get("display_name", "")
+                    if not iname or iname in seen_inst:
+                        continue
+                    seen_inst.add(iname)
+                    raw_entities.append(RawEntity(
+                        name=iname, type="institution", source="openalex",
+                        openalex_id=(inst.get("id") or "").rsplit("/", 1)[-1],
+                        parent_name=title[:200], relation_type="affiliated_with",
+                    ))
 
         for inst in oa["institutions"]:
             raw_entities.append(RawEntity(

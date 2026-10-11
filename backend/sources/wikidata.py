@@ -28,6 +28,8 @@ _USEFUL_TYPES = {
     "Q7210356", # political organization
 }
 
+# No P31 (instance of): its targets are meta-classes ("academic discipline",
+# "software", "academic conference") that add noise rather than domain nodes.
 _RELATED_QUERY = """
 SELECT DISTINCT ?target ?targetLabel ?relType WHERE {{
   {{
@@ -38,9 +40,7 @@ SELECT DISTINCT ?target ?targetLabel ?relType WHERE {{
     wd:{qid} wdt:P361 ?target . BIND("part_of" AS ?relType)
   }} UNION {{
     wd:{qid} wdt:P527 ?target . BIND("has_part" AS ?relType)
-  }} UNION {{
-    wd:{qid} wdt:P31 ?target . BIND("instance_of" AS ?relType)
-  }} UNION {{
+ UNION {{
     wd:{qid} wdt:P452 ?target . BIND("industry" AS ?relType)
   }}
   FILTER(STRSTARTS(STR(?target), "http://www.wikidata.org/entity/Q"))
@@ -67,7 +67,7 @@ _OFF_TOPIC = re.compile(
     r"podcast|painting|sculpture|fictional|character|given name|family name|surname|"
     r"disambiguation|wikimedia|asteroid|ship|village|commune|municipality|river|mountain|"
     r"human settlement|football|footballer|musician|singer|actor|actress|rapper|"
-    r"scientific article|edition|thesis)\b"
+    r"scientific article|edition|thesis|conference|proceedings|symposium|workshop|journal|magazine|periodical|summer school|summer institute)\b"
     r"|\bbook \(work\)"
     r"|\(\d{3,4}\s*[–-]"   # "(1925–2010)": a person
     r"|^\d{4}\s",           # "2017 video game", "1999 film"
@@ -129,8 +129,8 @@ def fetch_entities_for_terms(terms: list[str]) -> list[dict]:
     raw: list[dict] = []
 
     for term in terms:
-        # Ask for a few more and keep the first two that aren't namesakes.
-        hits = [h for h in search_entities(term, limit=6) if not is_namesake(h.get("description", ""))][:2]
+        # Ask for a few more and keep the first three that aren't namesakes.
+        hits = [h for h in search_entities(term, limit=8) if not is_namesake(h.get("description", ""))][:3]
         for hit in hits:
             qid = hit.get("id", "")
             if not qid or qid in seen_qids:
