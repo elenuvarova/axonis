@@ -68,3 +68,10 @@ One shared `usePrefersReducedMotion` hook. Reduced motion: video → poster, no 
 ## 7. Done means
 
 `NODE_ENV=test npm test` green (update tests to new copy where needed), `npm run build` green, CSP unchanged except what's needed (video is same-origin → covered by `default-src 'self'`), screenshots of Home / Build / Workspace / Ask / Opportunities / Brief / mobile taken against a running app.
+
+## 8. Token consolidation (design/tokens-consolidation)
+
+`frontend/src/styles.css` is now fully tokenised: spacing (`--s-hair/half/1..7`, `--card-pad` 24, `--panel-pad` 16), control heights (`--h-ctl-sm` 28 / `--h-ctl` 36 / `--h-ctl-touch` 44, 44 on phones), row pitch (`--h-row` 40; `--h-row-2` 52 for the two-line cluster row), type (`--fs-*` / `--lh-*` pairs, `--track-caps` 0.08em), colour (`--line-control` #6A6A6A for control-only borders, `--scrim`, `--panel-glass`, `--grid-dot`, `--shimmer`) and z-index (`--z-list` < `--z-canvas-ui` < `--z-sheet` < `--z-modal` 200 < `--z-cmdk` 250 < `--z-toast` < `--z-tour`).
+
+Deliberate additions to the type table: `--fs-counter-lg` 56/60 (the one big score in `.opp-score-num`, also noted in section 4), `--fs-counter-sm` 32/36 and `--fs-display-sm` 32/38 for phones, `--fs-body-sm` 13/20.
+Accent is reserved for selection, live state, citations, primary action and the wordmark X; errors use text/text-2.
