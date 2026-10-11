@@ -262,7 +262,7 @@ export default function HomePage() {
                     aria-label={`Open project: ${p.topic}`}
                   >
                     <span className="project-row-id">{pad(i + 1)}</span>
-                    <span className="project-row-name">{p.topic}</span>
+                    <span className="project-row-name" data-clarity-mask={p.protected ? undefined : 'true'}>{p.topic}</span>
                     <span className="project-row-meta">{p.region}</span>
                     <span><StatusBadge status={p.status} /></span>
                     <span className="project-row-meta">{relTime(p.created_at)}</span>
