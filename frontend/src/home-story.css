@@ -26,7 +26,7 @@
 .hs-n { font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-counter-sm); line-height: var(--lh-counter-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .hs-head h3 { margin: 0; font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--track-h2); text-transform: uppercase; }
 .hs-body { margin: 0; max-width: 40ch; font-family: var(--font-body); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-2); text-wrap: pretty; }
-.hs-visual { margin-top: auto; padding: var(--s-2); background: var(--panel); border: 1px solid var(--line); min-height: 168px; display: flex; align-items: center; }
+.hs-visual { margin-top: auto; padding: var(--s-2); background: var(--panel); border: 1px solid var(--line); min-height: 264px; display: flex; align-items: center; } /* one height for all three, so the row reads as a set */
 .hs-svg { display: block; width: 100%; height: auto; }
 .hs-hull { fill: var(--raised); stroke: var(--line-strong); stroke-width: 1; }
 .hs-edges line { stroke: var(--line-control); stroke-width: 1; }
