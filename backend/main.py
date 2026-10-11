@@ -47,11 +47,13 @@ app = FastAPI(title="Axonis", lifespan=lifespan)
 # Umami analytics script + its event endpoint on stats.ontwrpn.com.
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://stats.ontwrpn.com; "
+    # Microsoft Clarity (session analytics): its loader on www.clarity.ms, the
+    # recorder on scripts.clarity.ms, beacons to *.clarity.ms and c.bing.com.
+    "script-src 'self' 'unsafe-inline' https://stats.ontwrpn.com https://www.clarity.ms https://scripts.clarity.ms; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; "
+    "img-src 'self' data: https://*.clarity.ms https://c.bing.com; "
     "font-src 'self'; "
-    "connect-src 'self' https://stats.ontwrpn.com; "
+    "connect-src 'self' https://stats.ontwrpn.com https://*.clarity.ms https://c.bing.com; "
     "worker-src 'self' blob:; "
     "object-src 'none'; "
     "base-uri 'self'; "

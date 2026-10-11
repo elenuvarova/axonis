@@ -88,7 +88,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
       </div>
 
       <div className="ask-scroll">
-        {question && (result || pending) && <p className="ask-question">&gt; {question}</p>}
+        {question && (result || pending) && <p className="ask-question" data-clarity-mask="true">&gt; {question}</p>}
 
         {!result && !pending && (
           <>
@@ -113,7 +113,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
         {error && <p className="error-msg" role="alert">{error}</p>}
 
         {result && (
-          <div className="ask-answer" id={answerId}>
+          <div className="ask-answer" id={answerId} data-clarity-mask="true">
             {/* aria-live announces the answer to screen readers when it arrives */}
             <div aria-live="polite" aria-atomic="true">
               <div className="sr-only">Answer</div>

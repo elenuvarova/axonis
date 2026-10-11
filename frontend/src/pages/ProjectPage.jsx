@@ -474,7 +474,8 @@ export default function ProjectPage() {
           <span className="crumb-kge" aria-hidden="true"><Wordmark /></span>
         </Link>
         <span className="crumb-sep" aria-hidden="true">/</span>
-        <h1 className="crumb-name crumb-topic">{project.topic}</h1>
+        {/* a visitor's own topic is masked in Clarity recordings; demo topics are public */}
+        <h1 className="crumb-name crumb-topic" data-clarity-mask={project.protected ? undefined : 'true'}>{project.topic}</h1>
         <StatusBadge status={project.status} />
         {nodeCount > 0 && (
           <span className="topbar-meta">
