@@ -1,4 +1,11 @@
+import { ownerToken } from './myProjects'
+
 const BASE = '/api'
+
+const owner = (id) => {
+  const t = ownerToken(id)
+  return t ? { 'X-Owner-Token': t } : {}
+}
 
 // Errors carry the server's `detail` when there is one (rate limit, demo
 // protection), so the UI can show a real reason instead of "429".
@@ -33,10 +40,10 @@ export const createProject = (body) =>
   })
 
 export const buildProject = (id) =>
-  req(`/projects/${id}/build`, { method: 'POST' })
+  req(`/projects/${id}/build`, { method: 'POST', headers: owner(id) })
 
 export const deleteProject = async (id) => {
-  const r = await fetch(`${BASE}/projects/${id}`, { method: 'DELETE' })
+  const r = await fetch(`${BASE}/projects/${id}`, { method: 'DELETE', headers: owner(id) })
   if (!r.ok) await fail(r)
 }
 
@@ -46,7 +53,7 @@ export const uploadDocument = (projectId, file) => {
   const form = new FormData()
   form.append('file', file)
   // No explicit Content-Type — the browser sets the multipart boundary.
-  return req(`/projects/${projectId}/upload`, { method: 'POST', body: form })
+  return req(`/projects/${projectId}/upload`, { method: 'POST', body: form, headers: owner(projectId) })
 }
 
 export const askQuestion = (projectId, question) =>
