@@ -93,3 +93,71 @@
   .consent-bar { flex-direction: column; align-items: stretch; gap: var(--s-2); padding-bottom: calc(var(--s-2) + env(safe-area-inset-bottom)); }
   .consent-actions .btn { flex: 1; min-height: var(--h-ctl-touch); }
 }
+
+/* Plotter layer over the graph: ruler, registration marks, selection brackets */
+.graph-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+
+/* Graph controls: phone-only actions are hidden on larger screens */
+.graph-controls .ctl-phone { display: none; }
+
+/* Phone: the controls become a thumb-reach rail along the bottom edge */
+@media (max-width: 767px) {
+  .graph-controls, .graph-controls.is-list {
+    left: 0; right: 0; bottom: 0; width: auto;
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+    background: var(--panel); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .graph-controls button, .graph-controls button:first-child {
+    margin: 0; height: var(--h-ctl-touch); border: 0; border-left: 1px solid var(--line); background: none;
+    font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-caps); text-transform: uppercase;
+  }
+  .graph-controls button:first-child { border-left: 0; }
+  .graph-controls button::before { content: '[\00a0'; color: var(--text-2); }
+  .graph-controls button::after { content: '\00a0]'; color: var(--text-2); }
+  .graph-controls button.is-on { border-color: var(--line); }
+  .graph-controls .ctl-desk { display: none; }
+  .graph-controls .ctl-phone { display: block; }
+  .ask-bar { display: none; }
+  /* list view sits above the rail */
+  .node-list { padding-left: var(--s-2); padding-bottom: calc(var(--h-ctl-touch) + env(safe-area-inset-bottom)); }
+}
+
+/* Tab underline as its own element, so a view transition can slide it */
+.tab-btn { position: relative; }
+.tab-btn.active { border-bottom-color: transparent; }
+.tab-ind { position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--accent); view-transition-name: tab-ind; }
+@media (max-width: 767px) { .tab-ind { bottom: 0; height: 2px; } }
+
+/* Tab switch: the underline slides, content cross-fades in four steps.
+   The graph canvas is kept out of the snapshot (a WebGL/canvas snapshot flashes). */
+.graph-canvas-wrap { view-transition-name: graph-canvas; }
+::view-transition-group(graph-canvas), ::view-transition-old(graph-canvas), ::view-transition-new(graph-canvas) { animation: none; }
+::view-transition-group(tab-ind) { animation-duration: 220ms; animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; animation-timing-function: steps(4); }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* Brief: a comfortable measure everywhere, a reading-progress hairline */
+.brief-rendered > * { max-width: 68ch; margin-left: auto; margin-right: auto; }
+.brief-rendered > table, .brief-rendered > .table-wrap { max-width: 100%; }
+.brief-progress { height: 1px; background: var(--line); flex-shrink: 0; }
+.brief-progress span { display: block; height: 100%; background: var(--text); transform: scaleX(0); transform-origin: left; }
+
+/* Phone: the palette fills the screen with the input at the bottom, within
+   thumb reach and above the keyboard; results read upwards from it */
+@media (max-width: 767px) {
+  .cmdk-backdrop { padding: 0; align-items: stretch; }
+  .cmdk { width: 100%; max-height: none; height: calc(100dvh - var(--kb, 0px)); border: 0; flex-direction: column-reverse; }
+  .cmdk-input-row { border-bottom: 0; border-top: 1px solid var(--line); padding-bottom: calc(var(--panel-pad) + env(safe-area-inset-bottom)); }
+  .cmdk-tabs { flex-wrap: nowrap; overflow-x: auto; border-bottom: 0; border-top: 1px solid var(--line); scrollbar-width: none; }
+  .cmdk-tab { flex-shrink: 0; min-height: var(--h-ctl-touch); }
+  .cmdk-foot { display: none; }
+  .cmdk-list { display: flex; flex-direction: column; }
+  .cmdk-list > :first-child { margin-top: auto; } /* short lists sit by the input; long ones still scroll to the top */
+  .cmdk-item { min-height: var(--h-ctl-touch); }
+
+  .brief-content { padding: var(--s-3) var(--s-2) var(--s-6); }
+  .brief-rendered table { display: block; overflow-x: auto; }
+}
