@@ -702,3 +702,27 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 
 .ask-elapsed { margin-left: 8px; font-family: var(--font-mono); color: var(--text-2); }
 .ask-slow { display: block; margin-top: 6px; font-family: var(--font-body); font-size: 12px; line-height: 18px; color: var(--text-2); }
+
+/* List view of the graph (keyboard / screen-reader mirror) */
+.node-list { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; background: var(--bg); padding: var(--s-2) var(--s-2) 0 112px; }
+.node-list-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.node-list-filter { width: min(280px, 50%); height: 32px; padding: 0 10px; background: transparent; border: 1px solid var(--line-strong); color: var(--text); font-family: var(--font-mono); font-size: 12px; }
+.node-list-filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.node-list-scroll { flex: 1; overflow: auto; }
+.node-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; line-height: 16px; }
+.node-table th { position: sticky; top: 0; background: var(--bg); text-align: left; border-bottom: 1px solid var(--line); padding: 0; }
+.node-table th.is-num, .node-table td.is-num { text-align: right; }
+.node-sort { width: 100%; padding: 10px 12px 10px 0; text-align: inherit; font-family: var(--font-mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); cursor: pointer; }
+.node-table th[aria-sort="ascending"] .node-sort, .node-table th[aria-sort="descending"] .node-sort { color: var(--text); }
+.node-table td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); color: var(--text-2); white-space: nowrap; }
+.node-name { max-width: 46ch; overflow: hidden; text-overflow: ellipsis; text-align: left; color: var(--text); font-family: var(--font-mono); font-size: 12px; cursor: pointer; }
+.node-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.node-table tr.is-selected td { background: var(--accent-soft); }
+.node-table tr.is-selected .node-name { color: var(--accent); }
+.node-type { text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+.node-list-empty { padding: 16px 0; font-family: var(--font-body); font-size: 13px; color: var(--text-2); }
+@media (max-width: 767px) {
+  .node-list { padding: 16px 16px 0 88px; }
+  .node-table th:nth-child(4), .node-table td:nth-child(4), .node-table th:nth-child(5), .node-table td:nth-child(5) { display: none; }
+  .node-name { max-width: 22ch; min-height: 44px; }
+}
