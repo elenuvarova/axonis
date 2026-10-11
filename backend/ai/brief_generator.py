@@ -4,6 +4,7 @@ Uses Groq (Llama 3.3) if GROQ_API_KEY is set, falls back to a template.
 """
 from __future__ import annotations
 from ai import llm
+from textutil import repair_cluster_name, repair_title
 import os
 
 
@@ -41,12 +42,12 @@ def generate_brief(project, entities, clusters, opportunities) -> str:
     )
 
     clusters_text = "\n".join(
-        f"- **{c.name}**: {c.size} nodes, {c.research_count} research items, score {(c.opportunity_score or 0):.3f}"
+        f"- **{repair_cluster_name(c.name)}**: {c.size} nodes, {c.research_count} research items, score {(c.opportunity_score or 0):.3f}"
         for c in top_clusters
     )
 
     opps_text = "\n\n".join(
-        f"**{o.title}** (score {(o.score or 0):.3f}, {o.risk_level} risk)\n{o.why_it_matters}"
+        f"**{repair_title(o.title)}** (score {(o.score or 0):.3f}, {o.risk_level} risk)\n{o.why_it_matters}"
         for o in top_opps
     )
 
@@ -105,12 +106,12 @@ def _template_brief(project, top_entities, clusters, top_opps) -> str:
     )
 
     clusters_section = "\n".join(
-        f"\n### {c.name}\n{c.size} nodes · {c.research_count} research items · opportunity score {(c.opportunity_score or 0):.3f}"
+        f"\n### {repair_cluster_name(c.name)}\n{c.size} nodes · {c.research_count} research items · opportunity score {(c.opportunity_score or 0):.3f}"
         for c in clusters
     )
 
     opps_section = "\n".join(
-        f"\n### {o.title}\n{o.why_it_matters}\n\n**Risk**: {o.risk_level} · **Score**: {(o.score or 0):.3f}"
+        f"\n### {repair_title(o.title)}\n{o.why_it_matters}\n\n**Risk**: {o.risk_level} · **Score**: {(o.score or 0):.3f}"
         for o in top_opps
     )
 
