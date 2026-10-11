@@ -1,3 +1,4 @@
+import BuildField from './BuildField'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clock, mmss, pad } from '../format'
@@ -202,11 +203,13 @@ export function BuildingScreen({ topic, progress, preview }) {
         </div>
         <div className="build-preview">
           <div className="log-head">
-            <span className="label">Preview · the saved graph</span>
+            <span className="label">{preview ? 'Preview · the saved graph' : 'Assembling · live from the server'}</span>
           </div>
-          {preview || (
+          {preview || (progress ? (
+            <div className="build-preview-canvas"><BuildField counts={progress.counts} stageIndex={progress.stage_index} log={progress.log} /></div>
+          ) : (
             <p className="log-empty">The map appears here once entities are saved — after resolving, before metrics and AI insights.</p>
-          )}
+          ))}
         </div>
       </section>
     </div>

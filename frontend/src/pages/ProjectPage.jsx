@@ -53,6 +53,16 @@ function fitCapped(cy, eles, _padding, reduced) {
   fitFree(cy, eles, { maxZoom: 1.2, duration: reduced ? 0 : 400 })
 }
 
+// The last progress snapshot, completed: every stage done and the counts
+// taken from the finished graph (the server stops reporting at "ready").
+function finalProgress(last, graph) {
+  if (!last) return null
+  const nodes = graph?.nodes || []
+  const by = (t) => nodes.filter((n) => n.type === t).length
+  const counts = graph ? { ...last.counts, wikidata: by('concept'), papers: by('paper'), institutions: by('institution') } : last.counts
+  return { ...last, stage_index: (last.stages || []).length, counts, log: [...(last.log || []), { t: Date.now() / 1000, source: 'ready', message: 'map ready' }] }
+}
+
 export default function ProjectPage() {
   const { id } = useParams()
   const qc = useQueryClient()
@@ -222,14 +232,31 @@ export default function ProjectPage() {
 
   // Build outcome for analytics: seen building, then ready or error.
   const buildSeen = useRef(null)
+  // Finale: a build watched to the end holds the assembly field for a beat
+  // with the final counts, then the field becomes the map (view transition).
+  const lastProgress = useRef(null)
+  if (project?.progress) lastProgress.current = project.progress
+  const [finishing, setFinishing] = useState(false)
   useEffect(() => {
     const st = project?.status
     if (st === 'building' && !buildSeen.current) buildSeen.current = Date.now()
     if ((st === 'ready' || st === 'error') && buildSeen.current) {
       track(st === 'ready' ? 'build_done' : 'build_error', { seconds: Math.round((Date.now() - buildSeen.current) / 1000) })
       buildSeen.current = null
+      if (st === 'ready' && lastProgress.current && !reducedMotion) setFinishing(true)
     }
-  }, [project?.status])
+  }, [project?.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!finishing || !graphData) return
+    const t = setTimeout(() => {
+      const end = () => setFinishing(false)
+      if (document.startViewTransition) {
+        document.documentElement.classList.add('vt-route')
+        document.startViewTransition(() => flushSync(end)).finished.finally(() => document.documentElement.classList.remove('vt-route'))
+      } else end()
+    }, 1600)
+    return () => clearTimeout(t)
+  }, [finishing, graphData])
 
   // ⌘K / Ctrl+K opens the node & action palette (map must be ready).
   useEffect(() => {
@@ -499,7 +526,7 @@ export default function ProjectPage() {
   const oppCount  = opps.length
   const nodeCount = graphData?.stats?.node_count ?? 0
   const edgeCount = graphData?.stats?.edge_count ?? 0
-  const isBuilding = project.status === 'building' || project.status === 'pending'
+  const isBuilding = project.status === 'building' || project.status === 'pending' || finishing
   const showClusters = tab === 'clusters'
   const sidebarLabel = showClusters ? 'Clusters' : askOpen ? 'Ask the map' : 'Entity detail'
 
@@ -618,7 +645,7 @@ export default function ProjectPage() {
       {isBuilding ? (
         <BuildingScreen
           topic={project.topic}
-          progress={project.progress}
+          progress={finishing ? finalProgress(lastProgress.current, graphData) : project.progress}
           preview={previewReady && previewGraph?.nodes?.length ? (
             <Suspense fallback={null}>
               <div className="build-preview-canvas">
