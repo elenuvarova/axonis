@@ -1,4 +1,4 @@
-import { useState, useId } from 'react'
+import { useState, useId, useRef, useEffect } from 'react'
 
 const SUGGESTIONS = [
   'What are the main themes here?',
@@ -10,6 +10,10 @@ const SUGGESTIONS = [
 // numbered source to centre it on the graph. `onClose` returns to the inspector.
 export default function AskPanel({ onAsk, pending, result, error, onPickSource, onClose, question }) {
   const [q, setQ] = useState('')
+  // The button that opened the panel unmounts with it, so move focus into the
+  // panel instead of letting it fall to <body> (WCAG 2.4.3).
+  const inputRef = useRef(null)
+  useEffect(() => { inputRef.current?.focus() }, [])
   const answerId = useId()
 
   const ask = (text) => onAsk(text)
@@ -21,7 +25,8 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
   }
 
   const onKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) submit(e)
+    // Skip while an IME is composing (CJK input) — Enter there confirms the word.
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) submit(e)
   }
 
   return (
@@ -96,6 +101,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
         <span className="ask-prompt" aria-hidden="true">&gt;</span>
         <textarea
           id="ask-input"
+          ref={inputRef}
           rows={1}
           placeholder={result ? 'ask a follow-up' : 'Ask anything…'}
           value={q}

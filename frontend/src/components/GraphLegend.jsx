@@ -5,7 +5,10 @@ import { pad } from '../format'
 // Shape key for the graph. Shows only the entity types actually present in the
 // current graph, with their counts, so it never lists types the user can't see.
 export default function GraphLegend({ nodes = [] }) {
-  const [open, setOpen] = useState(true)
+  // Collapsed by default on phones so it doesn't cover the graph; still there,
+  // because shape is the only cue for node type.
+  const [open, setOpen] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia?.('(max-width: 767px)').matches)
 
   const counts = {}
   for (const n of nodes) counts[n.type] = (counts[n.type] || 0) + 1

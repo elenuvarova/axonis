@@ -275,7 +275,11 @@ export default function ProjectPage() {
     else setPanelOpen(false)
   }
 
+  // Where focus goes back to when Ask closes (the opener may have unmounted;
+  // fall back to the canvas "ask the map" bar).
+  const askReturnFocus = useRef(null)
   const openAsk = () => {
+    askReturnFocus.current = document.activeElement
     setTab('graph')
     setAskOpen(true)
     setPanelOpen(true)
@@ -285,6 +289,11 @@ export default function ProjectPage() {
     setAskOpen(false)
     clearAskHighlight()
     setPanelOpen(!!selectedId)
+    requestAnimationFrame(() => {
+      const prev = askReturnFocus.current
+      const target = prev && prev.isConnected ? prev : document.querySelector('.ask-bar')
+      target?.focus()
+    })
   }
 
   const closePanel = useCallback(() => {

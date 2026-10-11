@@ -180,6 +180,11 @@ export default function GraphCanvas({
   const initialStylesheet = useMemo(() => makeStylesheet(), [])
 
   const handleCy = useCallback((cy) => {
+    // react-cytoscapejs calls this on every re-render, not just on mount; set
+    // up layout and listeners once per instance or each tap would stack another
+    // physics loop, refit the view and clear the highlighted cluster.
+    if (cyRef.current === cy) return
+    if (liveLayout.current) { liveLayout.current.stop(); liveLayout.current = null }
     cyRef.current = cy
     cy._highlightedCluster = null
     if (onCyInit) onCyInit(cy)
