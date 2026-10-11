@@ -445,7 +445,7 @@ export default function ProjectPage() {
 
       {/* ── Body ── */}
       {isBuilding ? (
-        <BuildingScreen topic={project.topic} />
+        <BuildingScreen topic={project.topic} progress={project.progress} />
 
       ) : project.status === 'error' ? (
         <StateScreen

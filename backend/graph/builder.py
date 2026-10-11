@@ -18,9 +18,18 @@ from graph.metrics import compute as compute_metrics
 from graph.clustering import label_clusters
 from graph.opportunities import score_opportunities
 from ai.opportunity_writer import enrich_with_ai
+from graph import progress
 
 
 def build_project_graph(project_id: str, db: Session) -> None:
+    progress.start(project_id)
+    try:
+        _build(project_id, db)
+    finally:
+        progress.finish(project_id)
+
+
+def _build(project_id: str, db: Session) -> None:
     project = db.query(ResearchProject).filter_by(id=project_id).first()
     if not project:
         return
@@ -28,11 +37,14 @@ def build_project_graph(project_id: str, db: Session) -> None:
     topic = project.topic
 
     # ── Step 1: Expand topic into search terms ─────────────────────────────
+    progress.stage(project_id, "expand", f"expanding '{topic}'")
     terms = _expand_topic(topic)
     print(f"[build] project={project_id} topic='{topic}' terms={terms}")
+    progress.log(project_id, "expand", f"{len(terms)} search terms: {', '.join(terms[:4])}{'…' if len(terms) > 4 else ''}", terms=len(terms))
 
     # ── Step 2: Fetch from Wikidata ─────────────────────────────────────────
     raw_entities: list[RawEntity] = []
+    progress.stage(project_id, "wikidata", f"querying Wikidata for {min(len(terms), 6)} terms")
     try:
         wd_raw = fetch_entities_for_terms(terms[:6])  # cap to keep API calls sane
         for item in wd_raw:
@@ -48,10 +60,13 @@ def build_project_graph(project_id: str, db: Session) -> None:
                 relation_type=item.get("relation_to_root", "related_to"),
             ))
         print(f"[build] wikidata → {len(raw_entities)} raw entities")
+        progress.log(project_id, "wikidata", f"{len(raw_entities)} concepts", wikidata=len(raw_entities))
     except Exception as exc:
         print(f"[build] wikidata error: {exc}")
+        progress.log(project_id, "wikidata", "request failed, continuing with OpenAlex")
 
     # ── Step 3: Fetch from OpenAlex ─────────────────────────────────────────
+    progress.stage(project_id, "openalex", "querying OpenAlex works, concepts & institutions")
     try:
         oa = fetch_entities_for_topic(topic)
 
@@ -108,8 +123,13 @@ def build_project_graph(project_id: str, db: Session) -> None:
             ))
 
         print(f"[build] openalex → added, total raw={len(raw_entities)}")
+        papers = sum(1 for w in oa["works"] if (w.get("title") or "").strip())
+        progress.log(project_id, "openalex",
+                     f"{papers} papers · {len(oa['concepts']) + len(oa['related_concepts'])} concepts · {len(oa['institutions'])} institutions",
+                     papers=papers, institutions=len(oa["institutions"]))
     except Exception as exc:
         print(f"[build] openalex error: {exc}")
+        progress.log(project_id, "openalex", "request failed")
 
     if not raw_entities:
         project.status = "error"
@@ -118,8 +138,12 @@ def build_project_graph(project_id: str, db: Session) -> None:
         return
 
     # ── Step 4: Resolve & deduplicate ───────────────────────────────────────
+    progress.stage(project_id, "resolve", f"merging {len(raw_entities)} raw records")
     resolved, edges = resolve(raw_entities)
     print(f"[build] resolved → {len(resolved)} entities, {len(edges)} edges")
+    progress.log(project_id, "resolve", f"{len(resolved)} unique entities · {len(edges)} edges",
+                 entities=len(resolved), edges=len(edges))
+    progress.stage(project_id, "persist")
 
     # ── Step 5: Persist entities ────────────────────────────────────────────
     db.query(Relationship).filter_by(project_id=project_id).delete()
@@ -278,6 +302,7 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
     entities = db.query(Entity).filter_by(project_id=project_id).all()
     if not entities:
         return
+    progress.stage(project_id, "metrics", f"centrality & communities over {len(entities)} nodes")
     relationships = db.query(Relationship).filter_by(project_id=project_id).all()
 
     G = nx.Graph()
@@ -299,12 +324,15 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
 
     all_entities = db.query(Entity).filter_by(project_id=project_id).all()
     cluster_summaries = label_clusters(all_entities)
+    progress.log(project_id, "metrics", f"{len(cluster_summaries)} clusters", clusters=len(cluster_summaries))
     candidates = score_opportunities(cluster_summaries, topic)
+    progress.stage(project_id, "insights", f"writing {len(candidates)} opportunity cards")
 
     entities_by_cluster: dict[str, list] = {}
     for e in all_entities:
         entities_by_cluster.setdefault(e.cluster_id or "0", []).append(e)
-    candidates = enrich_with_ai(candidates, topic, entities_by_cluster)
+    candidates = enrich_with_ai(candidates, topic, entities_by_cluster,
+                                on_card=lambda msg: progress.log(project_id, "insights", msg))
 
     db.query(Opportunity).filter_by(project_id=project_id).delete()
     db.query(Cluster).filter_by(project_id=project_id).delete()
@@ -334,6 +362,7 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
             score=cand.score, generated_by_ai=cand.generated_by_ai,
         ))
     db.commit()
+    progress.log(project_id, "insights", f"{len(candidates)} opportunities scored", opportunities=len(candidates))
 
 
 def _expand_topic(topic: str) -> list[str]:
