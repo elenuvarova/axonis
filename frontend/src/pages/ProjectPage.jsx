@@ -173,6 +173,13 @@ export default function ProjectPage() {
   const { data: graphData } = useQuery({
     queryKey: ['graph', id], queryFn: () => getGraph(id), enabled: isReady,
   })
+  // Build preview: only once the server is past saving (stage ≥ metrics) —
+  // before that a rebuild still has the previous graph in the database.
+  const previewReady = project?.status === 'building' && (project?.progress?.stage_index ?? -1) >= 5
+  const { data: previewGraph } = useQuery({
+    queryKey: ['graph-preview', id], queryFn: () => getGraph(id), enabled: previewReady,
+    refetchInterval: previewReady ? 4000 : false,
+  })
   const { data: clustersData } = useQuery({
     queryKey: ['clusters', id], queryFn: () => getClusters(id), enabled: isReady,
   })
@@ -530,7 +537,17 @@ export default function ProjectPage() {
 
       {/* ── Body ── */}
       {isBuilding ? (
-        <BuildingScreen topic={project.topic} progress={project.progress} />
+        <BuildingScreen
+          topic={project.topic}
+          progress={project.progress}
+          preview={previewReady && previewGraph?.nodes?.length ? (
+            <Suspense fallback={null}>
+              <div className="build-preview-canvas">
+                <GraphCanvas nodes={previewGraph.nodes} edges={previewGraph.edges} onNodeClick={() => {}} fitPadding={16} />
+              </div>
+            </Suspense>
+          ) : null}
+        />
 
       ) : project.status === 'error' ? (
         <StateScreen

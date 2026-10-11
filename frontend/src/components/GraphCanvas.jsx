@@ -178,11 +178,13 @@ function buildElements(nodes, edges) {
 export default function GraphCanvas({
   nodes = [], edges = [],
   selectedId, onNodeClick, onCyInit,
+  fitPadding = COLA.padding, // smaller for the build-screen preview box
 }) {
   // Respect the user's motion preference: disable Cytoscape physics animation and
   // cy.animate() calls when prefers-reduced-motion is active (WCAG 2.3.3).
   const prefersReducedMotion = usePrefersReducedMotion()
   const reducedRef = useRef(prefersReducedMotion)
+  const fitPaddingRef = useRef(fitPadding)
   reducedRef.current = prefersReducedMotion
   const cyRef = useRef(null)
   const liveLayout = useRef(null)
@@ -210,7 +212,7 @@ export default function GraphCanvas({
     // Small graphs get longer edges so they fill the frame instead of clumping
     // in the middle with their labels piled on top of each other.
     const edgeLength = cy.nodes().length < 40 ? 120 : COLA.edgeLength
-    const bootLayout = cy.layout({ ...COLA, edgeLength, animate: !reducedRef.current })
+    const bootLayout = cy.layout({ ...COLA, padding: fitPaddingRef.current, edgeLength, animate: !reducedRef.current })
     bootLayout.one('layoutstop', () => {
       if (cy.destroyed()) return
       // Keep labels at a readable size: a small graph should not be fitted to a huge zoom.

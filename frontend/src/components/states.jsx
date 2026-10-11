@@ -114,16 +114,8 @@ const FALLBACK_STEPS = [
 ]
 const USUAL_SECONDS = 60
 
-// The figure worth showing at each point of the build, from real counts only.
-function headlineCount(counts = {}) {
-  if (counts.opportunities != null) return { label: 'Opportunities', value: counts.opportunities }
-  if (counts.clusters != null) return { label: 'Clusters', value: counts.clusters }
-  if (counts.entities != null) return { label: 'Entities', value: counts.entities }
-  if (counts.papers != null || counts.wikidata != null) return { label: 'Records found', value: (counts.papers || 0) + (counts.wikidata || 0) + (counts.institutions || 0) }
-  return null
-}
 
-export function BuildingScreen({ topic, progress }) {
+export function BuildingScreen({ topic, progress, preview }) {
   const [mountedAt] = useState(() => Date.now())
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -139,7 +131,6 @@ export function BuildingScreen({ topic, progress }) {
   const elapsed = (now - startMs) / 1000
   const overrun = elapsed > USUAL_SECONDS
   const log = (progress?.log || []).slice(-8)
-  const count = headlineCount(progress?.counts)
 
   return (
     <div className="build-screen">
@@ -178,14 +169,15 @@ export function BuildingScreen({ topic, progress }) {
             <div className="label">Elapsed</div>
             <div className="counter-num">{mmss(elapsed)}</div>
           </div>
-          {progress && (
-            <div className="counter">
-              <div className="label">{count ? count.label : 'Stage'}</div>
-              <div className="counter-num">
-                {count ? pad(count.value, 3) : <>{pad(active + 1)}<span className="counter-of">/{pad(steps.length)}</span></>}
+          {progress ? (
+            [['Concepts', 'wikidata'], ['Papers', 'papers'], ['Institutions', 'institutions']].map(([label, key]) => (
+              <div className="counter" key={key}>
+                <div className="label">{label}</div>
+                {/* a dash until the server has reported this source */}
+                <div className="counter-num">{progress.counts?.[key] != null ? pad(progress.counts[key], 3) : <span className="counter-pending">—</span>}</div>
               </div>
-            </div>
-          )}
+            ))
+          ) : null}
         </div>
 
         <div className="log-panel">
@@ -206,6 +198,14 @@ export function BuildingScreen({ topic, progress }) {
             </ul>
           ) : (
             <p className="log-empty">No events reported yet. Steps appear here as the server completes them.</p>
+          )}
+        </div>
+        <div className="build-preview">
+          <div className="log-head">
+            <span className="label">Preview · the saved graph</span>
+          </div>
+          {preview || (
+            <p className="log-empty">The map appears here once entities are saved — after resolving, before metrics and AI insights.</p>
           )}
         </div>
       </section>
