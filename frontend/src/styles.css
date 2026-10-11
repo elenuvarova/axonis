@@ -726,3 +726,9 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .node-table th:nth-child(4), .node-table td:nth-child(4), .node-table th:nth-child(5), .node-table td:nth-child(5) { display: none; }
   .node-name { max-width: 22ch; min-height: 44px; }
 }
+
+/* Build screen: real counters + live preview of the saved graph */
+.counter-pending { color: var(--text-3); }
+.build-preview { margin-top: 24px; background: var(--panel); border: 1px solid var(--line); padding: 16px; }
+.build-preview-canvas { height: 300px; margin: 0 -16px -16px; border-top: 1px solid var(--line); }
+@media (max-width: 767px) { .build-preview-canvas { height: 240px; } }

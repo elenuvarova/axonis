@@ -43,12 +43,14 @@ describe('BuildingScreen', () => {
         { key: 'expand', label: 'Expand' }, { key: 'wikidata', label: 'Wikidata' },
         { key: 'openalex', label: 'OpenAlex' }, { key: 'resolve', label: 'Resolve' },
       ],
-      counts: { entities: 83 },
+      counts: { wikidata: 12, papers: 9 },
       log: [{ t: Date.now() / 1000, source: 'resolve', message: '83 unique entities · 68 edges' }],
     }
     render(<MemoryRouter><BuildingScreen topic="AI tutoring" progress={progress} /></MemoryRouter>)
     expect(screen.getByText('83 unique entities · 68 edges')).toBeInTheDocument()
-    expect(screen.getByText('083')).toBeInTheDocument()
+    expect(screen.getByText('012')).toBeInTheDocument()
+    expect(screen.getByText('009')).toBeInTheDocument()
+    expect(screen.getByText('—')).toBeInTheDocument() // institutions not reported yet
     expect(screen.getAllByText('(done)')).toHaveLength(3)
     expect(screen.getByText('(in progress)')).toBeInTheDocument()
   })
