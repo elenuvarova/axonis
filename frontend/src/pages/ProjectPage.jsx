@@ -636,6 +636,7 @@ export default function ProjectPage() {
             ) : (
               <EntityCard
                 entity={entityData}
+                maxBridge={Math.max(0, ...(graphData?.nodes || []).map((n) => n.bridge_score || 0)) || undefined}
                 loading={!!selectedId && !entityData}
                 onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}
                 onNeighborHover={hoverSource}
