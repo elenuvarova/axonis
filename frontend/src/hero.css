@@ -1,0 +1,125 @@
+/* ════════════════════════════════════════════════════════════
+   HOME HERO — entrance (research rows #8) and composition (row #9).
+   Imported by HomePage.jsx, so it is bundled BEFORE styles.css: every
+   override below therefore uses a higher-specificity selector
+   (main.home-body …) instead of relying on source order.
+   B² rules: no gradients, no glows, no new colours, radius 0.
+════════════════════════════════════════════════════════════ */
+
+/* ── The one timeline. HomePage.jsx (decode) and LetterSphere.jsx (assemble)
+      read the --hero-t-* values below, so retime the entrance HERE only.
+      Whole entrance ends at --hero-t-sphere + --hero-sphere-dur = 1.4 s. ── */
+:root,
+:root[data-theme="dark"] {
+  --hero-t-eyebrow: 0ms;
+  --hero-t-lines: 120ms;        /* first headline line; each next line adds --hero-line-gap */
+  --hero-line-gap: 80ms;
+  --hero-line-dur: 360ms;
+  --hero-t-decode: 520ms;       /* OPPORTUNITIES starts cycling */
+  --hero-decode-dur: 400ms;
+  --hero-t-arrows: 700ms;
+  --hero-t-query: 800ms;        /* border draws, caret starts */
+  --hero-query-dur: 400ms;
+  --hero-t-sphere: 200ms;
+  --hero-sphere-dur: 1200ms;
+
+  /* headline size across ≥768: between 40 and 64 (display tokens for the hero only) */
+  --fs-hero-min: 40px;
+  --fs-hero-max: 64px;
+  --fs-hero: clamp(var(--fs-hero-min), 4.4vw, var(--fs-hero-max));
+  --lh-hero: 1.1;
+  --hero-band: 200px;           /* phone: height of the sphere band */
+  --hero-sphere-max: 320px;     /* tablet: sphere cap */
+}
+
+/* ── Keyframes (stepped, mechanical) ── */
+@keyframes hero-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes hero-step-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hero-draw-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes hero-draw-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes hero-blink { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+/* ── Decode: unlocked letters stay in the text colour, then turn accent as they lock ── */
+main.home-body .dl-scramble { color: var(--text); }
+
+/* ── Query block: the border is four hairline edges so it can draw itself ── */
+main.home-body .query-block { position: relative; border-color: transparent; }
+.qb-edge { position: absolute; background: var(--text); pointer-events: none; }
+.qb-top, .qb-bottom { left: -1px; right: -1px; height: 1px; }
+.qb-left, .qb-right { top: -1px; bottom: -1px; width: 1px; }
+.qb-top { top: -1px; transform-origin: left; }
+.qb-bottom { bottom: -1px; transform-origin: right; }
+.qb-left { left: -1px; transform-origin: bottom; }
+.qb-right { right: -1px; transform-origin: top; }
+
+/* ── Query caret: a block shown only while the field is empty and unfocused.
+      It blinks a few times and then rests (WCAG 2.2.2: nothing blinks for good). ── */
+.query-caret { width: 0.6em; height: 1em; background: var(--accent); visibility: hidden; flex-shrink: 0; }
+.query-line:has(input:placeholder-shown:not(:focus)) .query-caret { visibility: visible; }
+@media (prefers-reduced-motion: no-preference) {
+  .query-caret { animation: hero-blink 1s steps(1) 6; }
+}
+
+/* ── Entrance: opt-in. JS adds .hero-intro only for the first visit of a
+      session without reduced motion; without it everything is in its end state. ── */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-intro .home-kicker {
+    animation: hero-reveal 480ms steps(32) var(--hero-t-eyebrow) backwards;
+  }
+  .hero-intro .hero-line { animation: hero-reveal var(--hero-line-dur) steps(6) var(--hero-t-lines) backwards; }
+  .hero-intro .hero-line:nth-child(2) { animation-delay: calc(var(--hero-t-lines) + var(--hero-line-gap)); }
+  .hero-intro .hero-line:nth-child(3) { animation-delay: calc(var(--hero-t-lines) + var(--hero-line-gap) * 2); }
+  .hero-intro .hero-line:nth-child(4) { animation-delay: calc(var(--hero-t-lines) + var(--hero-line-gap) * 3); }
+  .hero-intro .hero-arrow { animation: hero-step-in 160ms steps(2) var(--hero-t-arrows) backwards; }
+
+  .hero-intro .qb-top, .hero-intro .qb-bottom { animation: hero-draw-x var(--hero-query-dur) steps(8) var(--hero-t-query) backwards; }
+  .hero-intro .qb-left, .hero-intro .qb-right { animation: hero-draw-y var(--hero-query-dur) steps(8) var(--hero-t-query) backwards; }
+  .hero-intro .query-caret { animation: hero-blink 1s steps(1) calc(var(--hero-t-query) + var(--hero-query-dur)) 6 backwards; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   COMPOSITION
+════════════════════════════════════════════════════════════ */
+
+/* ≥768: headline between the display tokens. Phones keep --fs-display-sm from styles.css. */
+@media (min-width: 768px) {
+  main.home-body .home-title { font-size: var(--fs-hero); line-height: var(--lh-hero); }
+  main.home-body .hero-line { white-space: nowrap; }
+}
+
+/* ≥1101: sphere centred on the headline + query block (row 1 holds exactly those). */
+@media (min-width: 1101px) {
+  /* wide enough for "→ OPPORTUNITIES" at 64px on one line */
+  main.home-body { grid-template-columns: minmax(0, 700px) minmax(0, 1fr); }
+  main.home-body .home-hero-media { align-self: center; }
+}
+
+/* 768-1100: keep two columns (7fr / 5fr) with a capped sphere, instead of stacking. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  main.home-body { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--s-4); }
+  main.home-body .home-hero-media {
+    grid-column: 2; grid-row: 1; justify-self: end; align-self: center;
+    margin-top: 0; width: min(100%, var(--hero-sphere-max));
+  }
+  main.home-body .home-recent { grid-row: 2; }
+}
+
+/* ≤767: headline, then a sphere band, then lede and query block, so the fold has an image.
+   .home-left dissolves into the grid so the sphere can sit between its children. */
+@media (max-width: 767px) {
+  main.home-body .home-left { display: contents; }
+  main.home-body .home-kicker { order: 1; }
+  main.home-body .home-title { order: 2; }
+  main.home-body .home-hero-media {
+    order: 3; grid-column: 1; grid-row: auto; justify-self: stretch;
+    width: 100%; height: var(--hero-band); aspect-ratio: auto;
+    margin: 0 0 var(--s-3);
+  }
+  main.home-body .home-lede { order: 4; }
+  main.home-body .query-block { order: 5; }
+  main.home-body .try-row { order: 6; }
+  main.home-body .home-recent { order: 7; grid-row: auto; }
+  main.home-body .home-footer { order: 8; }
+  /* [ PAUSE ] docked to the sphere's bottom-right corner, inside the band */
+  main.home-body .hero-toggle { right: 0; bottom: 0; }
+}

@@ -12,8 +12,11 @@ import { track } from '../analytics'
 import useDocumentMeta from '../useDocumentMeta'
 import { resetConsent } from '../consent'
 import LetterSphere from '../components/LetterSphere'
+import '../hero.css'
 
 const TOUR_KEY = 'kge-tour-home'
+const INTRO_KEY = 'axonis-hero-intro'
+const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#/_'
 const HOME_TOUR = [
   { target: '#topic', placement: 'bottom', title: 'Start with a topic',
     body: 'Type any domain — “AI tutoring”, “CSRD reporting”, “e-waste circularity”. That’s all the tool needs to start.' },
@@ -56,14 +59,67 @@ function ProjectsSkeleton() {
   )
 }
 
+// Timings live in hero.css (--hero-t-*); JS reads them so there is one timeline.
+function cssMs(name, fallback) {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name))
+  return Number.isFinite(v) ? v : fallback
+}
+
+// The entrance plays once per browser session and never under reduced motion.
+function introWanted(reduced) {
+  if (reduced) return false
+  try { return !sessionStorage.getItem(INTRO_KEY) } catch { return false }
+}
+
+// Decode effect: every letter cycles 3-5 random glyphs, then locks left to
+// right. Returns [{ch, locked}]; the final text when `run` is false.
+function useDecode(text, run) {
+  const final = Array.from(text, (ch) => ({ ch, locked: true }))
+  const [chars, setChars] = useState(final)
+  useEffect(() => {
+    if (!run) { setChars(final); return }
+    const delay = cssMs('--hero-t-decode', 520)
+    const dur = cssMs('--hero-decode-dur', 400)
+    const n = text.length
+    const plan = Array.from(text, (_, i) => ({
+      lockAt: delay + dur * (0.35 + 0.65 * (i / Math.max(1, n - 1))),
+      glyphs: Array.from({ length: 3 + Math.floor(Math.random() * 3) }, () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)]),
+    }))
+    const t0 = performance.now()
+    let raf = 0, prev = ''
+    const frame = (now) => {
+      const t = now - t0
+      const next = plan.map((p, i) => {
+        if (t >= p.lockAt) return { ch: text[i], locked: true }
+        const k = Math.min(p.glyphs.length - 1, Math.floor((Math.max(0, t - delay) / (p.lockAt - delay)) * p.glyphs.length))
+        return { ch: p.glyphs[k], locked: false }
+      })
+      const key = next.map((c) => c.ch + (c.locked ? '!' : '')).join('')
+      if (key !== prev) { prev = key; setChars(next) }
+      if (t < delay + dur) raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, run])
+  return chars
+}
+
+function DecodedWord({ text, run }) {
+  const chars = useDecode(text, run)
+  return chars.map((c, i) => (
+    <span key={i} aria-hidden="true" className={c.locked ? undefined : 'dl-scramble'}>{c.ch}</span>
+  ))
+}
+
 // Interactive letter sphere (drag to spin). The auto-spin can be paused;
 // under reduced motion it starts still and only moves when dragged.
-function Hero() {
+function Hero({ intro }) {
   const reduced = usePrefersReducedMotion()
   const [playing, setPlaying] = useState(true)
   return (
     <div className="home-hero-media">
-      <LetterSphere paused={!playing} reducedMotion={reduced} />
+      <LetterSphere paused={!playing} reducedMotion={reduced} assemble={intro} />
       {!reduced && (
         <button type="button" className="btn btn-ghost hero-toggle" onClick={() => setPlaying((p) => !p)} aria-label={playing ? 'Pause background animation' : 'Play background animation'}>
           {playing ? 'Pause' : 'Play'}
@@ -83,6 +139,13 @@ export default function HomePage() {
   const [toast, setToast] = useState('')
   const [tourOpen, setTourOpen] = useState(false)
   const tryRef = useRef(null)
+  const reducedMotion = usePrefersReducedMotion()
+  // Decided once on first render; the flag is written after mount so a
+  // StrictMode double render still plays the entrance.
+  const [intro] = useState(() => introWanted(reducedMotion))
+  useEffect(() => {
+    try { sessionStorage.setItem(INTRO_KEY, '1') } catch { /* ignore */ }
+  }, [])
 
   // First-visit tour (once); replayable via HOW IT WORKS.
   useEffect(() => {
@@ -153,14 +216,14 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <main id="main" className="home-body" tabIndex={-1}>
+      <main id="main" className={`home-body${intro ? ' hero-intro' : ''}`} tabIndex={-1}>
         <div className="home-left">
-          <div className="label home-kicker">Knowledge Graph Explorer · open data <span aria-hidden="true">→</span> graph <span aria-hidden="true">→</span> gaps</div>
-          <h1 className="display home-title">
-            <span>Map any domain</span>
-            <span><span aria-hidden="true">→ </span>Concepts</span>
-            <span><span aria-hidden="true">→ </span>Research</span>
-            <span className="accent"><span aria-hidden="true">→ </span>Opportunities</span>
+          <div className="label home-kicker">Knowledge Graph Explorer · open data <span className="hero-arrow" aria-hidden="true">→</span> graph <span className="hero-arrow" aria-hidden="true">→</span> gaps</div>
+          <h1 className="display home-title" aria-label="Map any domain: concepts, research, opportunities">
+            <span className="hero-line">Map any domain</span>
+            <span className="hero-line"><span className="hero-arrow" aria-hidden="true">→ </span>Concepts</span>
+            <span className="hero-line"><span className="hero-arrow" aria-hidden="true">→ </span>Research</span>
+            <span className="hero-line accent"><span className="hero-arrow" aria-hidden="true">→ </span><DecodedWord text="Opportunities" run={intro} /></span>
           </h1>
           <p className="body home-lede">
             Type a topic. We read Wikidata and OpenAlex, build the graph, and mark where research exists but products don’t.
@@ -169,6 +232,7 @@ export default function HomePage() {
           <form className="query-block" onSubmit={handleSubmit}>
             <div className="query-line">
               <span className="query-prompt" aria-hidden="true">&gt;</span>
+              <span className="query-caret" aria-hidden="true" />
               <label htmlFor="topic" className="sr-only">Topic</label>
               <input
                 id="topic"
@@ -200,6 +264,10 @@ export default function HomePage() {
               </button>
             </div>
             <InlineError message={err} onDismiss={() => setErr('')} />
+            <span className="qb-edge qb-top" aria-hidden="true" />
+            <span className="qb-edge qb-right" aria-hidden="true" />
+            <span className="qb-edge qb-bottom" aria-hidden="true" />
+            <span className="qb-edge qb-left" aria-hidden="true" />
           </form>
 
           <div className="try-row" ref={tryRef}>
@@ -227,7 +295,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <Hero />
+        <Hero intro={intro} />
 
         <section className="home-recent" aria-label="Recent projects">
           {isLoading && <ProjectsSkeleton />}
