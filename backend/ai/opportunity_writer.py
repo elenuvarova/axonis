@@ -40,7 +40,9 @@ def enrich_with_ai(
     candidates: list[OpportunityCandidate],
     topic: str,
     entities_by_cluster: dict[str, list],
+    on_card=None,
 ) -> list[OpportunityCandidate]:
+    """`on_card(message)` is called after each card, for build progress."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         print("[ai] GROQ_API_KEY not set — using template descriptions")
@@ -96,9 +98,13 @@ def enrich_with_ai(
                 candidate.next_questions = [str(q) for q in data["next_questions"] if str(q).strip()]
             candidate.generated_by_ai = True
             print(f"[ai] generated card for cluster '{cluster.name}'")
+            if on_card:
+                on_card(f"card: {candidate.title}")
 
         except Exception as exc:
             print(f"[ai] groq error for cluster '{cluster.name}': {exc}")
+            if on_card:
+                on_card(f"template card for '{cluster.name}' (AI unavailable)")
 
         time.sleep(0.2)
 

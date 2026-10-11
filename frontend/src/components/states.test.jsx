@@ -28,9 +28,28 @@ describe('InlineError', () => {
 })
 
 describe('BuildingScreen', () => {
-  it('shows the heading and the first pipeline step', () => {
+  it('without progress shows the typical order, no fake completion', () => {
     render(<MemoryRouter><BuildingScreen /></MemoryRouter>)
     expect(screen.getByText('Building your map')).toBeInTheDocument()
+    expect(screen.getByText('Typical order')).toBeInTheDocument()
     expect(screen.getByText('Expanding the topic into search terms')).toBeInTheDocument()
+    expect(screen.queryByText('(done)')).not.toBeInTheDocument()
+  })
+
+  it('renders the real stage, counts and log from progress', () => {
+    const progress = {
+      stage: 'resolve', stage_index: 3, started_at: Date.now() / 1000 - 5,
+      stages: [
+        { key: 'expand', label: 'Expand' }, { key: 'wikidata', label: 'Wikidata' },
+        { key: 'openalex', label: 'OpenAlex' }, { key: 'resolve', label: 'Resolve' },
+      ],
+      counts: { entities: 83 },
+      log: [{ t: Date.now() / 1000, source: 'resolve', message: '83 unique entities · 68 edges' }],
+    }
+    render(<MemoryRouter><BuildingScreen topic="AI tutoring" progress={progress} /></MemoryRouter>)
+    expect(screen.getByText('83 unique entities · 68 edges')).toBeInTheDocument()
+    expect(screen.getByText('083')).toBeInTheDocument()
+    expect(screen.getAllByText('(done)')).toHaveLength(3)
+    expect(screen.getByText('(in progress)')).toBeInTheDocument()
   })
 })

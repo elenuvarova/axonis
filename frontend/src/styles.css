@@ -440,6 +440,13 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .build-step.is-done { color: var(--text); }
 .build-step.is-active { color: var(--accent); background: var(--accent-soft); }
 .build-step-mark { flex-shrink: 0; white-space: pre; }
+.build-step.is-typical { color: var(--text-2); }
+.build-order-label { margin-bottom: 8px; color: var(--text-2); }
+.log-empty { font-family: var(--font-body); font-size: 13px; line-height: 20px; color: var(--text-2); }
+/* one flash per real event (the tag remounts when a log line arrives) */
+.live-pulse { animation: live-pulse 0.9s ease-out; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 var(--accent); } 100% { box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
 .build-back { padding-left: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
 
 .counters { display: flex; border-left: 1px solid var(--line); margin-bottom: 32px; }

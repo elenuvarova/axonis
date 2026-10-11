@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from database import get_db, SessionLocal
+from graph import progress
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 from graph.builder import build_project_graph
 
@@ -202,4 +203,6 @@ def _project_out(p: ResearchProject) -> dict:
         "status": p.status,
         "error_message": p.error_message,
         "created_at": p.created_at.isoformat() if p.created_at else None,
+        # Real pipeline stage + counts while a build runs (None otherwise).
+        "progress": progress.snapshot(p.id) if p.status == "building" else None,
     }

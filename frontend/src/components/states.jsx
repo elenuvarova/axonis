@@ -98,47 +98,48 @@ export function EntitySkeleton() {
   )
 }
 
-/* ── Staged building screen ──
-   The backend reports only "building", so these stages advance on a timer to
-   show what the pipeline is doing during the ~30s build. They are the real
-   pipeline steps, in order. The elapsed counter and the log timestamps are
-   real clock time; no entity counts are shown because none are reported. */
-const BUILD_STEPS = [
-  { label: 'Expanding the topic into search terms', source: 'topic' },
-  { label: 'Fetching concepts from Wikidata', source: 'wikidata' },
-  { label: 'Querying OpenAlex for research & institutions', source: 'openalex' },
-  { label: 'Resolving & de-duplicating entities', source: 'resolve' },
-  { label: 'Building the graph & computing metrics', source: 'graph' },
-  { label: 'Detecting knowledge clusters', source: 'cluster' },
-  { label: 'Scoring product opportunities', source: 'score' },
-  { label: 'Writing AI insights', source: 'insights' },
+/* ── Building screen ──
+   Driven by the real pipeline: the project poll carries `progress` (current
+   stage, real counts, timestamped log lines from the backend). Nothing here
+   advances on a timer. If no progress is reported (an older server, or a
+   document upload), the steps are shown as the typical order without marks. */
+const FALLBACK_STEPS = [
+  { key: 'expand', label: 'Expanding the topic into search terms' },
+  { key: 'wikidata', label: 'Fetching concepts from Wikidata' },
+  { key: 'openalex', label: 'Querying OpenAlex for research & institutions' },
+  { key: 'resolve', label: 'Resolving & de-duplicating entities' },
+  { key: 'persist', label: 'Saving entities & relationships' },
+  { key: 'metrics', label: 'Computing graph metrics & clusters' },
+  { key: 'insights', label: 'Scoring opportunities & writing AI insights' },
 ]
-const STEP_MS = 3800
+const USUAL_SECONDS = 60
 
-export function BuildingScreen({ topic }) {
-  const [active, setActive] = useState(0)
-  const [elapsed, setElapsed] = useState(0)
-  const [log, setLog] = useState(() => [{ time: clock(), source: BUILD_STEPS[0].source, message: `step 1/${BUILD_STEPS.length} · ${BUILD_STEPS[0].label}` }])
+// The figure worth showing at each point of the build, from real counts only.
+function headlineCount(counts = {}) {
+  if (counts.opportunities != null) return { label: 'Opportunities', value: counts.opportunities }
+  if (counts.clusters != null) return { label: 'Clusters', value: counts.clusters }
+  if (counts.entities != null) return { label: 'Entities', value: counts.entities }
+  if (counts.papers != null || counts.wikidata != null) return { label: 'Records found', value: (counts.papers || 0) + (counts.wikidata || 0) + (counts.institutions || 0) }
+  return null
+}
 
+export function BuildingScreen({ topic, progress }) {
+  const [mountedAt] = useState(() => Date.now())
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const id = setInterval(() => {
-      setActive((i) => (i < BUILD_STEPS.length - 1 ? i + 1 : i))
-    }, STEP_MS)
+    const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
 
-  useEffect(() => {
-    const t0 = Date.now()
-    const id = setInterval(() => setElapsed((Date.now() - t0) / 1000), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  // Append one real-timestamped line each time the active step changes.
-  useEffect(() => {
-    if (active === 0) return
-    const step = BUILD_STEPS[active]
-    setLog((l) => [...l, { time: clock(), source: step.source, message: `step ${active + 1}/${BUILD_STEPS.length} · ${step.label}` }])
-  }, [active])
+  const steps = progress?.stages || FALLBACK_STEPS
+  const active = progress ? progress.stage_index : -1
+  // Server start time when we have it (survives a reload); never negative
+  // even if the two clocks disagree a little.
+  const startMs = progress?.started_at ? Math.min(progress.started_at * 1000, mountedAt) : mountedAt
+  const elapsed = (now - startMs) / 1000
+  const overrun = elapsed > USUAL_SECONDS
+  const log = (progress?.log || []).slice(-8)
+  const count = headlineCount(progress?.counts)
 
   return (
     <div className="build-screen">
@@ -146,20 +147,23 @@ export function BuildingScreen({ topic }) {
         <div className="label build-kicker">Build{topic ? ` · ${topic}` : ''}</div>
         <h1 className="build-title">Building your map</h1>
         <p className="build-subtitle">
-          This usually takes about 30 seconds, sometimes longer. You can leave — the map keeps building and appears in Recent when ready.
+          {overrun
+            ? <>Taking longer than usual · {mmss(elapsed)}. Wikidata and OpenAlex can be slow; the build is still running.</>
+            : 'This usually takes under a minute. You can leave — the map keeps building and appears in Recent when ready.'}
         </p>
 
-        {/* role="status" / aria-live="polite" announces build progress to screen readers (S-5) */}
+        {!progress && <div className="label build-order-label">Typical order</div>}
+        {/* role="status" / aria-live="polite" announces stage changes to screen readers */}
         <ol className="build-steps" role="status" aria-live="polite" aria-atomic="false">
-          {BUILD_STEPS.map((step, i) => {
-            const state = i < active ? 'is-done' : i === active ? 'is-active' : ''
-            const mark = i < active ? '[✓]' : i === active ? '[>]' : '[ ]'
+          {steps.map((step, i) => {
+            const state = !progress ? 'is-typical' : i < active ? 'is-done' : i === active ? 'is-active' : ''
+            const mark = !progress ? `${pad(i + 1)} ` : i < active ? '[✓]' : i === active ? '[>]' : '[ ]'
             return (
-              <li key={step.label} className={`build-step ${state}`}>
+              <li key={step.key} className={`build-step ${state}`}>
                 <span className="build-step-mark" aria-hidden="true">{mark}</span>
                 <span>{step.label}</span>
-                {i < active && <span className="sr-only"> (done)</span>}
-                {i === active && <span className="sr-only"> (in progress)</span>}
+                {progress && i < active && <span className="sr-only"> (done)</span>}
+                {progress && i === active && <span className="sr-only"> (in progress)</span>}
               </li>
             )
           })}
@@ -174,26 +178,35 @@ export function BuildingScreen({ topic }) {
             <div className="label">Elapsed</div>
             <div className="counter-num">{mmss(elapsed)}</div>
           </div>
-          <div className="counter">
-            <div className="label">Step</div>
-            <div className="counter-num">{pad(active + 1)}<span className="counter-of">/{pad(BUILD_STEPS.length)}</span></div>
-          </div>
+          {progress && (
+            <div className="counter">
+              <div className="label">{count ? count.label : 'Stage'}</div>
+              <div className="counter-num">
+                {count ? pad(count.value, 3) : <>{pad(active + 1)}<span className="counter-of">/{pad(steps.length)}</span></>}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="log-panel">
           <div className="log-head">
-            <span className="label">Live log</span>
-            <span className="live-tag"><span className="accent-dot" aria-hidden="true" />live</span>
+            <span className="label">{progress ? 'Build log' : 'Waiting for the server'}</span>
+            {/* key = last line count, so the dot re-flashes on every real event */}
+            <span className="live-tag" key={progress?.log?.length || 0}><span className="accent-dot live-pulse" aria-hidden="true" />live</span>
           </div>
-          <ul className="log-list">
-            {log.map((line, i) => (
-              <li key={i} className={`log-line${i === log.length - 1 ? ' is-live' : ''}`}>
-                <span className="log-time">{line.time}</span>
-                <span className="log-source">{line.source}</span>
-                <span className="log-msg">{line.message}</span>
-              </li>
-            ))}
-          </ul>
+          {log.length > 0 ? (
+            <ul className="log-list">
+              {log.map((line, i) => (
+                <li key={`${line.t}-${i}`} className={`log-line${i === log.length - 1 ? ' is-live' : ''}`}>
+                  <span className="log-time">{clock(new Date(line.t * 1000))}</span>
+                  <span className="log-source">{line.source}</span>
+                  <span className="log-msg">{line.message}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="log-empty">No events reported yet. Steps appear here as the server completes them.</p>
+          )}
         </div>
       </section>
     </div>
