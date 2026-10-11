@@ -142,8 +142,10 @@ async def security_headers(request, call_next):
 
 
 from routers import projects, graph, stats  # noqa: E402 — after app is defined
+import og  # noqa: E402
 app.include_router(projects.router, prefix="/api")
 app.include_router(graph.router, prefix="/api")
+app.include_router(og.router, prefix="/api")
 app.include_router(stats.router)
 
 
@@ -215,6 +217,12 @@ def _shell(public: str, topic: str | None = None, project_id: str | None = None)
         page = put(rf'(<meta {attr} content=")[^"]*', title, page)
     for attr in ('name="description"', 'property="og:description"', 'name="twitter:description"'):
         page = put(rf'({attr}\s+content=")[^"]*', desc, page)
+    # The map's own card (backend/og.py), demo maps only: this branch is only
+    # reached for a public demo.
+    img = f"{_CANONICAL}/api/og/{project_id}.png"
+    for attr in ('property="og:image"', 'name="twitter:image"'):
+        page = put(rf'(<meta {attr} content=")[^"]*', img, page)
+    page = put(r'(<meta property="og:image:alt" content=")[^"]*', f"Knowledge map of {t}: its top concepts and the strongest product gap", page)
     return page
 
 

@@ -1,0 +1,9 @@
+Martian Mono (MartianMono-StdRg.otf, MartianMono-StdMd.otf)
+Copyright 2022 The Martian Mono Project Authors (Evil Martians, Roman Shamin).
+https://evilmartians.com/
+
+Licensed under the SIL Open Font License, Version 1.1.
+Full text: https://openfontlicense.org/open-font-license-official-text/
+
+These files are unmodified static OTFs from the official release, bundled so
+backend/og.py can render Open Graph images with Pillow (which cannot read woff2).
