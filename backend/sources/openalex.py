@@ -27,7 +27,7 @@ def search_concepts(query: str, per_page: int = 15) -> list[dict]:
     return data.get("results", [])
 
 
-def get_top_works(query: str, per_page: int = 15, pool: int = 25) -> list[dict]:
+def get_top_works(query: str, per_page: int = 20, pool: int = 40) -> list[dict]:
     """Return well-cited papers that are actually about the query.
 
     Sorting the whole full-text search by citations surfaced famous papers that
@@ -38,7 +38,7 @@ def get_top_works(query: str, per_page: int = 15, pool: int = 25) -> list[dict]:
     data = _get("/works", {
         "search": query,
         "per-page": pool,
-        "select": "id,title,doi,publication_year,cited_by_count,concepts,authorships",
+        "select": "id,title,doi,publication_year,cited_by_count,concepts,topics,authorships",
     })
     works = data.get("results", [])
     works.sort(key=lambda w: w.get("cited_by_count") or 0, reverse=True)
