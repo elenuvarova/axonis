@@ -365,10 +365,13 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
     db.query(Cluster).filter_by(project_id=project_id).delete()
     db.commit()
 
+    from ai.cluster_labeler import label_clusters_ai
+    labels = label_clusters_ai(topic, [(s.cluster_id, s.top_entity_names) for s in cluster_summaries])
+
     cluster_id_map: dict[str, str] = {}
     for s in cluster_summaries:
         row = Cluster(
-            project_id=project_id, cluster_id=s.cluster_id, name=s.name,
+            project_id=project_id, cluster_id=s.cluster_id, name=s.name, label=labels.get(s.cluster_id),
             top_entities=json.dumps(s.top_entity_names), size=s.size,
             research_count=s.research_count, product_count=s.product_count,
             opportunity_score=s.opportunity_score, avg_degree=s.avg_degree,

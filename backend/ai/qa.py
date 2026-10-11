@@ -27,7 +27,9 @@ _SYSTEM = (
     "plainly. Be concise (3-5 sentences) and do not invent entities. "
     "The context is a map: numbered nodes plus a summary of clusters and scored "
     "opportunities. A 'gap' is a cluster with research (papers, institutions) "
-    "but few or no products; the summary gives those counts. When nodes or "
+    "but few or no products; the summary gives those counts. The scored gaps "
+    "are listed as 'Gap 01', 'Gap 02'…: refer to them by those names, as the "
+    "app does. When nodes or "
     "clusters are listed, answer from them and say where the map is thin; do "
     "not reply that the context has no information. Write plain prose: no "
     "markdown, no bold, no bullet lists. Cite only the numbered nodes, as [n] "
@@ -98,17 +100,19 @@ def _summary(entities: list, clusters: list, opportunities: list) -> str:
     lines = ["Map: " + ", ".join(f"{n} {t}" for t, n in counts.most_common())]
     ranked = sorted(clusters, key=lambda c: c.opportunity_score or 0, reverse=True)[:6]
     for c in ranked:
-        lines.append(f"Cluster '{c.name}': {c.size} nodes, {c.research_count} research, "
+        lines.append(f"Cluster '{getattr(c, 'label', None) or c.name}': {c.size} nodes, {c.research_count} research, "
                      f"{c.product_count} products, opportunity {round((c.opportunity_score or 0) * 100)}/100")
-    for o in sorted(opportunities, key=lambda o: o.score or 0, reverse=True)[:4]:
-        lines.append(f"Opportunity: {o.title} ({round((o.score or 0) * 100)}/100, risk {o.risk_level})")
+    # numbered as the app numbers them (Gap 01 = highest score), so the
+    # answer and the screen use the same names
+    for i, o in enumerate(sorted(opportunities, key=lambda o: o.score or 0, reverse=True)[:4], 1):
+        lines.append(f"Gap {i:02d}: {o.title} ({round((o.score or 0) * 100)}/100, risk {o.risk_level})")
     return "\n".join(lines)
 
 
 def answer_question(project, entities: list, question: str, clusters: list | None = None,
                     opportunities: list | None = None) -> dict:
     top = retrieve(entities, question)
-    cluster_name = {c.cluster_id: c.name for c in (clusters or [])}
+    cluster_name = {c.cluster_id: (getattr(c, 'label', None) or c.name) for c in (clusters or [])}
     # Numbered so the model can cite lines as [n]; sources keep the same order.
     nodes = "\n".join(
         f"[{i}] {e.name} ({e.type}"

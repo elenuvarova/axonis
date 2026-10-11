@@ -53,10 +53,14 @@ def ensure_columns() -> None:
     """create_all doesn't add columns to existing tables; add the few that
     arrived later. Plain ALTER works on both SQLite and Postgres."""
     from sqlalchemy import inspect, text
-    have = {c["name"] for c in inspect(engine).get_columns("research_projects")}
+    insp = inspect(engine)
+    have = {c["name"] for c in insp.get_columns("research_projects")}
     if "owner_token_hash" not in have:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE research_projects ADD COLUMN owner_token_hash VARCHAR(64)"))
+    if "label" not in {c["name"] for c in insp.get_columns("clusters")}:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE clusters ADD COLUMN label VARCHAR(120)"))
 
 
 @asynccontextmanager

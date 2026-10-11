@@ -68,6 +68,8 @@ class Cluster(Base):
     # numeric string matching entity.cluster_id
     cluster_id = Column(String(10), nullable=False)
     name = Column(String(300))
+    # short human label (ai/cluster_labeler.py); NULL on maps built before it
+    label = Column(String(120))
     # JSON list of top entity names
     top_entities = Column(Text, default="[]")
     size = Column(Integer, default=0)
