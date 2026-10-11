@@ -100,16 +100,16 @@ async def limit_body(request: Request, call_next):
 # set a conservative baseline on every response. The CSP allows inline scripts
 # (the pre-paint theme switcher in index.html) and inline styles (React
 # style={{…}}), blob: workers for the cola graph layout, and the self-hosted
-# Umami analytics script + its event endpoint on stats.ontwrpn.com.
+# Umami analytics goes through this origin (/s/, routers/stats.py).
 _CSP = (
     "default-src 'self'; "
     # Microsoft Clarity (session analytics): its loader on www.clarity.ms, the
     # recorder on scripts.clarity.ms, beacons to *.clarity.ms and c.bing.com.
-    "script-src 'self' 'unsafe-inline' https://stats.ontwrpn.com https://www.clarity.ms https://scripts.clarity.ms; "
+    "script-src 'self' 'unsafe-inline' https://www.clarity.ms https://scripts.clarity.ms; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: https://*.clarity.ms https://c.bing.com; "
     "font-src 'self'; "
-    "connect-src 'self' https://stats.ontwrpn.com https://*.clarity.ms https://c.bing.com; "
+    "connect-src 'self' https://*.clarity.ms https://c.bing.com; "
     "worker-src 'self' blob:; "
     "object-src 'none'; "
     "base-uri 'self'; "
@@ -137,13 +137,14 @@ async def security_headers(request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Content-Security-Policy"] = _CSP
     if os.getenv("NODE_ENV") == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     return response
 
 
-from routers import projects, graph  # noqa: E402 — after app is defined
+from routers import projects, graph, stats  # noqa: E402 — after app is defined
 app.include_router(projects.router, prefix="/api")
 app.include_router(graph.router, prefix="/api")
+app.include_router(stats.router)
 
 
 @app.api_route("/api/health", methods=["GET", "HEAD"])
