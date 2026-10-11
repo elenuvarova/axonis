@@ -196,3 +196,8 @@ html.vt-route::view-transition-old(root) { animation: vt-fade-out 200ms steps(4)
 html.vt-route::view-transition-new(root) { animation: vt-fade-in 280ms 120ms steps(4) both; }
 @keyframes vt-fade-out { to { opacity: 0; } }
 @keyframes vt-fade-in { from { opacity: 0; } }
+
+/* Build screen: the live assembly field (BuildField) */
+.build-field { display: block; width: 100%; height: 100%; }
+/* the build field grows into the map canvas when a watched build finishes */
+.build-preview-canvas { view-transition-name: graph-canvas; }
