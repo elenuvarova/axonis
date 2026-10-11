@@ -22,6 +22,8 @@ Live at **[axonis.app](https://axonis.app)**.
 ![Map with a selected node](docs/screenshots/axonis-map.png)
 ![Opportunities with score breakdown](docs/screenshots/axonis-opportunities.png)
 
+<img src="docs/screenshots/axonis-mobile.png" alt="Phone: the map with a selected node above the inspector sheet" width="320">
+
 ## Stack
 
 | Layer | Tech |
