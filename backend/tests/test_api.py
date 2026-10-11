@@ -82,3 +82,26 @@ def test_delete_cascades_all_children(client, db, ready_project):
     for model in (Entity, Relationship, Cluster, Opportunity):
         leftover = db.query(model).filter_by(project_id=ready_project).count()
         assert leftover == 0, f"{model.__name__} rows orphaned after delete"
+
+
+def test_opportunity_score_parts_add_up(client, ready_project):
+    opps = client.get(f"/api/projects/{ready_project}/opportunities").json()["opportunities"]
+    assert opps
+    parts = opps[0]["score_parts"]
+    assert [p["key"] for p in parts] == ["density", "research", "gap", "bridge"]
+    assert all(0 <= p["value"] <= 1 for p in parts)
+
+
+def test_score_parts_match_the_scoring_formula():
+    from graph.clustering import ClusterSummary
+    from graph.opportunities import score_opportunities, score_parts, cluster_maxes
+    clusters = [
+        ClusterSummary(cluster_id="0", name="a", top_entity_names=["a"], size=8, research_count=5, product_count=0, max_bridge=0.4),
+        ClusterSummary(cluster_id="1", name="b", top_entity_names=["b"], size=4, research_count=1, product_count=2, max_bridge=0.9),
+        ClusterSummary(cluster_id="2", name="c", top_entity_names=["c"], size=3, research_count=2, product_count=1, max_bridge=0.1),
+    ]
+    cands = score_opportunities(clusters, "t")
+    maxes = cluster_maxes(clusters)
+    for c in cands:
+        total = sum(p["points"] for p in score_parts(c.cluster, maxes))
+        assert abs(total - c.score * 100) < 0.5

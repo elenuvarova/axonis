@@ -327,7 +327,7 @@ export default function ProjectPage() {
     }
   }, [tab, cy, askOpen, selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Ask citation hover/focus: light one node on the graph.
+  // Ask citation / inspector chip hover or focus: light one node on the graph.
   const hoverSource = (nid) => {
     if (!cy) return
     cy.batch(() => {
@@ -625,7 +625,8 @@ export default function ProjectPage() {
               <EntityCard
                 entity={entityData}
                 loading={!!selectedId && !entityData}
-                onNeighborClick={(nid) => setSelectedId(nid)}
+                onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}
+                onNeighborHover={hoverSource}
                 onAsk={selectedId ? openAsk : undefined}
               />
             )}

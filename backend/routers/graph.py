@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
+from graph.opportunities import cluster_maxes, score_parts
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 
 router = APIRouter(prefix="/projects", tags=["graph"])
@@ -86,10 +87,17 @@ def get_opportunities(project_id: str, db: Session = Depends(get_db)):
         .all()
     )
 
+    clusters = db.query(Cluster).filter_by(project_id=project_id).all()
+    by_id = {c.id: c for c in clusters}
+    maxes = cluster_maxes(clusters)
     result = []
     for o in opps:
-        cluster = db.query(Cluster).filter_by(id=o.cluster_db_id).first() if o.cluster_db_id else None
-        result.append(_opportunity_out(o, cluster))
+        cluster = by_id.get(o.cluster_db_id) if o.cluster_db_id else None
+        out = _opportunity_out(o, cluster)
+        # How the score was built: recomputed from the stored cluster signals
+        # with the same formula the builder used.
+        out["score_parts"] = score_parts(cluster, maxes) if cluster else None
+        result.append(out)
     return {"opportunities": result}
 
 
