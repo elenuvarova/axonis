@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from graph.opportunities import cluster_maxes, score_parts
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
+from textutil import repair_cluster_name, repair_title
 
 router = APIRouter(prefix="/projects", tags=["graph"])
 
@@ -112,7 +113,7 @@ def _cluster_out(c: Cluster) -> dict:
     return {
         "id": c.id,
         "cluster_id": c.cluster_id,
-        "name": c.name,
+        "name": repair_cluster_name(c.name),
         "top_entities": _parse_json(c.top_entities, []),
         "size": c.size,
         "research_count": c.research_count,
@@ -127,9 +128,9 @@ def _opportunity_out(o: Opportunity, cluster: Cluster | None) -> dict:
     return {
         "id": o.id,
         "cluster_db_id": o.cluster_db_id,
-        "cluster_name": cluster.name if cluster else None,
+        "cluster_name": repair_cluster_name(cluster.name) if cluster else None,
         "cluster_size": cluster.size if cluster else None,
-        "title": o.title,
+        "title": repair_title(o.title),
         "why_it_matters": o.why_it_matters,
         "risks": _parse_json(o.risks, []),
         "next_questions": _parse_json(o.next_questions, []),

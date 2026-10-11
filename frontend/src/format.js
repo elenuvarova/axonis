@@ -24,3 +24,12 @@ export function mmss(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds))
   return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`
 }
+
+// Cut long names on a word boundary ("Intelligent Tutoring…", not
+// "Intelligent Tutoring S…"); a single long word is cut hard.
+export function shortLabel(name, max = 24) {
+  if (name.length <= max) return name
+  const cut = name.slice(0, max - 1)
+  const space = cut.lastIndexOf(' ')
+  return (space >= 10 ? cut.slice(0, space) : cut).replace(/[\s,;:·–-]+$/, '') + '…'
+}

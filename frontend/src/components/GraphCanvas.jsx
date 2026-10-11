@@ -3,6 +3,7 @@ import CytoscapeComponent from 'react-cytoscapejs'
 import Cytoscape from 'cytoscape'
 import cola from 'cytoscape-cola'
 import { typeShape } from '../graphTypes'
+import { shortLabel } from '../format'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 
 // Register the cola physics layout once (guard against HMR double-registration).
@@ -39,7 +40,9 @@ function makeStylesheet() {
         'height': 'data(size)',
         'font-family': mono,
         'font-size': 11,
-        'min-zoomed-font-size': 6,
+        // Below ~9px on screen a label is noise, not information: hide it
+        // until the user zooms in (hover and selection still reveal it).
+        'min-zoomed-font-size': 9,
         'color': text2,
         'text-valign': 'center',
         'text-halign': 'right',
@@ -117,7 +120,7 @@ const COLA = {
   ungrabifyWhileSimulating: true,
 }
 
-// Live layout started on grab — runs until the node is released.
+// Live layout: runs while the user interacts, pauses when idle (see handleCy).
 // handleDisconnected:false puts ALL nodes in one physics simulation, so
 // dragging any node creates ripples across the whole graph (including small
 // isolated nodes that have no direct edges to the dragged one).
@@ -156,7 +159,7 @@ function buildElements(nodes, edges) {
     const degree = n.degree || 0
     const bridge = n.bridge_score || 0
     const size = Math.max(7, Math.min(22, 7 + degree * 60 + bridge * 14))
-    const label = n.name.length > 24 ? n.name.slice(0, 22) + '…' : n.name
+    const label = shortLabel(n.name)
     const isHub = hubs.has(n.id)
     els.push({
       data: {
@@ -169,7 +172,11 @@ function buildElements(nodes, edges) {
       },
     })
   }
+  // An edge whose endpoint was filtered out server-side would make Cytoscape
+  // warn and drop it anyway; skip it here.
+  const ids = new Set(nodes.map((n) => n.id))
   for (const e of edges) {
+    if (!ids.has(e.source) || !ids.has(e.target)) continue
     els.push({ data: { id: e.id, source: e.source, target: e.target, relation_type: e.relation_type } })
   }
   return els
@@ -224,10 +231,49 @@ export default function GraphCanvas({
         cy.center(hub)
       }
       if (reducedRef.current) return
-      liveLayout.current = cy.layout({ ...COLA_LIVE, edgeLength })
-      liveLayout.current.run()
+      startLive()
+      settleSoon()
     })
     bootLayout.run()
+
+    // Live physics while someone is interacting; it pauses after a few idle
+    // seconds so an open tab doesn't spin the CPU (and a phone's battery)
+    // forever. Pointer activity or a drag wakes it again.
+    let idleTimer = null
+    function startLive() {
+      if (liveLayout.current || reducedRef.current || cy.destroyed()) return
+      liveLayout.current = cy.layout({ ...COLA_LIVE, edgeLength })
+      liveLayout.current.run()
+    }
+    function settleSoon(ms = 5000) {
+      clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        if (liveLayout.current) { liveLayout.current.stop(); liveLayout.current = null }
+      }, ms)
+    }
+    cy.on('grab', () => { clearTimeout(idleTimer); startLive() })
+    cy.on('free', () => settleSoon())
+    cy.on('mouseover', 'node', () => { startLive(); settleSoon() })
+
+    // Until the user pans or zooms, keep the graph fitted to the canvas when
+    // the canvas changes size (first paint before layout, rotating a phone,
+    // the inspector opening). After that, the view is theirs.
+    let userMoved = false
+    cy.on('scrollzoom pinchzoom', () => { userMoved = true })
+    cy.on('dragpan', () => { userMoved = true })
+    const container = cy.container()
+    if (container && typeof ResizeObserver !== 'undefined') {
+      let last = { w: container.clientWidth, h: container.clientHeight }
+      const ro = new ResizeObserver(() => {
+        const w = container.clientWidth, h = container.clientHeight
+        if (!w || !h || (Math.abs(w - last.w) < 24 && Math.abs(h - last.h) < 24)) return
+        last = { w, h }
+        cy.resize()
+        if (!userMoved && cy.nodes().length) cy.fit(undefined, fitPaddingRef.current)
+      })
+      ro.observe(container)
+      cy.one('destroy', () => { ro.disconnect(); clearTimeout(idleTimer) })
+    }
 
     cy.on('tap', 'node', (evt) => { onNodeClickRef.current?.(evt.target.data()) })
 
@@ -273,7 +319,6 @@ export default function GraphCanvas({
         cy.nodes(':selected').connectedEdges().addClass('focus-edge')
       })
     })
-    // No grab/free handlers needed — COLA_LIVE runs continuously after boot.
   }, [onCyInit])
 
   // Stop live layout if the component unmounts while a node is being dragged.

@@ -1,5 +1,5 @@
 import { useState, useId, useRef, useEffect } from 'react'
-import { mmss } from '../format'
+import { mmss, shortLabel } from '../format'
 
 const SUGGESTIONS = [
   'What are the main themes here?',
@@ -138,7 +138,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
                         title={`Centre on ${s.name}`}
                       >
                         <span className="source-num" aria-hidden="true">{s.n ?? i + 1}</span>
-                        <span className="source-name">{s.name.length > 32 ? s.name.slice(0, 30) + '…' : s.name}</span>
+                        <span className="source-name">{shortLabel(s.name, 40)}</span>
                       </button>
                     </li>
                   ))}

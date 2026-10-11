@@ -31,12 +31,14 @@ export default function GraphLegend({ nodes = [], cy }) {
     })
   }, [cy, hidden, hideIsolated, nodes])
 
-  const toggleType = (t) => setHidden((prev) => {
-    const next = new Set(prev)
-    next.has(t) ? next.delete(t) : next.add(t)
-    track('legend_filter', { type: t, visible: !next.has(t) })
-    return next
-  })
+  const toggleType = (t) => {
+    track('legend_filter', { type: t, visible: hidden.has(t) })
+    setHidden((prev) => {
+      const next = new Set(prev)
+      next.has(t) ? next.delete(t) : next.add(t)
+      return next
+    })
+  }
 
   if (!types.length) return null
 
@@ -76,7 +78,7 @@ export default function GraphLegend({ nodes = [], cy }) {
                 type="button"
                 className="graph-legend-item"
                 aria-pressed={!hideIsolated}
-                onClick={() => setHideIsolated((v) => { track('legend_filter', { type: 'isolated', visible: v }); return !v })}
+                onClick={() => { track('legend_filter', { type: 'isolated', visible: hideIsolated }); setHideIsolated(!hideIsolated) }}
                 title={hideIsolated ? 'Show isolated nodes' : 'Hide isolated nodes'}
               >
                 <span className="legend-glyph" aria-hidden="true">·</span>
