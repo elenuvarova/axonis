@@ -493,7 +493,7 @@ export default function ProjectPage() {
                   onNodeClick={handleNodeClick}
                   onCyInit={setCy}
                 />
-                <GraphLegend nodes={graphData.nodes} />
+                <GraphLegend nodes={graphData.nodes} cy={cy} />
                 <GraphControls cy={cy} reducedMotion={reducedMotion} />
                 {!askOpen && (
                   <button type="button" className="ask-bar" onClick={openAsk}>
