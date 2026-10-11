@@ -44,15 +44,24 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     track('gap_reveal', { gaps: items.length })
 
     // callouts follow the clusters through pan/zoom
+    const W = window.matchMedia?.('(max-width: 767px)').matches ? 180 : 220, H = 64, GAP = 8
     const place = () => {
       const w = cy.width(), h = cy.height()
-      setBoxes(sets.map((s, i) => {
+      const placed = []
+      const out = sets.map((s, i) => {
         if (!s.length) return null
         const b = s.renderedBoundingBox({ includeLabels: false })
-        const x = Math.min(Math.max(8, b.x2 + 8), w - 220)
-        const y = Math.min(Math.max(8, b.y1 - 8), h - 48)
-        return { ...items[i], x, y }
-      }).filter(Boolean))
+        return { ...items[i], x: Math.min(Math.max(8, b.x2 + 8), w - W - 8), y: Math.min(Math.max(8, b.y1 - 8), h - H - 8) }
+      }).filter(Boolean).sort((a, b) => a.y - b.y)
+      // callouts never sit on each other: push a colliding one below the last
+      for (const c of out) {
+        for (const p of placed) {
+          if (c.x < p.x + W + GAP && p.x < c.x + W + GAP && c.y < p.y + H + GAP && p.y < c.y + H + GAP) c.y = p.y + H + GAP
+        }
+        c.y = Math.min(c.y, h - H - 8)
+        placed.push(c)
+      }
+      setBoxes(out)
     }
     place()
     cy.on('viewport', place)

@@ -11,6 +11,7 @@ import { myProjectIds, rememberProject, forgetProject, canEdit } from '../myProj
 import { track } from '../analytics'
 import useDocumentMeta from '../useDocumentMeta'
 import { resetConsent } from '../consent'
+import { navigateWithTransition } from '../routeTransition'
 import LetterSphere from '../components/LetterSphere'
 import '../hero.css'
 
@@ -177,7 +178,7 @@ export default function HomePage() {
     },
     onSuccess: (project) => {
       qc.invalidateQueries({ queryKey: ['projects'] })
-      navigate(`/project/${project.id}`)
+      navigateWithTransition(navigate, `/project/${project.id}`, { topicEl: document.querySelector('.query-line') })
     },
     onError: (e) => setErr(e.message || 'Could not start the build. Please try again.'),
   })
@@ -276,8 +277,8 @@ export default function HomePage() {
                   className="chip"
                   disabled={busy}
                   title={demo ? 'Open the demo map' : 'Use this topic'}
-                  onClick={() => {
-                    if (demo) { track('demo_open', { topic: demo.topic, via: 'try' }); navigate(`/project/${demo.id}`); return }
+                  onClick={(e) => {
+                    if (demo) { track('demo_open', { topic: demo.topic, via: 'try' }); navigateWithTransition(navigate, `/project/${demo.id}`, { topicEl: e.currentTarget }); return }
                     setTopic(ex); document.getElementById('topic')?.focus()
                   }}
                 >
@@ -321,7 +322,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     className="project-row-main project-cols"
-                    onClick={() => { track(p.protected ? 'demo_open' : 'map_open', p.protected ? { topic: p.topic, via: 'list' } : undefined); navigate(`/project/${p.id}`) }}
+                    onClick={(e) => { track(p.protected ? 'demo_open' : 'map_open', p.protected ? { topic: p.topic, via: 'list' } : undefined); navigateWithTransition(navigate, `/project/${p.id}`, { topicEl: e.currentTarget.querySelector('.project-row-name') }) }}
                     aria-label={`Open project: ${p.topic}`}
                   >
                     <span className="project-row-id">{pad(i + 1)}</span>
