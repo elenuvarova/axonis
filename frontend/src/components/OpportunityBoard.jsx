@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Ticker from './Ticker'
 import { OppSkeleton, StateScreen } from './states'
 import CellBar from './CellBar'
 import { pad } from '../format'
@@ -16,7 +17,7 @@ function OppCard({ opp, index, onShowOnMap }) {
       </div>
 
       <div className="opp-score">
-        <span className="opp-score-num" aria-label={`Score ${score} out of 100`}>{score}</span>
+        <span className="opp-score-num" aria-label={`Score ${score} out of 100`}><Ticker value={score} duration={700} /></span>
         <span className="opp-score-max" aria-hidden="true">/100</span>
       </div>
 

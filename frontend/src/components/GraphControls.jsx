@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { track } from '../analytics'
+import { fitFree } from '../graphFit'
 
-// Zoom / fit / focus-depth stack, bottom-left of the canvas.
+// Zoom / fit / focus-depth stack, bottom-left of the canvas. On a phone it
+// becomes a thumb-reach rail along the bottom: FIT · LIST · FIND · ASK
+// (pinch already zooms, so +/− and depth are desktop-only).
 // Depth cycles All → 1 → 2: with a node selected, everything further than that
 // many hops from it is hidden, so a hub's neighbourhood can be read on its own.
 const DEPTHS = [0, 1, 2]
 
-export default function GraphControls({ cy, reducedMotion, selectedId, listView = false, onToggleList }) {
+export default function GraphControls({ cy, reducedMotion, selectedId, listView = false, onToggleList, onFind, onAsk }) {
   const [depth, setDepth] = useState(0)
 
   useEffect(() => {
@@ -24,9 +27,7 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
     })
     if (depth && node && node.length) {
       // fit the focused neighbourhood, but never past 1.2× (labels stay readable)
-      const eles = cy.elements(':visible'), bb = eles.boundingBox(), pad = 72
-      const zoom = Math.min(1.2, (cy.width() - pad * 2) / Math.max(bb.w, 1), (cy.height() - pad * 2) / Math.max(bb.h, 1))
-      cy.animate({ zoom: Math.max(zoom, cy.minZoom()), center: { eles }, duration: reducedMotion ? 0 : 300 })
+      fitFree(cy, cy.elements(':visible'), { maxZoom: 1.2, duration: reducedMotion ? 0 : 300 })
     }
   }, [cy, depth, selectedId, reducedMotion])
 
@@ -38,7 +39,7 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
       duration: reducedMotion ? 0 : 200,
     })
   }
-  const fit = () => cy.animate({ fit: { eles: cy.elements(':visible'), padding: 48 }, duration: reducedMotion ? 0 : 300 })
+  const fit = () => fitFree(cy, cy.elements(':visible'), { maxZoom: 1.1, duration: reducedMotion ? 0 : 300 })
   const nextDepth = DEPTHS[(DEPTHS.indexOf(depth) + 1) % DEPTHS.length]
   const depthLabel = depth ? `Depth ${depth}` : 'Depth ∞'
 
@@ -48,17 +49,23 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
       List
     </button>
   )
+  const phoneOnly = (
+    <>
+      {onFind && <button type="button" className="ctl-phone" onClick={onFind} aria-label="Find a node">Find</button>}
+      {onAsk && <button type="button" className="ctl-phone" onClick={onAsk} aria-label="Ask the map">Ask</button>}
+    </>
+  )
   if (listView) {
-    return <div className="graph-controls" role="group" aria-label="Graph view controls">{listBtn}</div>
+    return <div className="graph-controls is-list" role="group" aria-label="Graph view controls">{listBtn}{phoneOnly}</div>
   }
   return (
     <div className="graph-controls" role="group" aria-label="Graph view controls">
-      <button type="button" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
-      <button type="button" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">−</button>
+      <button type="button" className="ctl-desk" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
+      <button type="button" className="ctl-desk" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">−</button>
       <button type="button" onClick={fit} aria-label="Fit graph to view">Fit</button>
       <button
         type="button"
-        className={depth ? 'is-on' : ''}
+        className={`ctl-desk${depth ? ' is-on' : ''}`}
         onClick={() => { if (selectedId) { track('depth', { level: nextDepth }); setDepth(nextDepth) } }}
         aria-disabled={!selectedId}
         aria-label={selectedId
@@ -69,6 +76,7 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
         {depthLabel}
       </button>
       {listBtn}
+      {phoneOnly}
     </div>
   )
 }

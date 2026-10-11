@@ -4,6 +4,8 @@ import Cytoscape from 'cytoscape'
 import cola from 'cytoscape-cola'
 import { typeShape } from '../graphTypes'
 import { shortLabel } from '../format'
+import { initialView } from '../graphFit'
+import { attachOverlay } from '../graphOverlay'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 
 // Register the cola physics layout once (guard against HMR double-registration).
@@ -19,6 +21,10 @@ function cssVar(name, fallback) {
 // B² graph style: type is encoded by SHAPE (set in buildElements), every node is
 // the text colour, selection/highlight is the single accent. Colours are read
 // from the CSS tokens so the canvas and the page never drift apart.
+function coarsePointer() {
+  try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
+}
+
 function makeStylesheet() {
   const text    = cssVar('--text', '#EDEDED')
   const text2   = cssVar('--text-2', '#8A8A8A')
@@ -54,7 +60,8 @@ function makeStylesheet() {
         'text-background-padding': 2,
         'text-background-shape': 'rectangle',
         'border-width': 0,
-        'overlay-padding': 8,
+        // A bigger invisible hit area on touch screens: nodes are 6-10px on a phone.
+        'overlay-padding': coarsePointer() ? 14 : 8,
         'overlay-opacity': 0,
         'transition-property': 'opacity, background-color',
         'transition-duration': '0.15s',
@@ -186,6 +193,7 @@ export default function GraphCanvas({
   nodes = [], edges = [],
   selectedId, onNodeClick, onCyInit,
   fitPadding = COLA.padding, // smaller for the build-screen preview box
+  overlay = true,            // ruler, registration marks, selection brackets
 }) {
   // Respect the user's motion preference: disable Cytoscape physics animation and
   // cy.animate() calls when prefers-reduced-motion is active (WCAG 2.3.3).
@@ -194,6 +202,7 @@ export default function GraphCanvas({
   const fitPaddingRef = useRef(fitPadding)
   reducedRef.current = prefersReducedMotion
   const cyRef = useRef(null)
+  const overlayRef = useRef(null)
   const liveLayout = useRef(null)
   // Stable ref so Cytoscape event handlers always call the current prop.
   const onNodeClickRef = useRef(onNodeClick)
@@ -212,6 +221,10 @@ export default function GraphCanvas({
     cyRef.current = cy
     cy._highlightedCluster = null
     if (onCyInit) onCyInit(cy)
+    if (overlayRef.current) {
+      const detach = attachOverlay(cy, overlayRef.current)
+      cy.one('destroy', detach)
+    }
 
     // Phase 1: settle nodes into position (finite, fits viewport).
     // Phase 2: once settled, switch to infinite physics so nodes stay alive
@@ -222,14 +235,9 @@ export default function GraphCanvas({
     const bootLayout = cy.layout({ ...COLA, padding: fitPaddingRef.current, edgeLength, animate: !reducedRef.current })
     bootLayout.one('layoutstop', () => {
       if (cy.destroyed()) return
-      // Keep labels at a readable size: a small graph should not be fitted to a huge zoom.
-      if (cy.zoom() > 1.1) { cy.zoom(1.1); cy.center() }
-      // On a phone a fitted graph is a speck; start at a zoom where labels read (~9px), centred on the biggest hub.
-      if (cy.width() < 600 && cy.zoom() < 0.85 && cy.nodes().length) {
-        const hub = cy.nodes().max((n) => n.data('size')).ele
-        cy.zoom({ level: 0.85, position: hub.position() })
-        cy.center(hub)
-      }
+      // Fit into the area the floating legend/controls/ask bar leave free
+      // (zoomed to a readable level around the main hub on a phone).
+      initialView(cy)
       if (reducedRef.current) return
       startLive()
       settleSoon()
@@ -269,7 +277,7 @@ export default function GraphCanvas({
         if (!w || !h || (Math.abs(w - last.w) < 24 && Math.abs(h - last.h) < 24)) return
         last = { w, h }
         cy.resize()
-        if (!userMoved && cy.nodes().length) cy.fit(undefined, fitPaddingRef.current)
+        if (!userMoved && cy.nodes().length) initialView(cy)
       })
       ro.observe(container)
       cy.one('destroy', () => { ro.disconnect(); clearTimeout(idleTimer) })
@@ -344,8 +352,10 @@ export default function GraphCanvas({
     <div
       role="img"
       aria-label={`Knowledge graph: ${nodeCount} nodes, ${edgeCount} connections. Use the Clusters tab or click a node to inspect entities.`}
-      style={{ width: '100%', height: '100%' }}
+      style={{ width: '100%', height: '100%', position: 'relative' }}
     >
+      {/* Before the Cytoscape mount so its ref exists when the cy callback runs */}
+      {overlay && <canvas ref={overlayRef} className="graph-overlay" aria-hidden="true" />}
       <p className="sr-only">
         This is an interactive force-directed graph showing {nodeCount} entities and {edgeCount} relationships.
         Use the Clusters tab in the sidebar to explore groups of related nodes, or the Ask the map bar to query the graph.

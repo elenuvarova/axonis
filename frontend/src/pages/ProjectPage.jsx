@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
+import { flushSync } from 'react-dom'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { canEdit } from '../myProjects'
+import Ticker from '../components/Ticker'
+import { fitFree } from '../graphFit'
 import { getProject, getGraph, getClusters, getOpportunities, getEntity, getBrief, buildProject, uploadDocument, askQuestion } from '../api'
 
 // Cytoscape + cola are heavy; load them only when a graph actually renders.
@@ -44,10 +47,9 @@ function StatusBadge({ status }) {
 
 // Fit the view to a set of nodes but never zoom past 1.2×: fitting two or three
 // nodes otherwise jumps to max zoom and the labels turn into billboards.
-function fitCapped(cy, eles, padding, reduced) {
-  const bb = eles.boundingBox()
-  const zoom = Math.min(1.2, (cy.width() - padding * 2) / Math.max(bb.w, 1), (cy.height() - padding * 2) / Math.max(bb.h, 1))
-  cy.animate({ zoom: Math.max(zoom, cy.minZoom()), center: { eles }, duration: reduced ? 0 : 400 })
+// Fit a subset (a cluster, an answer's nodes) into the free canvas area, never past 1.2×.
+function fitCapped(cy, eles, _padding, reduced) {
+  fitFree(cy, eles, { maxZoom: 1.2, duration: reduced ? 0 : 400 })
 }
 
 export default function ProjectPage() {
@@ -57,6 +59,7 @@ export default function ProjectPage() {
   const fileInputRef = useRef(null)
   const briefBtnRef  = useRef(null)
   const briefModalRef = useRef(null)
+  const briefProgressRef = useRef(null)
   const [tab, setTab] = useState('graph')
   const [askOpen, setAskOpen] = useState(false)
   const [askedText, setAskedText] = useState('')
@@ -360,7 +363,17 @@ export default function ProjectPage() {
     if (cy && cy._highlightedCluster === '__ask__') clearHighlights(cy)
   }
 
+  // Tab switches run as a view transition where supported: the underline
+  // slides to the new tab and the content cross-fades in a few steps.
   const handleTabClick = (tabId) => {
+    const go = () => switchTab(tabId)
+    if (tabId === tab) { go(); return }
+    if (!reducedMotion && typeof document !== 'undefined' && document.startViewTransition) {
+      document.startViewTransition(() => flushSync(go))
+    } else go()
+  }
+
+  const switchTab = (tabId) => {
     track('tab', { tab: tabId })
     setTab(tabId)
     // The list mirrors the map; it shouldn't follow the user into Clusters.
@@ -524,7 +537,7 @@ export default function ProjectPage() {
         <StatusBadge status={project.status} />
         {nodeCount > 0 && (
           <span className="topbar-meta">
-            {pad(nodeCount, 3)} nodes · {pad(edgeCount, 3)} edges · {pad(clusters.length)} clusters
+            <Ticker value={nodeCount} digits={3} /> nodes · <Ticker value={edgeCount} digits={3} /> edges · <Ticker value={clusters.length} digits={2} /> clusters
           </span>
         )}
         {isBuilding && (
@@ -607,6 +620,7 @@ export default function ProjectPage() {
               <span className="tab-long">{t.label}</span>
               <span className="tab-short">{t.short}</span>
               {t.count > 0 && <span className="tab-count">{`\u00a0·\u00a0${pad(t.count)}`}</span>}
+              {tab === t.id && <span className="tab-ind" aria-hidden="true" />}
             </button>
           ))}
         </div>
@@ -620,7 +634,7 @@ export default function ProjectPage() {
           preview={previewReady && previewGraph?.nodes?.length ? (
             <Suspense fallback={null}>
               <div className="build-preview-canvas">
-                <GraphCanvas nodes={previewGraph.nodes} edges={previewGraph.edges} onNodeClick={() => {}} fitPadding={16} />
+                <GraphCanvas nodes={previewGraph.nodes} edges={previewGraph.edges} onNodeClick={() => {}} fitPadding={16} overlay={false} />
               </div>
             </Suspense>
           ) : null}
@@ -684,7 +698,9 @@ export default function ProjectPage() {
                 )}
                 {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
                 <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId}
-                  listView={listView} onToggleList={() => { track('list_view', { on: !listView }); setListView(!listView) }} />
+                  listView={listView} onToggleList={() => { track('list_view', { on: !listView }); setListView(!listView) }}
+                  onFind={() => { track('cmdk_open', { via: 'rail' }); setPaletteOpen(true) }}
+                  onAsk={openAsk} />
                 {!askOpen && !listView && (
                   <button type="button" className="ask-bar" onClick={openAsk}>
                     <span aria-hidden="true">&gt;&nbsp;</span>
@@ -836,8 +852,14 @@ export default function ProjectPage() {
                 <button type="button" className="btn btn-ghost brief-close" onClick={() => setBrief(null)} aria-label="Close brief">×</button>
               </div>
             </div>
+            {/* Reading progress: a hairline under the header that fills as you scroll */}
+            <div className="brief-progress" aria-hidden="true"><span ref={briefProgressRef} /></div>
             <div
               className="brief-content brief-rendered"
+              onScroll={(e) => {
+                const el = e.currentTarget, bar = briefProgressRef.current
+                if (bar) bar.style.transform = `scaleX(${el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight)})`
+              }}
               dangerouslySetInnerHTML={{ __html: renderMarkdown(brief.markdown) }}
             />
           </div>

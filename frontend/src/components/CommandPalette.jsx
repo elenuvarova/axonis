@@ -40,6 +40,18 @@ export default function CommandPalette({ open, onClose, nodes = [], actions = []
     return () => { const el = returnFocus.current; if (el?.isConnected) el.focus() }
   }, [open])
 
+  // On a phone the input sits at the bottom, within thumb reach; keep it just
+  // above the on-screen keyboard by tracking the visual viewport.
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null
+    if (!open || !vv) return
+    const root = document.documentElement
+    const update = () => root.style.setProperty('--kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`)
+    update()
+    vv.addEventListener('resize', update); vv.addEventListener('scroll', update)
+    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); root.style.removeProperty('--kb') }
+  }, [open])
+
   const counts = useMemo(() => {
     const c = {}
     for (const n of nodes) c[n.type] = (c[n.type] || 0) + 1
