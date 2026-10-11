@@ -327,6 +327,9 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 }
 .graph-controls button:first-child { margin-top: 0; }
 .graph-controls button:hover { background: var(--raised); border-color: var(--text); position: relative; }
+.graph-controls button.is-on { color: var(--accent); border-color: var(--accent); position: relative; }
+.graph-controls button[aria-disabled="true"] { color: var(--text-3); cursor: not-allowed; }
+.graph-controls button[aria-disabled="true"]:hover { background: transparent; border-color: var(--line-strong); }
 
 .ask-bar {
   position: absolute; left: 50%; bottom: var(--panel-inset); transform: translateX(-50%); z-index: 5;
@@ -696,3 +699,6 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .cmdk-foot { display: none; }
   .cmdk-item { min-height: 44px; }
 }
+
+.ask-elapsed { margin-left: 8px; font-family: var(--font-mono); color: var(--text-2); }
+.ask-slow { display: block; margin-top: 6px; font-family: var(--font-body); font-size: 12px; line-height: 18px; color: var(--text-2); }
