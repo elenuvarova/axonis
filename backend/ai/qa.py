@@ -24,8 +24,21 @@ _STOP = {
 _SYSTEM = (
     "You answer questions for a product researcher using ONLY the provided "
     "knowledge-graph context. If the context does not contain the answer, say so "
-    "plainly. Be concise (3-5 sentences) and do not invent entities."
+    "plainly. Be concise (3-5 sentences) and do not invent entities. "
+    "Each context line starts with a number in brackets. After every claim, cite "
+    "the lines it rests on with those markers, e.g. [2] or [1][4]. Cite only "
+    "numbers that appear in the context."
 )
+
+_CITE = re.compile(r"\[(\d{1,2})\]")
+
+
+def clean_citations(answer: str, n_sources: int) -> str:
+    """Drop citation markers that point outside the numbered context, so every
+    marker the UI renders maps to a real node."""
+    def keep(m: re.Match) -> str:
+        return m.group(0) if 1 <= int(m.group(1)) <= n_sources else ""
+    return re.sub(r"[ \t]+([.,;:])", r"\1", _CITE.sub(keep, answer)).strip()
 
 
 def _tokens(text: str) -> list[str]:
@@ -60,19 +73,21 @@ def retrieve(entities: list, question: str, k: int = _TOP_K) -> list:
 
 def answer_question(project, entities: list, question: str) -> dict:
     top = retrieve(entities, question)
+    # Numbered so the model can cite lines as [n]; sources keep the same order.
     context = "\n".join(
-        f"- {e.name} ({e.type}): {(e.description or 'no description')[:200]}"
-        for e in top
+        f"[{i}] {e.name} ({e.type}): {(e.description or 'no description')[:200]}"
+        for i, e in enumerate(top, 1)
     )
 
     answer = _ai_answer(project.topic, question, context)
     if not answer:
         answer = _template_answer(question, top)
+    answer = clean_citations(answer, len(top))
 
     return {
         "answer": answer,
         "highlighted_nodes": [e.id for e in top],
-        "sources": [{"id": e.id, "name": e.name, "type": e.type} for e in top[:8]],
+        "sources": [{"n": i, "id": e.id, "name": e.name, "type": e.type} for i, e in enumerate(top, 1)],
     }
 
 
@@ -104,7 +119,7 @@ def _ai_answer(topic: str, question: str, context: str) -> str | None:
 def _template_answer(question: str, top: list) -> str:
     if not top:
         return "There isn't enough in this graph to answer that yet. Try building or uploading more data."
-    names = ", ".join(e.name for e in top[:5])
+    names = ", ".join(f"{e.name} [{i}]" for i, e in enumerate(top[:5], 1))
     return (
         f"The most relevant parts of the graph for your question are: {names}. "
         f"Select a highlighted node to read its description and connections. "
