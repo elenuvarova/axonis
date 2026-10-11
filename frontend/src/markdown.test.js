@@ -48,3 +48,11 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<p>After</p>')
   })
 })
+
+describe('headings', () => {
+  it('drop a closing full stop but keep an ellipsis', async () => {
+    const { renderMarkdown } = await import('./markdown')
+    expect(renderMarkdown('## Summary.')).toContain('<h2>Summary</h2>')
+    expect(renderMarkdown('## More...')).toContain('<h2>More...</h2>')
+  })
+})

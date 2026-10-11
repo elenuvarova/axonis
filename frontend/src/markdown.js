@@ -83,7 +83,8 @@ export function renderMarkdown(md) {
 
     // headings
     const h = line.match(/^(#{1,6})\s+(.*)$/)
-    if (h) { flushPara(); const lvl = h[1].length; out.push(`<h${lvl}>${inline(h[2].trim())}</h${lvl}>`); i++; continue }
+    // a heading never ends with a full stop (an ellipsis is kept)
+    if (h) { flushPara(); const lvl = h[1].length; const text = h[2].trim().replace(/(?<!\.)\.$/, ''); out.push(`<h${lvl}>${inline(text)}</h${lvl}>`); i++; continue }
 
     // horizontal rule
     if (/^\s*([-*_])\1{2,}\s*$/.test(line)) { flushPara(); out.push('<hr>'); i++; continue }

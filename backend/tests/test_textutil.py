@@ -17,3 +17,8 @@ def test_repairs_template_titles_stored_with_a_hard_slice():
     old = "A Constructivist Model for Redesigning AI Tutors i opportunity"
     assert repair_title(old) == "A Constructivist Model for Redesigning… opportunity"
     assert repair_title("Adaptive learning") == "Adaptive learning"
+
+
+def test_titles_lose_a_closing_full_stop():
+    assert repair_title("Adaptive tutoring for adults.") == "Adaptive tutoring for adults"
+    assert repair_title("Wait for it...") == "Wait for it..."
