@@ -310,7 +310,13 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .graph-legend-title { font-family: var(--font-mono); font-weight: 500; font-size: 11px; line-height: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
 .graph-legend-caret { font-family: var(--font-mono); }
 .graph-legend-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.graph-legend-item { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center; font-family: var(--font-mono); font-size: 11px; line-height: 16px; text-transform: uppercase; }
+.graph-legend-item { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center; width: 100%; padding: 3px 0; font-family: var(--font-mono); font-size: 11px; line-height: 16px; text-transform: uppercase; color: var(--text); text-align: left; cursor: pointer; }
+.graph-legend-item:hover .legend-name { text-decoration: underline; text-underline-offset: 3px; }
+/* hidden type: struck through and dimmed, count kept so you know what's off */
+.graph-legend-item[aria-pressed="false"] { color: var(--text-2); }
+.graph-legend-item[aria-pressed="false"] .legend-name { text-decoration: line-through; }
+.graph-legend-item[aria-pressed="false"] .legend-glyph { opacity: 0.4; }
+.graph-legend-sep { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
 .legend-glyph { text-align: center; }
 .legend-count { color: var(--text-2); text-align: right; }
 

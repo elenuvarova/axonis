@@ -75,13 +75,18 @@ function makeStylesheet() {
         'outline-width': 1, 'outline-style': 'solid', 'outline-color': accent, 'outline-offset': 5,
       },
     },
-    { selector: 'node.faded', style: { 'opacity': 0.2 } },
+    // faded nodes drop their label too, so it can't run under the focused ones
+    { selector: 'node.faded', style: { 'opacity': 0.2, 'label': '' } },
     {
       selector: 'edge',
       style: { 'width': 1, 'line-color': edge, 'opacity': 1, 'curve-style': 'straight' },
     },
     { selector: 'edge.highlighted', style: { 'line-color': accent, 'opacity': 1, 'width': 1 } },
     { selector: 'edge.faded', style: { 'opacity': 0.2 } },
+    // Edges of the hovered / selected node light up so its connections read at a glance.
+    { selector: 'edge.focus-edge', style: { 'line-color': accent, 'z-index': 10 } },
+    // Legend filters hide whole types (or isolated nodes); edges go with them.
+    { selector: 'node.filtered', style: { 'display': 'none' } },
   ]
 }
 
@@ -232,11 +237,16 @@ export default function GraphCanvas({
       if (cy._highlightedCluster) return
       clearTimeout(hoverTimer)
       hoverTimer = setTimeout(() => {
-        const keep = evt.target.closedNeighborhood()
+        const node = evt.target
+        const keep = node.closedNeighborhood()
+        // Reveal labels for the hovered node and at most its 8 best-connected
+        // neighbours; a hub with 30 neighbours otherwise becomes a wall of text.
+        const top = node.neighborhood().nodes().sort((a, b) => (b.data('degree') || 0) - (a.data('degree') || 0)).slice(0, 8)
         cy.batch(() => {
           cy.elements().difference(keep).addClass('faded')
-          // Reveal labels for the hovered node and its neighbours.
-          keep.nodes().addClass('show-label')
+          node.addClass('show-label')
+          top.addClass('show-label')
+          node.connectedEdges().addClass('focus-edge')
         })
       }, 40)
     })
@@ -246,6 +256,9 @@ export default function GraphCanvas({
       cy.batch(() => {
         cy.elements().removeClass('faded')
         cy.nodes().removeClass('show-label')
+        cy.edges().removeClass('focus-edge')
+        // keep the selected node's edges lit after the pointer leaves
+        cy.nodes(':selected').connectedEdges().addClass('focus-edge')
       })
     })
     // No grab/free handlers needed — COLA_LIVE runs continuously after boot.
@@ -259,7 +272,8 @@ export default function GraphCanvas({
     if (!cy) return
     cy.batch(() => {
       cy.nodes().unselect()
-      if (selectedId) cy.getElementById(selectedId).select()
+      cy.edges().removeClass('focus-edge')
+      if (selectedId) cy.getElementById(selectedId).select().connectedEdges().addClass('focus-edge')
     })
   }, [selectedId])
 
