@@ -39,6 +39,8 @@ export function attachOverlay(cy, canvas) {
   }
   const font = `400 ${cssVar('--fs-label', '11px')} "Martian Mono", ui-monospace, monospace`
   let frame = 0
+  let pointer = null // rendered position of a fine pointer over the canvas
+  const finePointer = (() => { try { return window.matchMedia('(pointer: fine)').matches } catch { return false } })()
 
   function size() {
     const dpr = window.devicePixelRatio || 1
@@ -116,6 +118,21 @@ export function attachOverlay(cy, canvas) {
       ctx.stroke()
     }
 
+    // Plotter crosshair: hairlines through a mouse pointer, with its model
+    // coordinates read off on the rulers. Fine pointers only (no touch).
+    if (pointer) {
+      const { x, y } = pointer
+      ctx.strokeStyle = colors.line; ctx.lineWidth = 1; ctx.setLineDash([2, 3])
+      ctx.beginPath()
+      ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, h)
+      ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(w, Math.round(y) + 0.5)
+      ctx.stroke(); ctx.setLineDash([])
+      const mx = Math.round((x - pan.x) / z), my = Math.round((y - pan.y) / z)
+      ctx.fillStyle = colors.tick; ctx.font = font; ctx.textBaseline = 'top'
+      ctx.fillText(`x ${mx}`, Math.min(w - 64, x + 6), 14)
+      ctx.save(); ctx.translate(14, Math.max(64, y - 6)); ctx.rotate(-Math.PI / 2); ctx.fillText(`y ${my}`, 0, 0); ctx.restore()
+    }
+
     // Brackets around the selection.
     ctx.strokeStyle = colors.accent; ctx.lineWidth = 1.5
     cy.nodes(':selected').forEach((n) => {
@@ -133,8 +150,17 @@ export function attachOverlay(cy, canvas) {
 
   const schedule = () => { if (!frame) frame = requestAnimationFrame(draw) }
   cy.on('render viewport select unselect resize position', schedule)
+  const onMove = (e) => { pointer = e.renderedPosition ? { ...e.renderedPosition } : null; schedule() }
+  const container = cy.container()
+  const onLeave = () => { pointer = null; schedule() }
+  if (finePointer) {
+    cy.on('mousemove', onMove)
+    container?.addEventListener('mouseleave', onLeave)
+  }
   schedule()
   return () => {
+    cy.off('mousemove', onMove)
+    container?.removeEventListener('mouseleave', onLeave)
     cy.off('render viewport select unselect resize position', schedule)
     if (frame) cancelAnimationFrame(frame)
   }
