@@ -1,0 +1,66 @@
+/* Research brief as an editorial document (B²): cover block, 64–68ch measure,
+   numbered section labels, reading tables, pull quotes. Tokens only. Loaded by
+   BriefModal; selectors are scoped to .brief-modal so they win over styles.css. */
+
+.brief-modal .brief-content { padding-top: var(--s-6); }
+.brief-modal .brief-rendered > * { max-width: 66ch; }
+
+/* Cover */
+.brief-cover { margin-bottom: var(--s-6); }
+.brief-modal .brief-kicker {
+  margin: 0 0 var(--s-3);
+  font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-caps);
+  text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent);
+}
+.brief-modal .brief-cover-title {
+  margin: 0 0 var(--s-3);
+  font-family: var(--font-mono); font-weight: 500;
+  font-size: var(--fs-display); line-height: var(--lh-display); letter-spacing: var(--track-display);
+  overflow-wrap: anywhere; text-wrap: balance;
+}
+.brief-modal .brief-meta {
+  margin: 0 0 var(--s-3);
+  font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-caps);
+  text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--text-2);
+}
+.brief-rule { height: 2px; width: var(--s-6); background: var(--accent); }
+
+/* The markdown's own H1 repeats the cover title: keep it for screen readers only. */
+.brief-modal .brief-body > h1:first-child {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* Numbered section labels */
+.brief-modal .brief-body h2 {
+  display: flex; align-items: baseline; gap: var(--s-2);
+  margin: var(--s-6) 0 var(--s-2); padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+.brief-modal .brief-num { color: var(--accent); font-variant-numeric: tabular-nums; }
+.brief-modal .brief-body h3 { margin: var(--s-4) 0 var(--s-1); }
+.brief-modal .brief-body p,
+.brief-modal .brief-body li { line-height: var(--lh-body); }
+.brief-modal .brief-body p { margin: var(--s-2) 0; }
+.brief-modal .brief-body > * + ul,
+.brief-modal .brief-body > * + ol { margin-top: var(--s-2); }
+
+/* Pull quote */
+.brief-modal .brief-body blockquote {
+  margin: var(--s-4) 0; padding: var(--s-1) 0 var(--s-1) var(--s-3);
+  border-left: 2px solid var(--accent);
+  font-size: var(--fs-h2); line-height: var(--lh-h2); color: var(--text); text-wrap: balance;
+}
+.brief-modal .brief-body blockquote p { margin: 0; }
+
+/* Tables for reading: header rule, quiet row lines, room to breathe */
+.brief-modal .brief-body table { margin: var(--s-3) 0; max-width: none; }
+.brief-modal .brief-body th { border-bottom: 1px solid var(--line-strong); padding-bottom: var(--s-1); }
+.brief-modal .brief-body td, .brief-modal .brief-body th { padding: var(--s-1) var(--s-2) var(--s-1) 0; }
+.brief-modal .brief-body tbody tr:last-child td { border-bottom: 0; }
+
+@media (max-width: 767px) {
+  .brief-modal .brief-content { padding-top: var(--s-4); }
+  .brief-modal .brief-cover-title { font-size: var(--fs-display-sm); line-height: var(--lh-display-sm); }
+  .brief-cover { margin-bottom: var(--s-4); }
+}
