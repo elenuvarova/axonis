@@ -162,13 +162,21 @@ function buildElements(nodes, edges) {
       .sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, 3).map((n) => n.id)
   )
   const els = []
+  // Seed positions on a golden-angle spiral, hubs in the middle. Without
+  // them every node starts at (0,0): the first fit measures zero-length
+  // edges (Cytoscape warns once per edge) and cola starts from a heap.
+  const order = [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0)).map((n) => n.id)
+  const rank = new Map(order.map((id, i) => [id, i]))
+  const GOLDEN = Math.PI * (3 - Math.sqrt(5))
   for (const n of nodes) {
     const degree = n.degree || 0
     const bridge = n.bridge_score || 0
     const size = Math.max(7, Math.min(22, 7 + degree * 60 + bridge * 14))
     const label = shortLabel(n.name)
     const isHub = hubs.has(n.id)
+    const r = rank.get(n.id) ?? 0
     els.push({
+      position: { x: Math.cos(r * GOLDEN) * 18 * Math.sqrt(r + 1), y: Math.sin(r * GOLDEN) * 18 * Math.sqrt(r + 1) },
       data: {
         id: n.id, label, displayLabel: labelled.has(n.id) ? label : '',
         fullName: n.name, type: n.type, shape: typeShape(n.type), hub: isHub,

@@ -601,7 +601,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .tour-spotlight {
   position: fixed; z-index: calc(var(--z-tour) + 1); pointer-events: none;
   box-shadow: 0 0 0 9999px var(--scrim);
-  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+  transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
   /* accent corner brackets */
   --b: linear-gradient(var(--accent), var(--accent));
   background:
