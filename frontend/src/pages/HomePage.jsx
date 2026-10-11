@@ -14,6 +14,7 @@ import { resetConsent } from '../consent'
 import { navigateWithTransition } from '../routeTransition'
 import LetterSphere from '../components/LetterSphere'
 import '../hero.css'
+import '../home-story.css'
 
 const TOUR_KEY = 'kge-tour-home'
 const INTRO_KEY = 'axonis-hero-intro'
@@ -38,6 +39,13 @@ const GOALS = [
 const REGIONS = ['Global', 'EU', 'UK', 'US', 'Asia']
 
 const EXAMPLES = ['AI tutoring', 'CSRD reporting', 'e-waste circularity']
+
+// Best demo for the "just show me" button: AI tutoring if it is there,
+// otherwise the first ready demo. (The list has no node counts to rank by.)
+function pickDemo(projects) {
+  const ready = projects.filter((p) => p.protected && p.status === 'ready')
+  return ready.find((p) => p.topic.toLowerCase() === 'ai tutoring') || ready[0]
+}
 
 const STATUS_GLYPH = { ready: '●', building: '◐', pending: '◐', error: '×' }
 
@@ -130,6 +138,114 @@ function Hero({ intro }) {
   )
 }
 
+// Adds .is-in once, the first time the section scrolls into view. The CSS
+// turns the stepped reveal off under prefers-reduced-motion.
+function useRevealOnce() {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return undefined
+    if (typeof IntersectionObserver === 'undefined') { el.classList.add('is-in'); return undefined }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { el.classList.add('is-in'); io.disconnect() }
+    }, { threshold: 0.2 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  return ref
+}
+
+// Mini graph in the product's own glyphs: ● concept, ◆ paper, ■ institution,
+// linked, with one cluster outline. Decorative; the step text carries the meaning.
+function GraphSketch() {
+  return (
+    <svg viewBox="0 0 240 150" className="hs-svg" aria-hidden="true" focusable="false">
+      <polygon points="30,96 62,44 128,36 150,86 96,122" className="hs-hull" />
+      <g className="hs-edges">
+        <line x1="62" y1="44" x2="128" y2="36" /><line x1="62" y1="44" x2="96" y2="86" />
+        <line x1="128" y1="36" x2="96" y2="86" /><line x1="96" y1="86" x2="150" y2="86" />
+        <line x1="96" y1="86" x2="40" y2="100" /><line x1="150" y1="86" x2="200" y2="52" />
+        <line x1="200" y1="52" x2="212" y2="112" />
+      </g>
+      <circle cx="62" cy="44" r="6" className="hs-fill" />
+      <circle cx="96" cy="86" r="8" className="hs-fill" />
+      <circle cx="40" cy="100" r="4" className="hs-fill" />
+      <path d="M128 28 l8 8 -8 8 -8 -8z" className="hs-fill" />
+      <path d="M150 78 l8 8 -8 8 -8 -8z" className="hs-fill" />
+      <rect x="196" y="48" width="8" height="8" className="hs-fill" />
+      <rect x="208" y="108" width="8" height="8" className="hs-fill" />
+      <text x="30" y="140" className="hs-svg-label">CLUSTER 01</text>
+    </svg>
+  )
+}
+
+// Two clusters with a dashed bridge between them and a GAP callout: research
+// on one side, nothing built on the other.
+function GapSketch() {
+  return (
+    <svg viewBox="0 0 240 150" className="hs-svg" aria-hidden="true" focusable="false">
+      <polygon points="14,40 56,20 92,48 78,92 28,92" className="hs-hull" />
+      <polygon points="168,84 206,60 228,96 206,128 170,122" className="hs-hull" />
+      <g className="hs-edges">
+        <line x1="40" y1="52" x2="68" y2="70" /><line x1="40" y1="52" x2="48" y2="82" />
+        <line x1="186" y1="96" x2="210" y2="100" />
+      </g>
+      <circle cx="40" cy="52" r="6" className="hs-fill" />
+      <circle cx="68" cy="70" r="4" className="hs-fill" />
+      <path d="M48 74 l8 8 -8 8 -8 -8z" className="hs-fill" />
+      <rect x="182" y="92" width="8" height="8" className="hs-fill" />
+      <rect x="206" y="96" width="8" height="8" className="hs-fill" />
+      <line x1="76" y1="72" x2="176" y2="96" className="hs-bridge" />
+      <line x1="126" y1="84" x2="126" y2="36" className="hs-leader" />
+      <rect x="86" y="14" width="80" height="22" className="hs-callout" />
+      <text x="126" y="29" textAnchor="middle" className="hs-callout-text">GAP · 0.87</text>
+    </svg>
+  )
+}
+
+const STEPS = [
+  {
+    n: '01', title: 'Open data',
+    body: 'Wikidata gives the concepts, OpenAlex the papers and institutions. No upload, no account.',
+    visual: (
+      <ul className="hs-sources">
+        <li><span className="hs-src">Wikidata</span><span className="hs-glyphs" aria-hidden="true">●●●●●●●●●●●●</span><span className="hs-count">025 concepts</span></li>
+        <li><span className="hs-src">OpenAlex</span><span className="hs-glyphs" aria-hidden="true">◆◆◆◆◆◆◆◆■■■■</span><span className="hs-count">018 papers · 015 inst.</span></li>
+        <li className="hs-foot">Example: AI tutoring, 058 nodes</li>
+      </ul>
+    ),
+  },
+  {
+    n: '02', title: 'Graph',
+    body: 'Concepts, papers and institutions become one linked map, grouped into clusters you can open.',
+    visual: <GraphSketch />,
+  },
+  {
+    n: '03', title: 'Gaps',
+    body: 'Where research is dense and products are missing, the map scores an opportunity and shows the evidence.',
+    visual: <GapSketch />,
+  },
+]
+
+function HowItWorks() {
+  const ref = useRevealOnce()
+  return (
+    <section className="home-story" ref={ref} aria-labelledby="home-story-title">
+      <div className="label hs-kicker">How it works</div>
+      <h2 id="home-story-title" className="hs-title">From a topic to a gap, in three steps</h2>
+      <ol className="hs-steps">
+        {STEPS.map((s, i) => (
+          <li key={s.n} className="hs-step" style={{ '--i': i }}>
+            <div className="hs-head"><span className="hs-n">{s.n}</span><h3>{s.title}</h3></div>
+            <p className="hs-body">{s.body}</p>
+            <div className="hs-visual">{s.visual}</div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -198,6 +314,7 @@ export default function HomePage() {
 
   const projects = projectsData || []
   const busy = startMutation.isPending
+  const bestDemo = pickDemo(projects)
 
   return (
     <div className="home">
@@ -288,6 +405,20 @@ export default function HomePage() {
               )
             })}
           </div>
+
+          {bestDemo && (
+            <div className="demo-row">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={busy}
+                onClick={(e) => { track('demo_open', { topic: bestDemo.topic, via: 'hero' }); navigateWithTransition(navigate, `/project/${bestDemo.id}`, { topicEl: e.currentTarget }) }}
+              >
+                Open a demo map<span aria-hidden="true">&nbsp;→</span>
+              </button>
+              <span className="demo-note">No build, no wait: {bestDemo.topic}</span>
+            </div>
+          )}
         </div>
 
         <Hero intro={intro} />
@@ -351,6 +482,8 @@ export default function HomePage() {
             </div>
           )}
         </section>
+
+        <HowItWorks />
 
         <footer className="home-footer">
           <span>Data: <a href="https://www.wikidata.org" target="_blank" rel="noreferrer">Wikidata</a> and <a href="https://openalex.org" target="_blank" rel="noreferrer">OpenAlex</a> (CC0)</span>
