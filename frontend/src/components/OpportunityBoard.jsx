@@ -34,6 +34,21 @@ function OppCard({ opp, index, onShowOnMap }) {
 
       {expanded && (
         <div className="opp-more">
+          {opp.score_parts?.length > 0 && (
+            <div>
+              <div className="label">How the {score} adds up</div>
+              <ul className="opp-parts">
+                {opp.score_parts.map((p) => (
+                  <li key={p.key} className="opp-part">
+                    <span className="opp-part-label">{p.label} <span className="opp-part-w">×{Math.round(p.weight * 100)}%</span></span>
+                    <CellBar value={p.value} cells={10} />
+                    <span className="opp-part-pts">+{Math.round(p.points)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="opp-parts-note">Each signal is scaled against the strongest cluster in this map, then weighted.</p>
+            </div>
+          )}
           {opp.risks?.length > 0 && (
             <div>
               <div className="label">Risks</div>
@@ -65,7 +80,7 @@ function OppCard({ opp, index, onShowOnMap }) {
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
         >
-          {expanded ? 'Less' : 'Risks & questions'}<span aria-hidden="true">&nbsp;→</span>
+          {expanded ? 'Less' : 'Score, risks & questions'}<span aria-hidden="true">&nbsp;→</span>
         </button>
       </div>
     </article>

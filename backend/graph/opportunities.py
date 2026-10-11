@@ -31,6 +31,43 @@ class OpportunityCandidate:
     generated_by_ai: bool = False
 
 
+# (key, label, weight). One source of truth for the formula, used both to score
+# and to explain the score on the Opportunities board.
+WEIGHTS = [
+    ("density", "Cluster size", 0.30),
+    ("research", "Research activity", 0.25),
+    ("gap", "Product gap", 0.25),
+    ("bridge", "Bridge potential", 0.20),
+]
+
+
+def cluster_maxes(clusters) -> dict:
+    """Normalisers over the eligible clusters (size >= 3) of one project."""
+    eligible = [c for c in clusters if c.size >= 3]
+    return {
+        "size": max((c.size for c in eligible), default=0) or 1,
+        "research": max((c.research_count for c in eligible), default=0) or 1,
+        "products": max((c.product_count for c in eligible), default=0) or 1,
+        "bridge": max((c.max_bridge or 0 for c in eligible), default=0) or 1,
+    }
+
+
+def score_parts(cluster, maxes: dict) -> list[dict]:
+    """Each signal normalised 0..1 and its weighted contribution in points
+    (the parts sum to score × 100)."""
+    values = {
+        "density": cluster.size / maxes["size"],
+        "research": cluster.research_count / maxes["research"],
+        "gap": 1.0 - (cluster.product_count / maxes["products"]),
+        "bridge": (cluster.max_bridge or 0) / maxes["bridge"],
+    }
+    return [
+        {"key": k, "label": label, "weight": w, "value": round(v, 4), "points": round(w * v * 100, 1)}
+        for k, label, w in WEIGHTS
+        for v in [min(1.0, max(0.0, values[k]))]  # eligible clusters are already in range
+    ]
+
+
 def score_opportunities(
     clusters: list[ClusterSummary],
     topic: str,
@@ -44,26 +81,15 @@ def score_opportunities(
         return []
 
     # Normalise signals across eligible clusters
-    max_size = max(c.size for c in eligible) or 1
-    max_research = max(c.research_count for c in eligible) or 1
-    max_bridge = max(c.max_bridge for c in eligible) or 1
-    max_products = max(c.product_count for c in eligible) or 1
+    maxes = cluster_maxes(eligible)
 
     candidates: list[OpportunityCandidate] = []
 
     for cluster in eligible:
-        size_norm = cluster.size / max_size
-        research_norm = cluster.research_count / max_research
-        gap_norm = 1.0 - (cluster.product_count / max_products)
-        bridge_norm = cluster.max_bridge / max_bridge
-
-        score = (
-            0.30 * size_norm +
-            0.25 * research_norm +
-            0.25 * gap_norm +
-            0.20 * bridge_norm
-        )
-        score = round(score, 4)
+        parts = {p["key"]: p for p in score_parts(cluster, maxes)}
+        size_norm = parts["density"]["value"]
+        research_norm = parts["research"]["value"]
+        score = round(sum(p["weight"] * p["value"] for p in parts.values()), 4)
 
         evidence = round((research_norm + size_norm) / 2, 4)
 

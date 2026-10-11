@@ -13,7 +13,7 @@ function Metric({ label, value, bar }) {
   )
 }
 
-export default function EntityCard({ entity, loading, onNeighborClick, onAsk }) {
+export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk }) {
   if (loading) return <EntitySkeleton />
 
   if (!entity) {
@@ -64,6 +64,10 @@ export default function EntityCard({ entity, loading, onNeighborClick, onAsk }) 
                     className="chip"
                     title={n.name}
                     onClick={() => onNeighborClick(n.id)}
+                    onMouseEnter={() => onNeighborHover?.(n.id)}
+                    onMouseLeave={() => onNeighborHover?.(null)}
+                    onFocus={() => onNeighborHover?.(n.id)}
+                    onBlur={() => onNeighborHover?.(null)}
                   >
                     {n.name.length > 22 ? n.name.slice(0, 20) + '…' : n.name}
                   </button>
