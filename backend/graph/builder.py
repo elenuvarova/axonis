@@ -2,6 +2,7 @@
 End-to-end graph build pipeline.
 Called from routers/projects.py as a background task.
 """
+from ai import llm
 import os
 import json
 import uuid
@@ -366,15 +367,14 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
 
 
 def _expand_topic(topic: str) -> list[str]:
-    """Use Groq (Llama 3.3) to generate search terms, fall back to simple split."""
+    """Use Groq (see ai/llm.py) to generate search terms, fall back to simple split."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         return _simple_expand(topic)
     try:
         from groq import Groq
         client = Groq(api_key=api_key, timeout=20.0)
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = llm.create(client,
             max_tokens=256,
             messages=[{
                 "role": "user",

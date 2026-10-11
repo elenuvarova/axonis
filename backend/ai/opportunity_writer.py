@@ -3,13 +3,13 @@ Use Groq (Llama 3.3) to enrich opportunity candidates with narrative cards.
 Falls back to template descriptions if GROQ_API_KEY is not set.
 """
 from __future__ import annotations
+from ai import llm
 import os
 import json
 import time
 from graph.opportunities import OpportunityCandidate
 
 _AI_CARD_LIMIT = 5
-_MODEL = "llama-3.3-70b-versatile"
 
 _SYSTEM = (
     "You are a senior product strategist helping product managers discover opportunities "
@@ -73,8 +73,7 @@ def enrich_with_ai(
         )
 
         try:
-            response = client.chat.completions.create(
-                model=_MODEL,
+            response = llm.create(client,
                 max_tokens=512,
                 messages=[
                     {"role": "system", "content": _SYSTEM},
