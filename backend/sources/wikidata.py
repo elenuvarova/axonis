@@ -40,7 +40,7 @@ SELECT DISTINCT ?target ?targetLabel ?relType WHERE {{
     wd:{qid} wdt:P361 ?target . BIND("part_of" AS ?relType)
   }} UNION {{
     wd:{qid} wdt:P527 ?target . BIND("has_part" AS ?relType)
- UNION {{
+  }} UNION {{
     wd:{qid} wdt:P452 ?target . BIND("industry" AS ?relType)
   }}
   FILTER(STRSTARTS(STR(?target), "http://www.wikidata.org/entity/Q"))
