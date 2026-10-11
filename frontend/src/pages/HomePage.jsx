@@ -10,6 +10,7 @@ import Wordmark from '../components/Wordmark'
 import { myProjectIds, rememberProject, forgetProject, canEdit } from '../myProjects'
 import { track } from '../analytics'
 import useDocumentMeta from '../useDocumentMeta'
+import { resetConsent } from '../consent'
 import LetterSphere from '../components/LetterSphere'
 
 const TOUR_KEY = 'kge-tour-home'
@@ -287,6 +288,12 @@ export default function HomePage() {
             </div>
           )}
         </section>
+
+        <footer className="home-footer">
+          <span>Data: <a href="https://www.wikidata.org" target="_blank" rel="noreferrer">Wikidata</a> and <a href="https://openalex.org" target="_blank" rel="noreferrer">OpenAlex</a> (CC0)</span>
+          <span><a href="https://github.com/elenuvarova/axonis" target="_blank" rel="noreferrer">Source</a></span>
+          <button type="button" className="home-footer-link" onClick={resetConsent}>Analytics settings</button>
+        </footer>
       </main>
 
       <Toast message={toast} onClose={() => setToast('')} />

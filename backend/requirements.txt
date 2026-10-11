@@ -1,15 +1,17 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-sqlalchemy>=2.0.35
-httpx>=0.27.0
-requests>=2.32.0
-networkx>=3.3
-python-louvain>=0.16
-rapidfuzz>=3.9.0
-groq>=0.11.0
-python-dotenv>=1.0.1
-psycopg2-binary>=2.9.9
+# Pinned to the versions verified in the production image; bump on purpose
+# (pip install -U <pkg>, run tests, update the pin).
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+sqlalchemy==2.1.4
+httpx==0.28.1
+requests==2.34.2
+networkx==3.7
+python-louvain==0.16
+rapidfuzz==3.14.6
+groq==1.7.0
+python-dotenv==1.2.4
+psycopg2-binary==2.9.13
 # SQLAlchemy 2.1 made psycopg (v3) the default driver for postgresql:// URLs
-psycopg[binary]>=3.2
-python-multipart>=0.0.12
-pypdf>=4.0.0
+psycopg[binary]==3.3.6
+python-multipart==0.0.32
+pypdf==6.20.0
