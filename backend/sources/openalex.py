@@ -68,7 +68,8 @@ def fetch_entities_for_topic(topic: str) -> dict:
     # Also pull related concepts from the top concept hit
     related_concepts: list[dict] = []
     if concepts:
-        for rc in concepts[0].get("related_concepts", [])[:10]:
+        # OpenAlex sends related_concepts: null for some concepts
+        for rc in (concepts[0].get("related_concepts") or [])[:10]:
             related_concepts.append(rc)
 
     return {

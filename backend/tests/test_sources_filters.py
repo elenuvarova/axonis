@@ -25,3 +25,21 @@ def test_top_works_ranks_relevant_pool_by_citations(monkeypatch):
     works = oa.get_top_works("e-waste", per_page=2)
     assert "sort" not in seen and seen["per-page"] == 40
     assert [w["title"] for w in works] == ["b", "a"]
+
+
+def test_related_query_is_balanced():
+    # A dropped "}}" once made every SPARQL call return 400 and silently
+    # removed all Wikidata relations from new maps.
+    from sources.wikidata import _RELATED_QUERY
+    q = _RELATED_QUERY.format(qid="Q2539")
+    assert q.count("{") == q.count("}")
+    assert "UNION" in q and "P31" not in q
+
+
+def test_null_related_concepts_do_not_drop_openalex(monkeypatch):
+    import sources.openalex as oa
+    monkeypatch.setattr(oa, "search_concepts", lambda q: [{"display_name": "Data science", "related_concepts": None}])
+    monkeypatch.setattr(oa, "get_top_works", lambda q: [{"title": "p"}])
+    monkeypatch.setattr(oa, "get_top_institutions", lambda q: [])
+    out = oa.fetch_entities_for_topic("Data Science")
+    assert out["related_concepts"] == [] and len(out["works"]) == 1
