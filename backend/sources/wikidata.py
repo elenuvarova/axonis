@@ -1,4 +1,5 @@
 """Wikidata entity search and SPARQL relationship expansion."""
+import re
 import time
 from sources.http import get_json
 
@@ -57,6 +58,27 @@ LIMIT 1
 """
 
 
+# Search hits whose Wikidata description marks them as a namesake rather than a
+# concept: creative works, people, names, places, disambiguation pages, and
+# individual publications (papers come from OpenAlex, with citation data). A
+# "circularity" search otherwise pulls in "Circularity (2017 video game)".
+_OFF_TOPIC = re.compile(
+    r"\b(video game|film|movie|album|single|song|band|novel|book by|television|tv series|episode|"
+    r"podcast|painting|sculpture|fictional|character|given name|family name|surname|"
+    r"disambiguation|wikimedia|asteroid|ship|village|commune|municipality|river|mountain|"
+    r"human settlement|football|footballer|musician|singer|actor|actress|rapper|"
+    r"scientific article|edition|thesis)\b"
+    r"|\bbook \(work\)"
+    r"|\(\d{3,4}\s*[–-]"   # "(1925–2010)": a person
+    r"|^\d{4}\s",           # "2017 video game", "1999 film"
+    re.IGNORECASE,
+)
+
+
+def is_namesake(description: str) -> bool:
+    return bool(_OFF_TOPIC.search(description or ""))
+
+
 def search_entities(term: str, limit: int = 3) -> list[dict]:
     """Return top Wikidata items matching a search term."""
     data = get_json(
@@ -107,7 +129,8 @@ def fetch_entities_for_terms(terms: list[str]) -> list[dict]:
     raw: list[dict] = []
 
     for term in terms:
-        hits = search_entities(term, limit=2)
+        # Ask for a few more and keep the first two that aren't namesakes.
+        hits = [h for h in search_entities(term, limit=6) if not is_namesake(h.get("description", ""))][:2]
         for hit in hits:
             qid = hit.get("id", "")
             if not qid or qid in seen_qids:

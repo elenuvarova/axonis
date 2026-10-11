@@ -27,15 +27,22 @@ def search_concepts(query: str, per_page: int = 15) -> list[dict]:
     return data.get("results", [])
 
 
-def get_top_works(query: str, per_page: int = 15) -> list[dict]:
-    """Return the most-cited papers for a query."""
+def get_top_works(query: str, per_page: int = 15, pool: int = 25) -> list[dict]:
+    """Return well-cited papers that are actually about the query.
+
+    Sorting the whole full-text search by citations surfaced famous papers that
+    merely mention a word (an RT-PCR methods paper, a supernova survey) on top
+    of an "e-waste circularity" map. So: take the `pool` most relevant results
+    (OpenAlex's default ranking for `search`), then order those by citations.
+    """
     data = _get("/works", {
         "search": query,
-        "sort": "cited_by_count:desc",
-        "per-page": per_page,
+        "per-page": pool,
         "select": "id,title,doi,publication_year,cited_by_count,concepts,authorships",
     })
-    return data.get("results", [])
+    works = data.get("results", [])
+    works.sort(key=lambda w: w.get("cited_by_count") or 0, reverse=True)
+    return works[:per_page]
 
 
 def get_top_institutions(query: str, per_page: int = 10) -> list[dict]:
