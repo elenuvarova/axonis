@@ -479,6 +479,7 @@ export default function ProjectPage() {
                 <span className="cmdk-chip-label">Search</span>
                 <kbd className="cmdk-kbd">⌘K</kbd>
               </button>
+{!project.protected && (
               <button
                 type="button"
                 className="btn btn-ghost btn-icon-mobile"
@@ -489,6 +490,7 @@ export default function ProjectPage() {
               >
                 {uploadMutation.isPending ? '…' : <><Icon name="upload" /><span className="btn-label">Upload</span></>}
               </button>
+              )}
               <button
                 ref={briefBtnRef}
                 type="button"

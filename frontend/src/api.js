@@ -1,8 +1,18 @@
 const BASE = '/api'
 
+// Errors carry the server's `detail` when there is one (rate limit, demo
+// protection), so the UI can show a real reason instead of "429".
+async function fail(r) {
+  let detail = ''
+  try { detail = (await r.json()).detail || '' } catch { /* not JSON */ }
+  const err = new Error(typeof detail === 'string' && detail ? detail : `${r.status} ${r.statusText}`)
+  err.status = r.status
+  throw err
+}
+
 async function req(path, opts = {}) {
   const r = await fetch(`${BASE}${path}`, opts)
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+  if (!r.ok) await fail(r)
   return r.json()
 }
 
@@ -26,7 +36,7 @@ export const buildProject = (id) =>
 
 export const deleteProject = async (id) => {
   const r = await fetch(`${BASE}/projects/${id}`, { method: 'DELETE' })
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
+  if (!r.ok) await fail(r)
 }
 
 export const getBrief = (id) => req(`/projects/${id}/brief`)
