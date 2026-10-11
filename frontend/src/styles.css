@@ -260,11 +260,8 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .try-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 24px; }
 
 .home-hero-media { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; position: relative; width: min(100%, 540px); aspect-ratio: 1; }
-.home-hero-media video, .home-hero-media img {
-  display: block; width: 100%; height: 100%; object-fit: cover; background: var(--bg);
-  -webkit-mask-image: radial-gradient(circle closest-side, #000 82%, transparent 100%);
-  mask-image: radial-gradient(circle closest-side, #000 82%, transparent 100%);
-}
+.letter-sphere { display: block; width: 100%; height: 100%; cursor: grab; touch-action: pan-y; }
+.letter-sphere:active { cursor: grabbing; }
 .hero-toggle { position: absolute; right: 0; bottom: -8px; padding: 4px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
 .hero-toggle::before { content: '[\00a0'; }
 .hero-toggle::after { content: '\00a0]'; }

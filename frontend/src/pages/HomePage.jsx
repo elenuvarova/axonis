@@ -7,6 +7,7 @@ import { InlineError, Toast, StateScreen } from '../components/states'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 import { pad, relTime } from '../format'
 import Wordmark from '../components/Wordmark'
+import LetterSphere from '../components/LetterSphere'
 
 const TOUR_KEY = 'kge-tour-home'
 const HOME_TOUR = [
@@ -51,34 +52,19 @@ function ProjectsSkeleton() {
   )
 }
 
-// Looping letter-sphere. Reduced motion: poster image only, no video, no toggle.
+// Interactive letter sphere (drag to spin). The auto-spin can be paused;
+// under reduced motion it starts still and only moves when dragged.
 function Hero() {
   const reduced = usePrefersReducedMotion()
-  const videoRef = useRef(null)
   const [playing, setPlaying] = useState(true)
-
-  const toggle = () => {
-    const v = videoRef.current
-    if (!v) return
-    if (v.paused) { v.play().catch(() => {}); setPlaying(true) } else { v.pause(); setPlaying(false) }
-  }
-
-  if (reduced) {
-    return (
-      <div className="home-hero-media">
-        <img src="/media/letter-sphere-poster.jpg" alt="" width="640" height="640" />
-      </div>
-    )
-  }
   return (
     <div className="home-hero-media">
-      <video ref={videoRef} autoPlay muted loop playsInline poster="/media/letter-sphere-poster.jpg" aria-hidden="true">
-        <source src="/media/letter-sphere.webm" type="video/webm" />
-        <source src="/media/letter-sphere.mp4" type="video/mp4" />
-      </video>
-      <button type="button" className="btn btn-ghost hero-toggle" onClick={toggle} aria-label={playing ? 'Pause background animation' : 'Play background animation'}>
-        {playing ? 'Pause' : 'Play'}
-      </button>
+      <LetterSphere paused={!playing} reducedMotion={reduced} />
+      {!reduced && (
+        <button type="button" className="btn btn-ghost hero-toggle" onClick={() => setPlaying((p) => !p)} aria-label={playing ? 'Pause background animation' : 'Play background animation'}>
+          {playing ? 'Pause' : 'Play'}
+        </button>
+      )}
     </div>
   )
 }
@@ -233,7 +219,7 @@ export default function HomePage() {
             <div className="recent-projects">
               <div className="project-head label" aria-hidden="true">
                 <div className="project-cols">
-                  <span>ID</span><span>Topic</span><span>Region</span><span>Status</span><span>Updated</span>
+                  <span>ID</span><span>Topic</span><span>Region</span><span>Status</span><span>Created</span>
                 </div>
                 <span className="project-del-spacer" />
               </div>
