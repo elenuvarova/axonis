@@ -134,7 +134,7 @@
 /* Tab switch: the underline slides, content cross-fades in four steps.
    The graph canvas is kept out of the snapshot (a WebGL/canvas snapshot flashes). */
 .graph-canvas-wrap { view-transition-name: graph-canvas; }
-::view-transition-group(graph-canvas), ::view-transition-old(graph-canvas), ::view-transition-new(graph-canvas) { animation: none; }
+html:not(.vt-route)::view-transition-group(graph-canvas), html:not(.vt-route)::view-transition-old(graph-canvas), html:not(.vt-route)::view-transition-new(graph-canvas) { animation: none; }
 ::view-transition-group(tab-ind) { animation-duration: 220ms; animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; animation-timing-function: steps(4); }
 @media (prefers-reduced-motion: reduce) {
@@ -181,3 +181,18 @@
 @keyframes gap-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @media (max-width: 767px) { .gap-callout { max-width: 180px; } }
 @media (prefers-reduced-motion: reduce) { .gap-callout { animation: none; } }
+
+/* Home → map route transition (routeTransition.js). Shared elements: the
+   topic (query line / demo row → breadcrumb) and the stage (hero sphere →
+   map canvas). Only during a route change: tab switches keep the canvas
+   out of the snapshot. */
+.crumb-topic { view-transition-name: topic; }
+.home-hero-media { view-transition-name: graph-canvas; }
+html.vt-route::view-transition-group(graph-canvas) { animation-duration: 520ms; animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
+html.vt-route::view-transition-old(graph-canvas) { animation: vt-fade-out 260ms steps(4) both; }
+html.vt-route::view-transition-new(graph-canvas) { animation: vt-fade-in 360ms 160ms steps(4) both; }
+html.vt-route::view-transition-group(topic) { animation-duration: 520ms; animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1); }
+html.vt-route::view-transition-old(root) { animation: vt-fade-out 200ms steps(4) both; }
+html.vt-route::view-transition-new(root) { animation: vt-fade-in 280ms 120ms steps(4) both; }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; } }
