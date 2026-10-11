@@ -209,10 +209,15 @@ export default function ProjectPage() {
     return () => clearTimeout(t)
   }, [project, graphData])
 
+  // Only demo maps put their topic in the title and description. Umami and
+  // Clarity both send document.title with every event, so a visitor's own
+  // topic in the title would leak what they typed into analytics. Demo topics
+  // are public and are the pages worth indexing.
+  const publicTopic = project?.protected ? project.topic : null
   useDocumentMeta({
-    title: project?.topic ? `${project.topic} — knowledge map · Axonis` : null,
-    description: project?.topic
-      ? `An interactive knowledge graph of ${project.topic}: concepts, research and organisations from Wikidata and OpenAlex, clustered and scored for product opportunities.`
+    title: project ? (publicTopic ? `${publicTopic} — knowledge map · Axonis` : 'Your map · Axonis') : null,
+    description: publicTopic
+      ? `An interactive knowledge graph of ${publicTopic}: concepts, research and organisations from Wikidata and OpenAlex, clustered and scored for product opportunities.`
       : null,
     path: `/project/${id}`,
   })
@@ -709,6 +714,7 @@ export default function ProjectPage() {
             aria-modal="true"
             aria-labelledby={BRIEF_TITLE_ID}
             className="brief-modal"
+            data-clarity-mask={project.protected ? undefined : 'true'}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleBriefKeyDown}
           >
