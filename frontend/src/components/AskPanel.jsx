@@ -6,10 +6,39 @@ const SUGGESTIONS = [
   'Which entities connect different areas?',
 ]
 
-// Right-panel mode (not a tab): ask the map, read a cited answer, click a
-// numbered source to centre it on the graph. `onClose` returns to the inspector.
-export default function AskPanel({ onAsk, pending, result, error, onPickSource, onClose, question }) {
+// Split an answer into text and [n] citation markers.
+function withCitations(text, sources, active, setActive, onPick) {
+  const byN = Object.fromEntries((sources || []).map((s, i) => [s.n ?? i + 1, s]))
+  return text.split(/(\[\d{1,2}\])/).map((part, i) => {
+    const m = part.match(/^\[(\d{1,2})\]$/)
+    const src = m && byN[Number(m[1])]
+    if (!src) return part
+    const n = Number(m[1])
+    return (
+      <button
+        key={i}
+        type="button"
+        className={`cite${active === n ? ' is-active' : ''}`}
+        onMouseEnter={() => setActive(n)}
+        onMouseLeave={() => setActive(null)}
+        onFocus={() => setActive(n)}
+        onBlur={() => setActive(null)}
+        onClick={() => onPick?.(src.id)}
+        aria-label={`Source ${n}: ${src.name}`}
+      >{n}</button>
+    )
+  })
+}
+
+// Right-panel mode (not a tab): ask the map, read a cited answer. Each [n]
+// marker is tied to a node: hover/focus lights it on the graph, click centres
+// it. `onHoverSource(id|null)` drives the graph highlight; `onClose` returns
+// to the inspector.
+export default function AskPanel({ onAsk, pending, result, error, onPickSource, onHoverSource, onClose, question }) {
   const [q, setQ] = useState('')
+  const [activeN, setActiveN] = useState(null)
+  const sourceId = (n) => result?.sources?.find((s, i) => (s.n ?? i + 1) === n)?.id ?? null
+  const setActive = (n) => { setActiveN(n); onHoverSource?.(n == null ? null : sourceId(n)) }
   // The button that opened the panel unmounts with it, so move focus into the
   // panel instead of letting it fall to <body> (WCAG 2.4.3).
   const inputRef = useRef(null)
@@ -68,7 +97,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
             {/* aria-live announces the answer to screen readers when it arrives */}
             <div aria-live="polite" aria-atomic="true">
               <div className="sr-only">Answer</div>
-              <p className="ask-answer-text">{result.answer}</p>
+              <p className="ask-answer-text">{withCitations(result.answer, result.sources, activeN, setActive, onPickSource)}</p>
             </div>
 
             {result.sources?.length > 0 && (
@@ -80,11 +109,15 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
                       {/* <button> gives keyboard access + announces as interactive (C-2, WCAG 2.1.1) */}
                       <button
                         type="button"
-                        className="source-row"
+                        className={`source-row${activeN === (s.n ?? i + 1) ? ' is-active' : ''}`}
                         onClick={() => onPickSource?.(s.id)}
+                        onMouseEnter={() => setActive(s.n ?? i + 1)}
+                        onMouseLeave={() => setActive(null)}
+                        onFocus={() => setActive(s.n ?? i + 1)}
+                        onBlur={() => setActive(null)}
                         title={`Centre on ${s.name}`}
                       >
-                        <span className="source-num" aria-hidden="true">{i + 1}</span>
+                        <span className="source-num" aria-hidden="true">{s.n ?? i + 1}</span>
                         <span className="source-name">{s.name.length > 32 ? s.name.slice(0, 30) + '…' : s.name}</span>
                       </button>
                     </li>

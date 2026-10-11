@@ -37,6 +37,14 @@ function StatusBadge({ status }) {
 
 
 
+// Fit the view to a set of nodes but never zoom past 1.2×: fitting two or three
+// nodes otherwise jumps to max zoom and the labels turn into billboards.
+function fitCapped(cy, eles, padding, reduced) {
+  const bb = eles.boundingBox()
+  const zoom = Math.min(1.2, (cy.width() - padding * 2) / Math.max(bb.w, 1), (cy.height() - padding * 2) / Math.max(bb.h, 1))
+  cy.animate({ zoom: Math.max(zoom, cy.minZoom()), center: { eles }, duration: reduced ? 0 : 400 })
+}
+
 export default function ProjectPage() {
   const { id } = useParams()
   const qc = useQueryClient()
@@ -213,7 +221,7 @@ export default function ProjectPage() {
       inCluster.connectedEdges().addClass('highlighted')
     })
     c._highlightedCluster = clusterId
-    if (fit && inCluster.length) c.animate({ fit: { eles: inCluster, padding: 60 }, duration: reducedMotion ? 0 : 400 })
+    if (fit && inCluster.length) fitCapped(c, inCluster, 60, reducedMotion)
   }
 
   const handleClusterClick = (clusterId) => {
@@ -245,12 +253,13 @@ export default function ProjectPage() {
     highlightCluster(cy, clusterId, { fit: false })
     const t = setTimeout(() => {
       const els = cy.nodes(`[cluster_id = "${clusterId}"]`)
-      if (els.length) cy.animate({ fit: { eles: els, padding: 60 }, duration: reducedMotion ? 0 : 400 })
+      if (els.length) fitCapped(cy, els, 60, reducedMotion)
     }, reducedMotion ? 100 : 1700)
     return () => clearTimeout(t)
   }, [cy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearAskHighlight = () => {
+    if (cy) cy.nodes('.cite-focus').removeClass('cite-focus')
     if (cy && cy._highlightedCluster === '__ask__') clearHighlights(cy)
   }
 
@@ -292,6 +301,15 @@ export default function ProjectPage() {
     }
   }, [tab, cy, askOpen, selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ask citation hover/focus: light one node on the graph.
+  const hoverSource = (nid) => {
+    if (!cy) return
+    cy.batch(() => {
+      cy.nodes('.cite-focus').removeClass('cite-focus')
+      if (nid) cy.getElementById(nid).addClass('cite-focus')
+    })
+  }
+
   const highlightNodes = (ids) => {
     if (!cy) return
     let coll = cy.collection()
@@ -305,7 +323,7 @@ export default function ProjectPage() {
       coll.connectedEdges().addClass('highlighted')
     })
     cy._highlightedCluster = '__ask__'
-    if (coll.length) cy.animate({ fit: { eles: coll, padding: 60 }, duration: reducedMotion ? 0 : 400 })
+    if (coll.length) fitCapped(cy, coll, 60, reducedMotion)
   }
 
   const centreNode = (nid) => {
@@ -536,6 +554,7 @@ export default function ProjectPage() {
                 result={askResult}
                 error={askMutation.isError ? (askMutation.error?.message || 'Ask failed') : ''}
                 onPickSource={centreNode}
+                onHoverSource={hoverSource}
                 onClose={closeAsk}
               />
             ) : (

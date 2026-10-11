@@ -652,3 +652,9 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 /* ── Brand wordmark: A·X·ONIS, X = accent (the crossing of two edges) ── */
 .wordmark { display: inline-flex; font-family: var(--font-mono, 'Martian Mono', monospace); font-weight: 500; letter-spacing: 0.04em; }
 .wordmark-x { color: var(--accent); }
+
+/* Ask citations: [n] markers inline in the answer, tied to graph nodes */
+.cite { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 16px; margin: 0 1px; padding: 0 3px; vertical-align: 1px; font-family: var(--font-mono); font-size: 10px; line-height: 1; color: var(--accent); border: 1px solid var(--accent); background: transparent; cursor: pointer; }
+.cite:hover, .cite.is-active, .cite:focus-visible { background: var(--accent); color: var(--on-accent); }
+.source-row.is-active { background: var(--accent-soft); }
+.source-row.is-active .source-num { color: var(--accent); }

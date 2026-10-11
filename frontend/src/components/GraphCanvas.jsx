@@ -76,6 +76,14 @@ function makeStylesheet() {
       },
     },
     // faded nodes drop their label too, so it can't run under the focused ones
+    // Ask: the node behind the citation the pointer / focus is on.
+    {
+      selector: 'node.cite-focus',
+      style: {
+        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': 13, 'z-index': 30, 'opacity': 1,
+        'outline-width': 1, 'outline-style': 'solid', 'outline-color': accent, 'outline-offset': 6,
+      },
+    },
     { selector: 'node.faded', style: { 'opacity': 0.2, 'label': '' } },
     {
       selector: 'edge',

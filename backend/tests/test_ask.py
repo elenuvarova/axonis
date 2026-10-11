@@ -31,3 +31,16 @@ def test_retrieve_ranks_by_relevance(db, ready_project):
     top = retrieve(entities, "adaptive learning")
     assert top  # non-empty
     assert top[0].name == "Adaptive learning"
+
+
+def test_sources_are_numbered_and_answer_cites_them(client, ready_project):
+    body = client.post(
+        f"/api/projects/{ready_project}/ask", json={"question": "adaptive learning systems"},
+    ).json()
+    assert [s["n"] for s in body["sources"]] == list(range(1, len(body["sources"]) + 1))
+    assert "[1]" in body["answer"]  # template answer cites its nodes too
+
+
+def test_clean_citations_drops_out_of_range_markers():
+    from ai.qa import clean_citations
+    assert clean_citations("Gaps in tutoring [1][7]. Strong research [2] .", 3) == "Gaps in tutoring [1]. Strong research [2]."
