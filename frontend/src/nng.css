@@ -103,3 +103,19 @@ body.has-consent .project-page { height: calc(100dvh - var(--h-ctl) - var(--s-2)
   main.home-body .home-footer { order: 10; }
 }
 @media (max-width: 767px) { .consent-more { display: none; } }
+
+/* Opportunity cards: what the evidence scale means, on demand */
+.opp-evidence-q { display: inline-flex; gap: var(--s-half); align-items: center; padding: 0; color: var(--text-2); cursor: pointer; }
+.opp-evidence-q span { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--line-control); font-size: var(--fs-label); }
+.opp-evidence-q:hover, .opp-evidence-q:focus-visible, .opp-evidence-q[aria-expanded="true"] { color: var(--text); }
+.opp-evidence-note { margin-top: var(--s-1); font-family: var(--font-body); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-2); max-width: 48ch; }
+
+/* Phone: the rail stays visible under a peek/half sheet; Brief gets its word
+   back (search lives in the rail as FIND) */
+@media (max-width: 767px) {
+  .project-page:not(.sheet-full) .graph-sidebar { bottom: calc(var(--h-ctl-touch) + env(safe-area-inset-bottom)); }
+  .header-actions .cmdk-chip { display: none; }
+  .header-actions .btn-icon-mobile.btn-brief { padding: 0 var(--s-1); }
+  .header-actions .btn-icon-mobile.btn-brief svg { display: none; }
+  .header-actions .btn-icon-mobile.btn-brief .btn-label { display: inline; }
+}

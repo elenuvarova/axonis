@@ -113,7 +113,9 @@ def _cluster_out(c: Cluster) -> dict:
     return {
         "id": c.id,
         "cluster_id": c.cluster_id,
-        "name": repair_cluster_name(c.name),
+        # the short label when there is one; the member names become the terms
+        "name": c.label or repair_cluster_name(c.name),
+        "terms": repair_cluster_name(c.name),
         "top_entities": _parse_json(c.top_entities, []),
         "size": c.size,
         "research_count": c.research_count,
@@ -128,7 +130,7 @@ def _opportunity_out(o: Opportunity, cluster: Cluster | None) -> dict:
     return {
         "id": o.id,
         "cluster_db_id": o.cluster_db_id,
-        "cluster_name": repair_cluster_name(cluster.name) if cluster else None,
+        "cluster_name": (cluster.label or repair_cluster_name(cluster.name)) if cluster else None,
         "cluster_size": cluster.size if cluster else None,
         "title": repair_title(o.title),
         "why_it_matters": o.why_it_matters,

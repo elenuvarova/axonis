@@ -7,13 +7,39 @@ import { pad } from '../format'
 // Esc closes and focus returns to where it was). Type tabs narrow node results.
 const MAX_NODES = 40
 
-function rank(name, q) {
+// Edit distance with a cap (cheap for short words): insert, delete, swap a letter.
+function within(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return false
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    let rowMin = i
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+      rowMin = Math.min(rowMin, cur[j])
+    }
+    if (rowMin > max) return false
+    prev = cur
+  }
+  return prev[b.length] <= max
+}
+
+// Exact matches rank first (start of name > start of a word > anywhere);
+// then every query word matching a word of the name allowing a typo or two
+// ("tutorng", "machne lerning"), so a slip of the finger still finds the node.
+export function rank(name, q) {
   const n = name.toLowerCase()
   const i = n.indexOf(q)
-  if (i < 0) return -1
   if (i === 0) return 3
-  if (/\W/.test(n[i - 1])) return 2 // starts a word
-  return 1
+  if (i > 0) return /\W/.test(n[i - 1]) ? 2 : 1
+  if (q.length < 4) return -1
+  const words = n.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  const tokens = q.split(/\s+/).filter(Boolean)
+  const ok = tokens.every((t) => {
+    const max = t.length >= 7 ? 2 : 1
+    return words.some((w) => w.startsWith(t) || within(t, w.slice(0, t.length + max), max) || within(t, w, max))
+  })
+  return ok ? 0.5 : -1
 }
 
 function Highlight({ text, q }) {

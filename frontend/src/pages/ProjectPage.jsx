@@ -201,10 +201,12 @@ export default function ProjectPage() {
     const seen = new Set()
     const items = [...(oppsData.opportunities || [])]
       .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .map((o) => ({ o, c: byId.get(o.cluster_db_id) }))
+      // rank = the opportunity's place in the score order, so GAP 02 on the
+      // map is Gap_02 on the cards even when two gaps share a cluster
+      .map((o, idx) => ({ o, idx, c: byId.get(o.cluster_db_id) }))
       .filter(({ c }) => c && !seen.has(c.cluster_id) && seen.add(c.cluster_id))
       .slice(0, window.matchMedia?.('(max-width: 767px)').matches ? 2 : 3)
-      .map(({ o, c }, i) => ({ rank: i + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
+      .map(({ o, c, idx }) => ({ rank: idx + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
     if (!items.length) return
     setRevealItems(items) // always available for Replay; only the auto-play is once per session
     try { if (sessionStorage.getItem(key)) return } catch { return }
@@ -599,7 +601,7 @@ export default function ProjectPage() {
               <button
                 ref={briefBtnRef}
                 type="button"
-                className="btn btn-secondary btn-icon-mobile"
+                className="btn btn-secondary btn-icon-mobile btn-brief"
                 onClick={() => briefMutation.mutate()}
                 disabled={briefMutation.isPending}
                 title="Generate a research brief"

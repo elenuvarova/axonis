@@ -43,7 +43,7 @@ export default function ClusterPanel({
             >
               <span className="cluster-index">{pad(i + 1)}</span>
               <span className="cluster-main">
-                <span className="cluster-name">{c.name}</span>
+                <span className="cluster-name" title={c.terms && c.terms !== c.name ? c.terms : undefined}>{c.name}</span>
                 <span className="cluster-stats">
                   {c.size} nodes · {c.research_count} research{c.product_count > 0 ? ` · ${c.product_count} products` : ''}
                 </span>

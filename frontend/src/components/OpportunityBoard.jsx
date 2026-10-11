@@ -6,6 +6,7 @@ import { pad } from '../format'
 
 function OppCard({ opp, index, onShowOnMap }) {
   const [expanded, setExpanded] = useState(false)
+  const [whyEvidence, setWhyEvidence] = useState(false)
   const score = Math.round(Math.min(1, Math.max(0, opp.score || 0)) * 100)
   const evidence = Math.round(Math.min(1, Math.max(0, opp.evidence_strength || 0)) * 5)
 
@@ -66,10 +67,18 @@ function OppCard({ opp, index, onShowOnMap }) {
       )}
 
       <div className="opp-evidence">
-        <span className="label">Evidence</span>
+        <button type="button" className="label opp-evidence-q" aria-expanded={whyEvidence}
+          aria-controls={`ev-${opp.id}`} onClick={() => setWhyEvidence((v) => !v)}>
+          Evidence <span aria-hidden="true">?</span>
+        </button>
         <CellBar value={evidence / 5} cells={5} size="lg" />
         <span className="opp-evidence-n">{evidence}/5</span>
       </div>
+      {whyEvidence && (
+        <p className="opp-evidence-note" id={`ev-${opp.id}`}>
+          How much backs this gap on the map: the cluster’s research (papers and institutions) and its size, on a 1–5 scale. It is not a market estimate.
+        </p>
+      )}
 
       <div className="opp-footer">
         {onShowOnMap && opp.cluster_db_id && (
