@@ -135,7 +135,7 @@ export function BuildingScreen({ topic, progress, preview }) {
   return (
     <div className="build-screen">
       <section className="build-left">
-        <div className="label build-kicker">Build{topic ? ` · ${topic}` : ''}</div>
+        <div className="label build-kicker" data-clarity-mask="true">Build{topic ? ` · ${topic}` : ''}</div>
         <h1 className="build-title">Building your map</h1>
         <p className="build-subtitle">
           {overrun
