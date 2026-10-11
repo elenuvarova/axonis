@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { track } from '../analytics'
 
 // Zoom / fit / focus-depth stack, bottom-left of the canvas.
 // Depth cycles All → 1 → 2: with a node selected, everything further than that
@@ -58,7 +59,7 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
       <button
         type="button"
         className={depth ? 'is-on' : ''}
-        onClick={() => { if (selectedId) setDepth(nextDepth) }}
+        onClick={() => { if (selectedId) { track('depth', { level: nextDepth }); setDepth(nextDepth) } }}
         aria-disabled={!selectedId}
         aria-label={selectedId
           ? `Focus depth: ${depth ? `${depth} hop${depth > 1 ? 's' : ''} around the selected node` : 'whole graph'}. Switch to ${nextDepth ? nextDepth : 'whole graph'}.`
