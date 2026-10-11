@@ -105,3 +105,12 @@ def test_score_parts_match_the_scoring_formula():
     for c in cands:
         total = sum(p["points"] for p in score_parts(c.cluster, maxes))
         assert abs(total - c.score * 100) < 0.5
+
+
+def test_interrupted_builds_fail_on_startup(db):
+    import main
+    from models import ResearchProject
+    p = ResearchProject(topic="t", status="building"); db.add(p); db.commit()
+    assert main.fail_interrupted_builds() == 1
+    db.refresh(p)
+    assert p.status == "error" and "restart" in p.error_message

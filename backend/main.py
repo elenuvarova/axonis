@@ -8,14 +8,35 @@ from database import engine, db_kind, check_connection, Base
 import models  # registers tables with Base
 
 
+def fail_interrupted_builds() -> int:
+    """Builds run as in-process background tasks, so a restart (a deploy, an
+    OOM kill) loses them. Their projects would otherwise sit in 'building'
+    forever and the screen would poll for nothing. Mark them failed with a
+    reason, so they can simply be rebuilt."""
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        stale = db.query(models.ResearchProject).filter_by(status="building").all()
+        for p in stale:
+            p.status = "error"
+            p.error_message = "The build was interrupted by a server restart. Rebuild to try again."
+        db.commit()
+        return len(stale)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     print(f"db: {db_kind}")
+    n = fail_interrupted_builds()
+    if n:
+        print(f"[startup] marked {n} interrupted build(s) as failed")
     yield
 
 
-app = FastAPI(title="Knowledge Graph Explorer", lifespan=lifespan)
+app = FastAPI(title="Axonis", lifespan=lifespan)
 
 
 # ── Security headers ──────────────────────────────────────────────────────
