@@ -8,6 +8,7 @@ const GraphCanvas = lazy(() => import('../components/GraphCanvas'))
 
 import EntityCard from '../components/EntityCard'
 import GraphLegend from '../components/GraphLegend'
+import CommandPalette from '../components/CommandPalette'
 import GraphControls from '../components/GraphControls'
 import ClusterPanel from '../components/ClusterPanel'
 import OpportunityBoard from '../components/OpportunityBoard'
@@ -56,6 +57,8 @@ export default function ProjectPage() {
   const [askOpen, setAskOpen] = useState(false)
   const [askedText, setAskedText] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const pendingCentre = useRef(null)
   const [highlightClusterId, setHighlightClusterId] = useState(null)
   const [cy, setCy] = useState(null)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -115,10 +118,11 @@ export default function ProjectPage() {
   // ── Panel Escape to close (mobile sheet / ask mode) (C-3) ────────────────
   useEffect(() => {
     if (!panelOpen && !askOpen) return
-    const handler = (e) => { if (e.key === 'Escape' && !brief && !tourOpen) closePanel() }
+    const handler = (e) => { if (e.key === 'Escape' && !brief && !tourOpen && !paletteOpen) closePanel() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [panelOpen, askOpen, brief, tourOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [panelOpen, askOpen, brief, tourOpen, paletteOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const briefMutation = useMutation({
@@ -190,6 +194,28 @@ export default function ProjectPage() {
     const t = setTimeout(() => setTourOpen(true), 750)
     return () => clearTimeout(t)
   }, [project, graphData])
+
+  // ⌘K / Ctrl+K opens the node & action palette (map must be ready).
+  useEffect(() => {
+    if (project?.status !== 'ready') return
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !brief && !tourOpen) {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [project?.status, brief, tourOpen])
+
+  // A node picked from the palette while the map was unmounted (Opportunities
+  // tab) is centred once the new canvas has finished its first layout.
+  useEffect(() => {
+    const nid = pendingCentre.current
+    if (!cy || !nid) return
+    pendingCentre.current = null
+    cy.one('layoutstop', () => centreNode(nid))
+  }, [cy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Graph interaction ─────────────────────────────────────────────────────
   const handleNodeClick = (nodeData) => {
@@ -326,6 +352,26 @@ export default function ProjectPage() {
     if (coll.length) fitCapped(cy, coll, 60, reducedMotion)
   }
 
+  const pickFromPalette = (node) => {
+    const mapMounted = tab !== 'opportunities'
+    setSelectedId(node.id)
+    setTab('graph')
+    setAskOpen(false)
+    clearAskHighlight()
+    setPanelOpen(true)
+    if (mapMounted) centreNode(node.id)
+    else pendingCentre.current = node.id
+  }
+
+  const paletteActions = [
+    { id: 'ask', label: 'Ask the map', hint: 'panel', run: openAsk },
+    { id: 'brief', label: 'Generate research brief', hint: 'modal', run: () => briefMutation.mutate() },
+    { id: 'map', label: 'Go to map', hint: 'tab', run: () => handleTabClick('graph') },
+    { id: 'clusters', label: 'Go to clusters', hint: 'tab', run: () => handleTabClick('clusters') },
+    { id: 'opps', label: 'Go to opportunities', hint: 'tab', run: () => handleTabClick('opportunities') },
+    { id: 'tour', label: 'Replay the tour', run: () => setTourOpen(true) },
+  ]
+
   const centreNode = (nid) => {
     if (!cy) return
     const n = cy.getElementById(nid)
@@ -414,6 +460,17 @@ export default function ProjectPage() {
               />
               <button
                 type="button"
+                className="cmdk-chip"
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Search nodes and actions"
+                aria-keyshortcuts="Meta+K Control+K"
+              >
+                <Icon name="search" size={14} />
+                <span className="cmdk-chip-label">Search</span>
+                <kbd className="cmdk-kbd">⌘K</kbd>
+              </button>
+              <button
+                type="button"
                 className="btn btn-ghost btn-icon-mobile"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadMutation.isPending}
@@ -438,6 +495,13 @@ export default function ProjectPage() {
           )}
         </div>
       </header>
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        nodes={graphData?.nodes || []}
+        actions={paletteActions}
+        onPickNode={pickFromPalette}
+      />
 
       {/* ── Tab bar — exposed as tablist (M-2, WCAG 4.1.2) ── */}
       {isReady && nodeCount > 0 && (
