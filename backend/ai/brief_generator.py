@@ -3,9 +3,9 @@ Generate a structured markdown research brief from a project's graph data.
 Uses Groq (Llama 3.3) if GROQ_API_KEY is set, falls back to a template.
 """
 from __future__ import annotations
+from ai import llm
 import os
 
-_MODEL = "llama-3.3-70b-versatile"
 
 # Map the goal codes the frontend sends to human-readable labels.
 _GOAL_LABELS = {
@@ -81,8 +81,7 @@ def generate_brief(project, entities, clusters, opportunities) -> str:
         try:
             from groq import Groq
             client = Groq(api_key=api_key, timeout=20.0)
-            response = client.chat.completions.create(
-                model=_MODEL,
+            response = llm.create(client,
                 max_tokens=2048,
                 messages=[
                     {"role": "system", "content": _SYSTEM},

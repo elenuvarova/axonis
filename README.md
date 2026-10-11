@@ -29,7 +29,7 @@ Live at **[axonis.app](https://axonis.app)**.
 | Frontend | React 18 + Vite 5, plain CSS (dark-only "B²" design system), Cytoscape.js + cola layout, TanStack Query; self-hosted Martian Mono and Mona Sans |
 | Backend | Python 3.12, FastAPI, SQLAlchemy, NetworkX + python-louvain |
 | Data | Wikidata (search + SPARQL), OpenAlex (works, concepts, institutions) |
-| AI | Groq, Llama 3.3 70B. Used for topic expansion, opportunity copy and Ask. Optional: without a key, template text is used. |
+| AI | Groq: `openai/gpt-oss-120b` with `qwen/qwen3.8-27b` as fallback (`GROQ_MODELS`). Used for topic expansion, opportunity copy, Ask and the brief. Optional: without a key, template text is used. |
 | Storage | SQLite locally, PostgreSQL in production |
 | Deploy | One Docker image (FastAPI serves the built SPA) on Coolify, Hetzner |
 
@@ -80,6 +80,7 @@ To point the dev server at another backend, set `API_PROXY_TARGET` (for example 
 | `DATABASE_URL` | Postgres URL. If empty, uses SQLite. |
 | `SQLITE_PATH` | Location of the SQLite file (local only) |
 | `GROQ_API_KEY` | Enables AI expansion, opportunity copy and Ask. Optional. |
+| `GROQ_MODELS` | Comma-separated Groq models, tried in order (default `openai/gpt-oss-120b,qwen/qwen3.8-27b`) |
 | `OPENALEX_MAILTO` | Contact email for the OpenAlex polite pool |
 | `NODE_ENV=production` | Makes the backend serve the built frontend |
 

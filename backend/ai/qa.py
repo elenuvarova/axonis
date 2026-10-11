@@ -8,10 +8,10 @@ without a key it falls back to a template answer. Either way the retrieved node
 ids are returned so the frontend can highlight them on the graph.
 """
 from __future__ import annotations
+from ai import llm
 import os
 import re
 
-_MODEL = "llama-3.3-70b-versatile"
 _TOP_K = 10
 
 _STOP = {
@@ -98,8 +98,7 @@ def _ai_answer(topic: str, question: str, context: str) -> str | None:
     try:
         from groq import Groq
         client = Groq(api_key=api_key, timeout=20.0)
-        response = client.chat.completions.create(
-            model=_MODEL,
+        response = llm.create(client,
             max_tokens=512,
             messages=[
                 {"role": "system", "content": _SYSTEM},

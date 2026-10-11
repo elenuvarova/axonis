@@ -4,10 +4,10 @@ document using Groq (Llama 3.3). Falls back to a structural CSV extraction when
 no GROQ_API_KEY is set or the model call fails.
 """
 from __future__ import annotations
+from ai import llm
 import os
 import json
 
-_MODEL = "llama-3.3-70b-versatile"
 _VALID_TYPES = {
     "concept", "organisation", "person", "paper",
     "regulation", "product", "dataset", "institution",
@@ -54,8 +54,7 @@ def _ai_extract(text: str, topic: str, api_key: str):
         f"DOCUMENT:\n{text}"
     )
 
-    response = client.chat.completions.create(
-        model=_MODEL,
+    response = llm.create(client,
         max_tokens=1500,
         messages=[
             {"role": "system", "content": _SYSTEM},
