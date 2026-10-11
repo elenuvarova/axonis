@@ -506,8 +506,13 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .brief-rendered th, .brief-rendered td { padding: 10px 12px 10px 0; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
 .brief-rendered th { font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }
 .brief-rendered td { color: var(--text); }
-/* Short trailing columns (type, score) stay on one line; the name column takes the wrap. */
-.brief-rendered td:not(:first-child), .brief-rendered th:not(:first-child) { white-space: nowrap; }
+/* The AI brief's tables vary (name · type · centrality, or name · type · why it
+   matters), so no column may refuse to wrap: a long trailing column ran off the
+   modal. Short cells stay on one line by their own width; the table can also
+   scroll sideways instead of overflowing. */
+.brief-rendered table { display: block; overflow-x: auto; }
+.brief-rendered td, .brief-rendered th { white-space: normal; }
+.brief-rendered td:first-child { min-width: 14ch; }
 
 /* ════════════════════════════════════════════════════════════
    TOUR
