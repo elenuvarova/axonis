@@ -11,6 +11,7 @@ const HOLD_MS = 6500
 export default function GapReveal({ cy, items, onOpen, onDone }) {
   const [boxes, setBoxes] = useState([])
   const doneRef = useRef(false)
+  const ctl = useRef({ pause: () => {}, resume: () => {}, skip: () => {} })
 
   useEffect(() => {
     if (!cy || cy.destroyed() || !items.length) return
@@ -66,7 +67,14 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     place()
     cy.on('viewport', place)
 
-    const timer = setTimeout(() => finish('timeout'), HOLD_MS)
+    // the timer pauses while a callout is hovered or focused (a tip that
+    // disappears mid-read is worse than no tip)
+    let timer = setTimeout(() => finish('timeout'), HOLD_MS)
+    ctl.current = {
+      pause: () => clearTimeout(timer),
+      resume: () => { clearTimeout(timer); timer = setTimeout(() => finish('timeout'), 3000) },
+      skip: () => finish('skip'),
+    }
     const end = () => finish('interaction')
     const container = cy.container()
     container?.addEventListener('pointerdown', end, { once: true })
@@ -86,6 +94,11 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
   return (
     <div className="gap-reveal" role="status" aria-live="polite">
       <p className="sr-only">Top gaps on this map: {boxes.map((b) => `${b.title}, score ${b.score}`).join('; ')}</p>
+      <div className="gap-reveal-head">
+        <span className="gap-reveal-k">Top gaps</span>
+        <span className="gap-reveal-t">where research exists but products don’t</span>
+        <button type="button" className="gap-reveal-skip" onClick={() => ctl.current.skip()}>Skip</button>
+      </div>
       {boxes.map((b) => (
         <button
           key={b.clusterId}
@@ -93,6 +106,8 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
           className="gap-callout"
           style={{ transform: `translate(${Math.round(b.x)}px, ${Math.round(b.y)}px)` }}
           onClick={() => { track('gap_reveal_open', { rank: b.rank }); onOpen() }}
+          onMouseEnter={() => ctl.current.pause()} onMouseLeave={() => ctl.current.resume()}
+          onFocus={() => ctl.current.pause()} onBlur={() => ctl.current.resume()}
         >
           <span className="gap-callout-k">Gap {pad(b.rank)} · {b.score}</span>
           <span className="gap-callout-t">{b.title}</span>

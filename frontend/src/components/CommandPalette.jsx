@@ -128,10 +128,14 @@ export default function CommandPalette({ open, onClose, nodes = [], actions = []
             aria-autocomplete="list"
             spellCheck={false}
           />
-          <kbd className="cmdk-kbd">esc</kbd>
+          <kbd className="cmdk-kbd cmdk-esc-hint">esc</kbd>
+          {/* touch screens have no Esc and no backdrop to tap */}
+          <button type="button" className="cmdk-close" onClick={onClose} aria-label="Close search">×</button>
         </div>
+        <p className="sr-only" aria-live="polite">{items.length ? `${items.length} result${items.length > 1 ? 's' : ''}` : 'No results'}</p>
 
-        <div className="cmdk-tabs" role="group" aria-label="Filter by type">
+        {/* tabIndex 0: the row scrolls sideways on a phone, so it must be reachable */}
+        <div className="cmdk-tabs" role="group" aria-label="Filter by type" tabIndex={0}>
           {['all', ...types].map((t) => (
             <button
               key={t}
@@ -192,13 +196,20 @@ export default function CommandPalette({ open, onClose, nodes = [], actions = []
               </li>
             )
           })}
-          {items.length === 0 && <li className="cmdk-empty" role="presentation">No node or action matches “{q}”.</li>}
+          {items.length === 0 && (
+            <li className="cmdk-empty" role="presentation">
+              No node or action matches “{q}”{type !== 'all' ? ` in ${typeLabel(type)}` : ''}.
+              {type !== 'all'
+                ? <> <button type="button" className="cmdk-empty-fix" onMouseDown={(e) => e.preventDefault()} onClick={() => setType('all')}>Search all types</button></>
+                : <> <button type="button" className="cmdk-empty-fix" onMouseDown={(e) => e.preventDefault()} onClick={() => setQ('')}>Clear the search</button></>}
+            </li>
+          )}
         </ul>
 
         <div className="cmdk-foot" aria-hidden="true">
           <span><kbd className="cmdk-kbd">↑↓</kbd> move</span>
           <span><kbd className="cmdk-kbd">↵</kbd> open</span>
-          <span><kbd className="cmdk-kbd">tab</kbd> type</span>
+          <span><kbd className="cmdk-kbd">tab</kbd> filter by type</span>
         </div>
       </div>
     </div>

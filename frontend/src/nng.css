@@ -1,0 +1,105 @@
+/* ════════════════════════════════════════════════════════════
+   Usability review fixes (Nielsen heuristics, onboarding, mobile,
+   WCAG 2.2). Loaded last.
+════════════════════════════════════════════════════════════ */
+
+/* Home: the placeholder must not read as a typed value */
+#topic::placeholder { color: var(--text-2); opacity: 0.7; }
+
+/* Home: the fastest path to value comes first and looks like an action */
+.demo-row { margin: var(--s-3) 0 var(--s-3); }
+.demo-cta { border-color: var(--accent); color: var(--text); }
+.demo-cta:hover, .demo-cta:focus-visible { background: var(--accent-soft); }
+
+/* Consent: a one-line strip; the page keeps room for it so it never covers content */
+.consent-bar { left: 0; right: 0; bottom: 0; max-width: none; margin: 0; padding: var(--s-1) var(--s-2); gap: var(--s-2); border-width: 1px 0 0; }
+.consent-text { font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); }
+body.has-consent .home { padding-bottom: calc(var(--h-ctl) + var(--s-3)); }
+body.has-consent .project-page { height: calc(100dvh - var(--h-ctl) - var(--s-2)); }
+@media (max-width: 767px) {
+  .consent-bar { flex-direction: row; align-items: center; padding-bottom: calc(var(--s-1) + env(safe-area-inset-bottom)); }
+  .consent-text { font-size: var(--fs-label); line-height: var(--lh-label); }
+  .consent-actions .btn { flex: none; min-height: var(--h-ctl-touch); padding: 0 var(--s-1); }
+  body.has-consent .home { padding-bottom: calc(var(--h-ctl-touch) + var(--s-3)); }
+  body.has-consent .project-page { height: calc(100dvh - var(--h-ctl-touch) - var(--s-2)); }
+}
+
+/* Gap reveal: what it is, a way to skip it, a way to see it again */
+.gap-reveal-head {
+  position: absolute; top: var(--s-2); left: 50%; transform: translateX(-50%); pointer-events: auto;
+  display: flex; align-items: center; gap: var(--s-1); padding: var(--s-half) var(--s-half) var(--s-half) var(--s-2);
+  background: var(--panel-glass); border: 1px solid var(--line-control); white-space: nowrap; max-width: calc(100% - var(--s-4));
+}
+.gap-reveal-k { font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--accent); }
+.gap-reveal-t { font-family: var(--font-body); font-size: var(--fs-body-sm); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; }
+.gap-reveal-skip { min-height: var(--h-ctl-sm); padding: 0 var(--s-1); font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text); border: 1px solid var(--line-control); }
+.gap-reveal-skip:hover, .gap-reveal-skip:focus-visible { border-color: var(--text); }
+@media (max-width: 767px) { .gap-reveal-t { display: none; } .gap-reveal-skip { min-height: var(--h-ctl-touch); } }
+.gap-chip {
+  position: absolute; top: var(--s-2); right: var(--s-2); z-index: var(--z-canvas-ui);
+  min-height: var(--h-ctl-sm); padding: 0 var(--s-1); background: var(--panel-glass); border: 1px solid var(--accent);
+  font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--accent);
+}
+.gap-chip::before { content: '[\00a0'; } .gap-chip::after { content: '\00a0]'; }
+.gap-chip:hover, .gap-chip:focus-visible { background: var(--accent-soft); }
+@media (max-width: 767px) { .gap-chip { min-height: var(--h-ctl-touch); top: auto; bottom: calc(var(--h-ctl-touch) + var(--s-2) + env(safe-area-inset-bottom)); } }
+.entity-overview-gaps { width: 100%; margin-bottom: var(--s-3); border-color: var(--accent); }
+
+/* Clusters: one 0-100 scale; no-signal clusters grouped and quiet */
+.cluster-low-head { padding: var(--s-2) 0 var(--s-1); color: var(--text-2); border-top: 1px solid var(--line); margin-top: var(--s-1); }
+.cluster-item.is-low { opacity: 0.6; }
+
+/* ⌘K: a visible close; recovery when nothing matches */
+.cmdk-close { min-width: var(--h-ctl); min-height: var(--h-ctl); font-family: var(--font-mono); font-size: var(--fs-h3); color: var(--text-2); border: 1px solid var(--line-control); }
+.cmdk-close:hover, .cmdk-close:focus-visible { color: var(--text); border-color: var(--text); }
+.cmdk-empty-fix { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; font: inherit; }
+@media (pointer: fine) { .cmdk-close { display: none; } }
+@media (pointer: coarse) { .cmdk-esc-hint { display: none; } .cmdk-close { min-width: var(--h-ctl-touch); min-height: var(--h-ctl-touch); } }
+@media (max-width: 767px) {
+  .cmdk-input { font-size: 16px; } /* 16px or iOS zooms the page on focus */
+  .cmdk-tabs { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+}
+
+/* "?" with a word next to it */
+.icon-btn-text { width: auto; gap: var(--s-half); padding: 0 var(--s-1); font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-2); }
+
+/* Touch screens of any width (tablets, landscape phones): 44px targets */
+@media (pointer: coarse) {
+  .btn, .chip, .icon-btn, .tab-btn, .cmdk-tab, .cmdk-chip, .node-sort, .pill, .graph-controls button,
+  .opp-footer .btn-ghost, .graph-legend-toggle, .graph-legend-item, .gap-callout, .home-footer a, .home-footer-link {
+    min-height: var(--h-ctl-touch);
+  }
+  .try-row, .demo-row, .chip-row { gap: var(--s-1); }
+  .home-footer a, .home-footer-link { display: inline-flex; align-items: center; }
+}
+
+/* Lists: names are what people compare — wrap to two lines instead of cutting */
+.node-name, .cluster-name {
+  white-space: normal; overflow: hidden; text-overflow: clip;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+
+/* Phone sheet: a 44px handle zone; Ask's heading only once */
+@media (max-width: 767px) {
+  .sidebar-drag-handle { height: var(--h-ctl-touch); }
+  .sidebar-drag-handle::before { top: calc(var(--h-ctl-touch) / 2 - 1px); }
+  .ask-panel .panel-head { display: none; }
+}
+
+/* Narrow phones (360) and 400% zoom (320): the hero lines may wrap */
+@media (max-width: 400px) {
+  main.home-body .hero-line { white-space: normal; overflow-wrap: anywhere; }
+  .home-left, .query-block, .try-row, .demo-row { min-width: 0; max-width: 100%; }
+  .query-controls, .form-selects { flex-wrap: wrap; }
+}
+
+/* Phone home: the demo path sits before the form (flex order from hero.css) */
+@media (max-width: 1100px) {
+  main.home-body .demo-row { order: 5; }
+  main.home-body .query-block { order: 6; }
+  main.home-body .try-row { order: 7; }
+  main.home-body .home-recent { order: 8; }
+  main.home-body .home-story { order: 9; }
+  main.home-body .home-footer { order: 10; }
+}
+@media (max-width: 767px) { .consent-more { display: none; } }

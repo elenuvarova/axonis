@@ -28,10 +28,10 @@ export function StateScreen({ variant = 'empty', icon, title, message, actions }
 }
 
 /* ── Inline, dismissible error banner ── */
-export function InlineError({ message, onDismiss }) {
+export function InlineError({ message, onDismiss, id }) {
   if (!message) return null
   return (
-    <div className="inline-error" role="alert">
+    <div className="inline-error" role="alert" id={id}>
       <AlertIcon />
       <span className="inline-error-text">{message}</span>
       {onDismiss && (
@@ -45,12 +45,13 @@ export function InlineError({ message, onDismiss }) {
 export function Toast({ message, onClose, tone = 'error' }) {
   useEffect(() => {
     if (!message) return
-    const t = setTimeout(() => onClose?.(), 4000)
+    // errors stay long enough to read (and act on); confirmations go quickly
+    const t = setTimeout(() => onClose?.(), tone === 'ok' ? 4000 : 9000)
     return () => clearTimeout(t)
-  }, [message, onClose])
+  }, [message, onClose, tone])
   if (!message) return null
   return (
-    <div className="toast" role="status">
+    <div className="toast" role={tone === 'ok' ? 'status' : 'alert'}>
       <span className={`toast-tag${tone === 'ok' ? ' is-ok' : ''}`} aria-hidden="true">{tone === 'ok' ? '[OK]' : '[ERR]'}</span>
       <span className="toast-message">{message}</span>
       <button className="toast-close" onClick={onClose} aria-label="Dismiss"><CloseIcon /></button>

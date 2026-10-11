@@ -69,7 +69,7 @@ export function attachOverlay(cy, canvas) {
       const x = Math.round(m * z + pan.x) + 0.5
       const major = Math.round(m / step) % 5 === 0
       ctx.moveTo(x, 0); ctx.lineTo(x, major ? 8 : 4)
-      if (major && x > 24) ctx.fillText(String(m), x + 3, 3)
+      if (major && x > 24 && w >= 600) ctx.fillText(String(m), x + 3, 3) // numbers only where there's room
     }
     for (let m = Math.floor(-pan.y / z / step) * step; m * z + pan.y < h; m += step) {
       const y = Math.round(m * z + pan.y) + 0.5
