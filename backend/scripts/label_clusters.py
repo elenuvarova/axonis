@@ -3,7 +3,8 @@
 Usage (inside the app container, with the production env):
     python -m scripts.label_clusters            # every project
     python -m scripts.label_clusters <id> ...   # just these
-Only fills clusters whose label is empty; existing labels are kept.
+    python -m scripts.label_clusters --force <id> ...  # relabel even if set
+Without --force only empty labels are filled.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from models import Cluster, ResearchProject
 from ai.cluster_labeler import label_clusters_ai
 
 
-def run(ids: list[str]) -> None:
+def run(ids: list[str], force: bool = False) -> None:
     ensure_columns()
     db = SessionLocal()
     try:
@@ -25,7 +26,7 @@ def run(ids: list[str]) -> None:
             q = q.filter(ResearchProject.id.in_(ids))
         for p in q.all():
             rows = db.query(Cluster).filter_by(project_id=p.id).all()
-            todo = [c for c in rows if not c.label]
+            todo = rows if force else [c for c in rows if not c.label]
             if not todo:
                 continue
             labels = label_clusters_ai(p.topic, [(c.cluster_id, json.loads(c.top_entities or "[]")) for c in todo])
@@ -38,4 +39,5 @@ def run(ids: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    args = sys.argv[1:]
+    run([a for a in args if a != "--force"], force="--force" in args)
