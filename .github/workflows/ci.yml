@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt pytest httpx
+      - run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --include=dev
+      - run: npx vitest run
+      - run: NODE_ENV=production npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t axonis-ci .
+      - name: Smoke test the image
+        run: |
+          docker run -d --name ax -p 3001:3001 axonis-ci
+          for i in $(seq 1 30); do curl -fs localhost:3001/api/health && break; sleep 1; done
+          curl -fs localhost:3001/api/health
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3001/nope)" = "404"
+          curl -sI localhost:3001/ | grep -i "cache-control: no-cache"

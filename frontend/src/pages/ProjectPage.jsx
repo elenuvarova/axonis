@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { canEdit } from '../myProjects'
 import { getProject, getGraph, getClusters, getOpportunities, getEntity, getBrief, buildProject, uploadDocument, askQuestion } from '../api'
 
 // Cytoscape + cola are heavy; load them only when a graph actually renders.
@@ -423,7 +424,9 @@ export default function ProjectPage() {
 
   // ── Error / not-found ──────────────────────────────────────────────────────
   if (projErr) {
-    const notFound = /404/.test(projErr.message || '')
+    // The API answers 404 for an unknown id and 422 for a malformed one; only
+    // a network failure or a 5xx is worth retrying.
+    const notFound = [400, 404, 422].includes(projErr.status) || /404/.test(projErr.message || '')
     return (
       <div className="project-page">
         <header className="topbar">
@@ -433,9 +436,9 @@ export default function ProjectPage() {
         </header>
         <StateScreen
           variant="error"
-          title={notFound ? 'Project not found' : 'Could not load this project'}
+          title={notFound ? 'Map not found' : 'Could not load this map'}
           message={notFound
-            ? "This project doesn't exist or may have been deleted."
+            ? "This map doesn't exist or was deleted. Build a new one from the home page."
             : "The server didn't respond. Check your connection and try again."}
           actions={
             <>
@@ -513,7 +516,7 @@ export default function ProjectPage() {
                 <span className="cmdk-chip-label">Search</span>
                 <kbd className="cmdk-kbd">⌘K</kbd>
               </button>
-{!project.protected && (
+{canEdit(project) && (
               <button
                 type="button"
                 className="btn btn-ghost btn-icon-mobile"
@@ -592,10 +595,12 @@ export default function ProjectPage() {
           message={project.error_message || 'Something went wrong while building this graph.'}
           actions={
             <>
-              <button className="btn btn-primary" onClick={() => rebuildMutation.mutate()} disabled={rebuildMutation.isPending}>
-                {rebuildMutation.isPending ? 'Restarting…' : 'Try again'}
-              </button>
-              <Link className="btn btn-secondary" to="/">Go home</Link>
+              {canEdit(project) && (
+                <button className="btn btn-primary" onClick={() => rebuildMutation.mutate()} disabled={rebuildMutation.isPending}>
+                  {rebuildMutation.isPending ? 'Restarting…' : 'Try again'}
+                </button>
+              )}
+              <Link className={canEdit(project) ? 'btn btn-secondary' : 'btn btn-primary'} to="/">Go home</Link>
             </>
           }
         />

@@ -1,6 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
+import hashlib
+import hmac
+import secrets
+from collections import OrderedDict
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Header
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 from database import get_db, SessionLocal
@@ -16,22 +21,40 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 class ProjectCreate(BaseModel):
-    topic: str
-    region: Optional[str] = None
-    goal: Optional[str] = None
+    topic: str = Field(min_length=1, max_length=200)
+    region: Optional[str] = Field(default=None, max_length=100)
+    goal: Optional[str] = Field(default=None, max_length=200)
 
 
 class AskRequest(BaseModel):
-    question: str
+    # Long enough for any real question; caps what one request can send to the LLM.
+    question: str = Field(max_length=1000)
+
+
+def _hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def require_owner(project: ResearchProject, token: Optional[str]) -> None:
+    """With no accounts, the browser that created a map holds its owner token
+    (returned once by create). Rebuild, upload and delete need it, so sharing
+    a map's link no longer lets the recipient wipe or overwrite it."""
+    if project.owner_token_hash is None:
+        return  # made before owner tokens: unchanged behaviour
+    if not token or not hmac.compare_digest(_hash(token), project.owner_token_hash):
+        raise HTTPException(status_code=403, detail="Only the browser that created this map can change it. Build your own from the home page.")
 
 
 @router.post("", status_code=201, dependencies=[Depends(rate_limit("create"))])
 def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
-    project = ResearchProject(topic=body.topic, region=body.region, goal=body.goal)
+    token = secrets.token_urlsafe(24)
+    project = ResearchProject(topic=body.topic.strip(), region=body.region, goal=body.goal,
+                              owner_token_hash=_hash(token))
     db.add(project)
     db.commit()
     db.refresh(project)
-    return _project_out(project)
+    # The only time the token leaves the server; only its hash is stored.
+    return {**_project_out(project), "owner_token": token}
 
 
 @router.get("")
@@ -58,9 +81,11 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{project_id}/build", dependencies=[Depends(rate_limit("build"))])
-def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
+                  x_owner_token: Optional[str] = Header(default=None)):
     project = _get_or_404(project_id, db)
     forbid_if_protected(project_id, "rebuilding")
+    require_owner(project, x_owner_token)
     if project.status == "building":
         return {"status": "already_building"}
     project.status = "building"
@@ -71,8 +96,10 @@ def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Sessio
 
 # project_id → (version_key, payload). Cleared implicitly when the project's
 # updated_at changes (i.e. after any rebuild/upload), so the LLM brief is only
-# regenerated when the underlying graph actually changed.
-_brief_cache: dict = {}
+# regenerated when the underlying graph actually changed. Bounded: least
+# recently used briefs drop out first.
+_brief_cache: OrderedDict = OrderedDict()
+_BRIEF_CACHE_MAX = 200
 
 
 @router.get("/{project_id}/brief", dependencies=[Depends(rate_limit("brief"))])
@@ -84,6 +111,7 @@ def get_brief(project_id: str, db: Session = Depends(get_db)):
     version = project.updated_at.isoformat() if project.updated_at else ""
     cached = _brief_cache.get(project_id)
     if cached and cached[0] == version:
+        _brief_cache.move_to_end(project_id)
         return cached[1]
 
     entities = db.query(Entity).filter_by(project_id=project_id).all()
@@ -94,6 +122,9 @@ def get_brief(project_id: str, db: Session = Depends(get_db)):
     slug = project.topic.lower().replace(" ", "-")[:30]
     payload = {"markdown": markdown, "filename": f"brief-{slug}.md"}
     _brief_cache[project_id] = (version, payload)
+    _brief_cache.move_to_end(project_id)
+    while len(_brief_cache) > _BRIEF_CACHE_MAX:
+        _brief_cache.popitem(last=False)
     return payload
 
 
@@ -118,9 +149,11 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    x_owner_token: Optional[str] = Header(default=None),
 ):
     project = _get_or_404(project_id, db)
     forbid_if_protected(project_id, "uploading")
+    require_owner(project, x_owner_token)
     if project.status == "building":
         raise HTTPException(status_code=409, detail="Project is already processing")
 
@@ -140,10 +173,12 @@ async def upload_document(
     return {"status": "building", "filename": filename}
 
 
-@router.delete("/{project_id}", status_code=204)
-def delete_project(project_id: str, db: Session = Depends(get_db)):
+@router.delete("/{project_id}", status_code=204, dependencies=[Depends(rate_limit("delete"))])
+def delete_project(project_id: str, db: Session = Depends(get_db),
+                   x_owner_token: Optional[str] = Header(default=None)):
     project = _get_or_404(project_id, db)
     forbid_if_protected(project_id, "deleting")
+    require_owner(project, x_owner_token)
     # Delete all children before the parent. SQLite does not enforce
     # ondelete="CASCADE" without a per-connection PRAGMA, and on Postgres a
     # bare parent delete raises a FK violation while children still reference it.
@@ -224,4 +259,6 @@ def _project_out(p: ResearchProject) -> dict:
         "progress": progress.snapshot(p.id) if p.status == "building" else None,
         # Portfolio demos: read + ask only (see guard.py).
         "protected": is_protected(p.id),
+        # Rebuild/upload/delete need the owner token (see require_owner).
+        "locked": p.owner_token_hash is not None,
     }
