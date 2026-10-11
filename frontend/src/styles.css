@@ -377,7 +377,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .ask-chip { text-align: left; padding: 8px 12px; border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: 12px; line-height: 18px; }
 .ask-chip:hover { border-color: var(--text); background: var(--raised); }
 .ask-pending { display: flex; align-items: center; gap: 12px; font-family: var(--font-mono); font-size: 13px; color: var(--text-2); }
-.ask-answer-text { font-family: var(--font-mono); font-size: 13px; line-height: 18px; margin-bottom: 24px; overflow-wrap: anywhere; }
+.ask-answer-text { white-space: pre-line; font-family: var(--font-mono); font-size: 13px; line-height: 18px; margin-bottom: 24px; overflow-wrap: anywhere; }
 .ask-sources .label { margin-bottom: 12px; }
 .source-row { display: grid; grid-template-columns: 20px 1fr; gap: 12px; align-items: center; width: 100%; padding: 10px 0; text-align: left; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 13px; }
 .source-row:hover .source-name { color: var(--accent); }

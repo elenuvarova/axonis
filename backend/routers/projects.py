@@ -95,8 +95,10 @@ def ask_question(project_id: str, body: AskRequest, db: Session = Depends(get_db
     if not question:
         raise HTTPException(status_code=400, detail="Question is empty")
     entities = db.query(Entity).filter_by(project_id=project_id).all()
+    clusters = db.query(Cluster).filter_by(project_id=project_id).all()
+    opportunities = db.query(Opportunity).filter_by(project_id=project_id).all()
     from ai.qa import answer_question
-    return answer_question(project, entities, question)
+    return answer_question(project, entities, question, clusters, opportunities)
 
 
 @router.post("/{project_id}/upload", dependencies=[Depends(rate_limit("upload"))])

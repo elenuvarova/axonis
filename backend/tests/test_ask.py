@@ -44,3 +44,9 @@ def test_sources_are_numbered_and_answer_cites_them(client, ready_project):
 def test_clean_citations_drops_out_of_range_markers():
     from ai.qa import clean_citations
     assert clean_citations("Gaps in tutoring [1][7]. Strong research [2] .", 3) == "Gaps in tutoring [1]. Strong research [2]."
+
+
+def test_normalise_folds_model_format_drift():
+    from ai.qa import normalise
+    raw = "The gaps are:\n\n* **Tutoring systems** – 0 products【Map】.\n* **AI in education** links them【3】."
+    assert normalise(raw) == "The gaps are:\n\nTutoring systems – 0 products.\nAI in education links them[3]."
