@@ -13,7 +13,7 @@ function Metric({ label, value, bar }) {
   )
 }
 
-export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk }) {
+export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge }) {
   if (loading) return <EntitySkeleton />
 
   if (!entity) {
@@ -42,7 +42,9 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
 
         <div className="entity-meta">
           <Metric label="Degree" value={fmt(entity.degree)} bar={entity.degree} />
-          <Metric label="Bridge" value={fmt(entity.bridge_score)} bar={entity.bridge_score} />
+          {/* bridge_score = betweenness / degree (capped at 10), not 0–1, so the bar is
+              relative to the strongest bridge in this map; the number stays raw. */}
+          <Metric label="Bridge" value={fmt(entity.bridge_score)} bar={maxBridge ? (entity.bridge_score || 0) / maxBridge : entity.bridge_score} />
           {entity.neighbors && <Metric label="Links" value={pad(entity.neighbors.length, 3)} />}
         </div>
 
