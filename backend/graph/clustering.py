@@ -47,10 +47,12 @@ def label_clusters(entities: list) -> list[ClusterSummary]:
         avg_deg = sum(degrees) / len(degrees) if degrees else 0.0
         max_bridge = max((e.bridge_score or 0.0) for e in members)
 
-        # Name the cluster: top-3 entities by degree, prefer concepts over papers
+        # Name the cluster: top-3 entities by degree, concepts first and paper
+        # titles last (a sentence-long paper title makes a poor cluster name).
+        rank = {"concept": 2, "paper": 0}
         sorted_members = sorted(
             members,
-            key=lambda e: (e.type == "concept", e.degree or 0.0),
+            key=lambda e: (rank.get(e.type, 1), e.degree or 0.0),
             reverse=True,
         )
         top_names = [e.name for e in sorted_members[:3]]
@@ -82,7 +84,8 @@ def _generate_name(top_names: list[str], research_count: int, product_count: int
     """
     if not top_names:
         return "Unnamed cluster"
-    # Use first 2 names, truncated, joined with ' · '
-    parts = [n[:40] for n in top_names[:2]]
+    # First 2 names, each cut on a word boundary, joined with ' · '
+    from textutil import short
+    parts = [short(n, 32) for n in top_names[:2]]
     base = " · ".join(parts)
     return base.strip()

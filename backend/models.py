@@ -18,6 +18,9 @@ class ResearchProject(Base):
     # pending → building → ready | error
     status = Column(String(20), default="pending")
     error_message = Column(Text)
+    # sha256 of the owner token handed to the creating browser; NULL for maps
+    # made before tokens existed (those stay editable by anyone, as before).
+    owner_token_hash = Column(String(64))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -26,7 +29,7 @@ class Entity(Base):
     __tablename__ = "entities"
 
     id = Column(String(36), primary_key=True, default=_new_id)
-    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(500), nullable=False)
     # concept | organisation | person | paper | regulation | product | dataset | institution
     type = Column(String(50), nullable=False)
@@ -48,9 +51,9 @@ class Relationship(Base):
     __tablename__ = "relationships"
 
     id = Column(String(36), primary_key=True, default=_new_id)
-    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False)
-    source_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
-    target_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_id = Column(String(36), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
     # related_to | subclass_of | part_of | has_part | publishes_on | funded_by | co_concept
     relation_type = Column(String(100), default="related_to")
     weight = Column(Float, default=1.0)
@@ -61,7 +64,7 @@ class Cluster(Base):
     __tablename__ = "clusters"
 
     id = Column(String(36), primary_key=True, default=_new_id)
-    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False, index=True)
     # numeric string matching entity.cluster_id
     cluster_id = Column(String(10), nullable=False)
     name = Column(String(300))
@@ -80,8 +83,8 @@ class Opportunity(Base):
     __tablename__ = "opportunities"
 
     id = Column(String(36), primary_key=True, default=_new_id)
-    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False)
-    cluster_db_id = Column(String(36), ForeignKey("clusters.id", ondelete="CASCADE"))
+    project_id = Column(String(36), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    cluster_db_id = Column(String(36), ForeignKey("clusters.id", ondelete="CASCADE"), index=True)
     title = Column(String(300))
     why_it_matters = Column(Text)
     # JSON arrays serialised as text

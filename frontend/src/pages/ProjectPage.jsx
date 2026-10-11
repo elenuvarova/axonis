@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { canEdit } from '../myProjects'
 import { getProject, getGraph, getClusters, getOpportunities, getEntity, getBrief, buildProject, uploadDocument, askQuestion } from '../api'
 
 // Cytoscape + cola are heavy; load them only when a graph actually renders.
@@ -61,11 +62,16 @@ export default function ProjectPage() {
   const [askedText, setAskedText] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const paletteOpenRef = useRef(false)
+  paletteOpenRef.current = paletteOpen
   const [listView, setListView] = useState(false)
   const pendingCentre = useRef(null)
   const [highlightClusterId, setHighlightClusterId] = useState(null)
   const [cy, setCy] = useState(null)
   const [panelOpen, setPanelOpen] = useState(false)
+  // Phone sheet: opens at peek height so the map stays visible; expands on demand.
+  const [sheetFull, setSheetFull] = useState(false)
+  const sheetTouch = useRef(null)
   const [brief, setBrief] = useState(null)
   const [askResult, setAskResult] = useState(null)
   const [toast, setToast] = useState('')
@@ -239,7 +245,8 @@ export default function ProjectPage() {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !brief && !tourOpen) {
         e.preventDefault()
-        setPaletteOpen((v) => { if (!v) track('cmdk_open', { via: 'shortcut' }); return !v })
+        if (!paletteOpenRef.current) track('cmdk_open', { via: 'shortcut' })
+        setPaletteOpen((v) => !v)
       }
     }
     document.addEventListener('keydown', handler)
@@ -247,13 +254,35 @@ export default function ProjectPage() {
   }, [project?.status, brief, tourOpen])
 
   // A node picked from the palette while the map was unmounted (Opportunities
-  // tab) is centred once the new canvas has finished its first layout.
+  // tab) is centred once the new canvas has finished its first layout (same
+  // pattern as the pending cluster below).
   useEffect(() => {
-    const nid = pendingCentre.current
-    if (!cy || !nid) return
-    pendingCentre.current = null
-    cy.one('layoutstop', () => centreNode(nid))
+    if (!cy || !pendingCentre.current) return
+    const apply = () => {
+      if (cy.destroyed() || !pendingCentre.current) return
+      const nid = pendingCentre.current
+      pendingCentre.current = null
+      centreNode(nid)
+    }
+    cy.one('layoutstop', apply)
+    const t = setTimeout(apply, reducedMotion ? 300 : 1600)
+    return () => { clearTimeout(t); cy.off('layoutstop', apply) }
   }, [cy]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On a phone the inspector sheet covers the lower part of the canvas, so
+  // move the picked node into the strip that stays visible above it.
+  useEffect(() => {
+    if (!cy || !selectedId || cy.destroyed()) return
+    if (!window.matchMedia?.('(max-width: 767px)').matches) return
+    const node = cy.getElementById(selectedId)
+    if (!node.length) return
+    const sheet = window.innerHeight * 0.46
+    const box = cy.container().getBoundingClientRect()
+    const visible = Math.max(80, window.innerHeight - sheet - box.top)
+    const p = node.position(), z = cy.zoom()
+    cy.animate({ pan: { x: cy.width() / 2 - p.x * z, y: visible / 2 - p.y * z } }, { duration: reducedMotion ? 0 : 300 })
+    setSheetFull(false)
+  }, [selectedId, cy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Graph interaction ─────────────────────────────────────────────────────
   const handleNodeClick = (nodeData) => {
@@ -309,17 +338,21 @@ export default function ProjectPage() {
     setPanelOpen(false)
   }
 
-  // The canvas remounts when returning from Opportunities; apply once its layout has settled.
+  // The canvas remounts when returning from Opportunities. Apply the pending
+  // highlight to the live instance once its first layout has settled; the
+  // request stays pending until then, so an instance that is torn down
+  // early (StrictMode, a quick tab switch) can't swallow it.
   useEffect(() => {
     if (!cy || !pendingCluster.current) return
-    const clusterId = pendingCluster.current
-    pendingCluster.current = null
-    highlightCluster(cy, clusterId, { fit: false })
-    const t = setTimeout(() => {
-      const els = cy.nodes(`[cluster_id = "${clusterId}"]`)
-      if (els.length) fitCapped(cy, els, 60, reducedMotion)
-    }, reducedMotion ? 100 : 1700)
-    return () => clearTimeout(t)
+    const apply = () => {
+      if (cy.destroyed() || !pendingCluster.current) return
+      const clusterId = pendingCluster.current
+      pendingCluster.current = null
+      highlightCluster(cy, clusterId)
+    }
+    cy.one('layoutstop', apply)
+    const t = setTimeout(apply, reducedMotion ? 300 : 1600) // in case the layout already stopped
+    return () => { clearTimeout(t); cy.off('layoutstop', apply) }
   }, [cy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearAskHighlight = () => {
@@ -330,6 +363,8 @@ export default function ProjectPage() {
   const handleTabClick = (tabId) => {
     track('tab', { tab: tabId })
     setTab(tabId)
+    // The list mirrors the map; it shouldn't follow the user into Clusters.
+    if (tabId !== 'graph') setListView(false)
     if (askOpen) { setAskOpen(false); clearAskHighlight() }
     if (tabId === 'clusters') setPanelOpen(true)
     else if (tabId === 'graph') setPanelOpen(!!selectedId)
@@ -359,6 +394,7 @@ export default function ProjectPage() {
   }
 
   const closePanel = useCallback(() => {
+    setSheetFull(false)
     if (askOpen) { closeAsk(); return }
     setPanelOpen(false)
     if (tab === 'clusters') {
@@ -423,7 +459,9 @@ export default function ProjectPage() {
 
   // ── Error / not-found ──────────────────────────────────────────────────────
   if (projErr) {
-    const notFound = /404/.test(projErr.message || '')
+    // The API answers 404 for an unknown id and 422 for a malformed one; only
+    // a network failure or a 5xx is worth retrying.
+    const notFound = [400, 404, 422].includes(projErr.status) || /404/.test(projErr.message || '')
     return (
       <div className="project-page">
         <header className="topbar">
@@ -431,11 +469,12 @@ export default function ProjectPage() {
           <span className="crumb-sep" aria-hidden="true">/</span>
           <span className="crumb-name">Project</span>
         </header>
+        <main id="main" className="project-main" tabIndex={-1}>
         <StateScreen
           variant="error"
-          title={notFound ? 'Project not found' : 'Could not load this project'}
+          title={notFound ? 'Map not found' : 'Could not load this map'}
           message={notFound
-            ? "This project doesn't exist or may have been deleted."
+            ? "This map doesn't exist or was deleted. Build a new one from the home page."
             : "The server didn't respond. Check your connection and try again."}
           actions={
             <>
@@ -444,6 +483,7 @@ export default function ProjectPage() {
             </>
           }
         />
+        </main>
       </div>
     )
   }
@@ -464,12 +504,12 @@ export default function ProjectPage() {
 
   const tabs = [
     { id: 'graph', label: 'Map', short: 'Map' },
-    { id: 'clusters', label: 'Clusters', short: 'Clust', count: clusters.length },
-    { id: 'opportunities', label: 'Opportunities', short: 'Opps', count: oppCount },
+    { id: 'clusters', label: 'Clusters', short: 'Clusters', count: clusters.length },
+    { id: 'opportunities', label: 'Opportunities', short: 'Opportunities', count: oppCount },
   ]
 
   return (
-    <div className={`project-page${panelOpen ? ' panel-open' : ''}`}>
+    <div className={`project-page${panelOpen ? ' panel-open' : ''}${sheetFull ? ' sheet-full' : ''}`}>
 
       {/* ── Top bar ── */}
       <header className="topbar">
@@ -513,7 +553,7 @@ export default function ProjectPage() {
                 <span className="cmdk-chip-label">Search</span>
                 <kbd className="cmdk-kbd">⌘K</kbd>
               </button>
-{!project.protected && (
+{canEdit(project) && (
               <button
                 type="button"
                 className="btn btn-ghost btn-icon-mobile"
@@ -549,6 +589,7 @@ export default function ProjectPage() {
         onPickNode={pickFromPalette}
       />
 
+      <main id="main" className="project-main" tabIndex={-1}>
       {/* ── Tab bar — exposed as tablist (M-2, WCAG 4.1.2) ── */}
       {isReady && nodeCount > 0 && (
         <div className="project-tab-bar" role="tablist" aria-label="Project views">
@@ -592,10 +633,12 @@ export default function ProjectPage() {
           message={project.error_message || 'Something went wrong while building this graph.'}
           actions={
             <>
-              <button className="btn btn-primary" onClick={() => rebuildMutation.mutate()} disabled={rebuildMutation.isPending}>
-                {rebuildMutation.isPending ? 'Restarting…' : 'Try again'}
-              </button>
-              <Link className="btn btn-secondary" to="/">Go home</Link>
+              {canEdit(project) && (
+                <button className="btn btn-primary" onClick={() => rebuildMutation.mutate()} disabled={rebuildMutation.isPending}>
+                  {rebuildMutation.isPending ? 'Restarting…' : 'Try again'}
+                </button>
+              )}
+              <Link className={canEdit(project) ? 'btn btn-secondary' : 'btn btn-primary'} to="/">Go home</Link>
             </>
           }
         />
@@ -641,7 +684,7 @@ export default function ProjectPage() {
                 )}
                 {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
                 <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId}
-                  listView={listView} onToggleList={() => setListView((v) => { track('list_view', { on: !v }); return !v })} />
+                  listView={listView} onToggleList={() => { track('list_view', { on: !listView }); setListView(!listView) }} />
                 {!askOpen && !listView && (
                   <button type="button" className="ask-bar" onClick={openAsk}>
                     <span aria-hidden="true">&gt;&nbsp;</span>
@@ -660,7 +703,22 @@ export default function ProjectPage() {
 
           {/* Right panel (inspector / ask) · left list for clusters · bottom sheet on mobile */}
           <aside className="graph-sidebar" aria-label={sidebarLabel}>
-            <div className="sidebar-drag-handle" aria-hidden="true" />
+            <button
+              type="button"
+              className="sidebar-drag-handle"
+              aria-label={sheetFull ? 'Shrink panel' : 'Expand panel'}
+              aria-expanded={sheetFull}
+              onClick={() => setSheetFull((v) => !v)}
+              onTouchStart={(e) => { sheetTouch.current = e.touches[0].clientY }}
+              onTouchEnd={(e) => {
+                const start = sheetTouch.current
+                sheetTouch.current = null
+                if (start == null) return
+                const dy = e.changedTouches[0].clientY - start
+                if (dy < -30) setSheetFull(true)
+                else if (dy > 30) { if (sheetFull) setSheetFull(false); else closePanel() }
+              }}
+            />
             <div className="sidebar-mobile-header">
               <span className="label">{sidebarLabel}</span>
               <button className="panel-close" onClick={closePanel} aria-label="Close panel">×</button>
@@ -691,6 +749,7 @@ export default function ProjectPage() {
                 entity={entityData}
                 maxBridge={Math.max(0, ...(graphData?.nodes || []).map((n) => n.bridge_score || 0)) || undefined}
                 loading={!!selectedId && !entityData}
+                nodes={graphData?.nodes}
                 onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}
                 onNeighborHover={hoverSource}
                 onAsk={selectedId ? openAsk : undefined}
@@ -699,6 +758,7 @@ export default function ProjectPage() {
           </aside>
         </div>
       )}
+      </main>
 
       {/* ── Brief modal — reading view ──
           role="dialog" + aria-modal + aria-labelledby + focus trap + Escape (C-3)  */}

@@ -7,7 +7,7 @@ import { InlineError, Toast, StateScreen } from '../components/states'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 import { pad, relTime } from '../format'
 import Wordmark from '../components/Wordmark'
-import { myProjectIds, rememberProject, forgetProject } from '../myProjects'
+import { myProjectIds, rememberProject, forgetProject, canEdit } from '../myProjects'
 import { track } from '../analytics'
 import useDocumentMeta from '../useDocumentMeta'
 import LetterSphere from '../components/LetterSphere'
@@ -111,7 +111,7 @@ export default function HomePage() {
   const startMutation = useMutation({
     mutationFn: async () => {
       const project = await createProject({ topic: topic.trim(), region, goal })
-      rememberProject(project.id)
+      rememberProject(project.id, project.owner_token)
       track('build_start', { region, goal })
       setMine(myProjectIds())
       await buildProject(project.id)
@@ -152,7 +152,7 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <main className="home-body">
+      <main id="main" className="home-body" tabIndex={-1}>
         <div className="home-left">
           <div className="label home-kicker">Knowledge Graph Explorer · open data <span aria-hidden="true">→</span> graph <span aria-hidden="true">→</span> gaps</div>
           <h1 className="display home-title">
@@ -267,18 +267,21 @@ export default function HomePage() {
                     <span><StatusBadge status={p.status} /></span>
                     <span className="project-row-meta">{relTime(p.created_at)}</span>
                   </button>
-                  {p.protected ? (
-                    // portfolio demo: read-only on the server, so no delete affordance
-                    <span className="project-demo-tag" title="Demo map: read and ask only">Demo</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-ghost project-del"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(p.id)}
-                      aria-label={`Delete ${p.topic}`}
-                    >Delete</button>
-                  )}
+                  {/* Fixed-width end cell on every row, so the columns line up with the header */}
+                  <span className="project-row-end">
+                    {p.protected ? (
+                      // portfolio demo: read-only on the server, so no delete affordance
+                      <span className="project-demo-tag" title="Demo map: read and ask only">Demo</span>
+                    ) : canEdit(p) ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost project-del"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => deleteMutation.mutate(p.id)}
+                        aria-label={`Delete ${p.topic}`}
+                      >Delete</button>
+                    ) : null}
+                  </span>
                 </div>
               ))}
             </div>

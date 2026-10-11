@@ -129,7 +129,8 @@ def _risk_level(c: ClusterSummary) -> str:
 
 def _template_title(c: ClusterSummary, topic: str) -> str:
     lead = c.top_entity_names[0] if c.top_entity_names else topic
-    return f"{lead[:50]} opportunity"
+    from textutil import short
+    return f"{short(lead, 40)} opportunity"
 
 
 def _template_why(c: ClusterSummary, topic: str) -> str:
