@@ -7,6 +7,7 @@ import { InlineError, Toast, StateScreen } from '../components/states'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 import { pad, relTime } from '../format'
 import Wordmark from '../components/Wordmark'
+import { myProjectIds, rememberProject, forgetProject } from '../myProjects'
 import LetterSphere from '../components/LetterSphere'
 
 const TOUR_KEY = 'kge-tour-home'
@@ -94,14 +95,17 @@ export default function HomePage() {
     try { localStorage.setItem(TOUR_KEY, '1') } catch { /* ignore */ }
   }
 
+  const [mine, setMine] = useState(myProjectIds)
   const { data: projectsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
+    queryKey: ['projects', mine],
+    queryFn: () => getProjects(mine),
   })
 
   const startMutation = useMutation({
     mutationFn: async () => {
       const project = await createProject({ topic: topic.trim(), region, goal })
+      rememberProject(project.id)
+      setMine(myProjectIds())
       await buildProject(project.id)
       return project
     },
@@ -114,7 +118,7 @@ export default function HomePage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteProject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+    onSuccess: (_, id) => { forgetProject(id); setMine(myProjectIds()); qc.invalidateQueries({ queryKey: ['projects'] }) },
     onError: (e) => setToast(e?.status === 403 || e?.status === 429 ? e.message : 'Could not delete the project. Please try again.'),
   })
 
@@ -191,11 +195,26 @@ export default function HomePage() {
 
           <div className="try-row" ref={tryRef}>
             <span className="label">Try</span>
-            {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" className="chip" disabled={busy} onClick={() => { setTopic(ex); document.getElementById('topic')?.focus() }}>
-                {ex}
-              </button>
-            ))}
+            {EXAMPLES.map((ex) => {
+              // A ready demo for this topic opens instantly instead of a new build.
+              const demo = projects.find((p) => p.protected && p.status === 'ready' && p.topic.toLowerCase() === ex.toLowerCase())
+              return (
+                <button
+                  key={ex}
+                  type="button"
+                  className="chip"
+                  disabled={busy}
+                  title={demo ? 'Open the demo map' : 'Use this topic'}
+                  onClick={() => {
+                    if (demo) { navigate(`/project/${demo.id}`); return }
+                    setTopic(ex); document.getElementById('topic')?.focus()
+                  }}
+                >
+                  {ex}{demo && <span aria-hidden="true">&nbsp;→</span>}
+                  {demo && <span className="sr-only"> (open demo)</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
 

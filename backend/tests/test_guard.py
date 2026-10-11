@@ -78,3 +78,12 @@ def test_trusted_hops_picks_the_right_entry(monkeypatch):
     monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
     assert guard.client_ip(req) == "1.1.1.1"
     assert guard.client_ip(SimpleNamespace(headers={}, client=SimpleNamespace(host="9.9.9.9"))) == "9.9.9.9"
+
+
+def test_list_shows_demos_plus_own_only(client, db, monkeypatch):
+    demo, mine, other = _proj(db), _proj(db), _proj(db)
+    monkeypatch.setenv("PROTECTED_PROJECT_IDS", demo)
+    ids = {p["id"] for p in client.get(f"/api/projects?mine={mine}").json()}
+    assert ids == {demo, mine}
+    assert {p["id"] for p in client.get("/api/projects").json()} == {demo}
+    assert client.get(f"/api/projects/{other}").status_code == 200  # still opens by URL

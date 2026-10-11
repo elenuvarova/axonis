@@ -5,7 +5,7 @@ from typing import Optional
 
 from database import get_db, SessionLocal
 from graph import progress
-from guard import forbid_if_protected, is_protected, rate_limit
+from guard import forbid_if_protected, is_protected, protected_ids, rate_limit
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 from graph.builder import build_project_graph
 
@@ -35,9 +35,20 @@ def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
 
 
 @router.get("")
-def list_projects(db: Session = Depends(get_db)):
-    projects = db.query(ResearchProject).order_by(ResearchProject.created_at.desc()).all()
-    return [_project_out(p) for p in projects]
+def list_projects(mine: Optional[str] = None, db: Session = Depends(get_db)):
+    """The public list is the demo maps plus the caller's own projects (ids the
+    browser remembers, sent as ?mine=a,b,c). With no accounts, listing every
+    visitor's projects to everyone leaked their topics and buried the demos.
+    Any project still opens by its URL. With no demos configured (local dev,
+    tests) everything is listed, as before."""
+    query = db.query(ResearchProject).order_by(ResearchProject.created_at.desc())
+    demos = protected_ids()
+    if not demos:
+        return [_project_out(p) for p in query.all()]
+    own = {i.strip() for i in (mine or "").split(",") if i.strip()}
+    own = set(list(own)[:100])
+    wanted = demos | own
+    return [_project_out(p) for p in query.filter(ResearchProject.id.in_(wanted)).all()]
 
 
 @router.get("/{project_id}")
