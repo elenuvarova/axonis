@@ -15,6 +15,7 @@ _tmp_db.close()
 os.environ["DATABASE_URL"] = ""          # force sqlite, ignore .env
 os.environ["SQLITE_PATH"] = _tmp_db.name  # throwaway file, not ./data.sqlite
 os.environ["GROQ_API_KEY"] = ""          # force template / offline AI paths
+os.environ["RATE_LIMITS_OFF"] = "1"       # tests hammer the API; guard tests switch it back on
 
 sys.path.insert(0, os.path.dirname(__file__))
 

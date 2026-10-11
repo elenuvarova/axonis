@@ -5,6 +5,7 @@ from typing import Optional
 
 from database import get_db, SessionLocal
 from graph import progress
+from guard import forbid_if_protected, is_protected, rate_limit
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 from graph.builder import build_project_graph
 
@@ -24,7 +25,7 @@ class AskRequest(BaseModel):
     question: str
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(rate_limit("create"))])
 def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
     project = ResearchProject(topic=body.topic, region=body.region, goal=body.goal)
     db.add(project)
@@ -45,9 +46,10 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     return _project_out(project)
 
 
-@router.post("/{project_id}/build")
+@router.post("/{project_id}/build", dependencies=[Depends(rate_limit("build"))])
 def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     project = _get_or_404(project_id, db)
+    forbid_if_protected(project_id, "rebuilding")
     if project.status == "building":
         return {"status": "already_building"}
     project.status = "building"
@@ -62,7 +64,7 @@ def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Sessio
 _brief_cache: dict = {}
 
 
-@router.get("/{project_id}/brief")
+@router.get("/{project_id}/brief", dependencies=[Depends(rate_limit("brief"))])
 def get_brief(project_id: str, db: Session = Depends(get_db)):
     project = _get_or_404(project_id, db)
     if project.status != "ready":
@@ -84,7 +86,7 @@ def get_brief(project_id: str, db: Session = Depends(get_db)):
     return payload
 
 
-@router.post("/{project_id}/ask")
+@router.post("/{project_id}/ask", dependencies=[Depends(rate_limit("ask"))])
 def ask_question(project_id: str, body: AskRequest, db: Session = Depends(get_db)):
     project = _get_or_404(project_id, db)
     if project.status != "ready":
@@ -97,7 +99,7 @@ def ask_question(project_id: str, body: AskRequest, db: Session = Depends(get_db
     return answer_question(project, entities, question)
 
 
-@router.post("/{project_id}/upload")
+@router.post("/{project_id}/upload", dependencies=[Depends(rate_limit("upload"))])
 async def upload_document(
     project_id: str,
     background_tasks: BackgroundTasks,
@@ -105,6 +107,7 @@ async def upload_document(
     db: Session = Depends(get_db),
 ):
     project = _get_or_404(project_id, db)
+    forbid_if_protected(project_id, "uploading")
     if project.status == "building":
         raise HTTPException(status_code=409, detail="Project is already processing")
 
@@ -127,6 +130,7 @@ async def upload_document(
 @router.delete("/{project_id}", status_code=204)
 def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = _get_or_404(project_id, db)
+    forbid_if_protected(project_id, "deleting")
     # Delete all children before the parent. SQLite does not enforce
     # ondelete="CASCADE" without a per-connection PRAGMA, and on Postgres a
     # bare parent delete raises a FK violation while children still reference it.
@@ -205,4 +209,6 @@ def _project_out(p: ResearchProject) -> dict:
         "created_at": p.created_at.isoformat() if p.created_at else None,
         # Real pipeline stage + counts while a build runs (None otherwise).
         "progress": progress.snapshot(p.id) if p.status == "building" else None,
+        # Portfolio demos: read + ask only (see guard.py).
+        "protected": is_protected(p.id),
     }

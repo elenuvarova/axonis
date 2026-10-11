@@ -115,7 +115,7 @@ export default function HomePage() {
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteProject(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
-    onError: () => setToast('Could not delete the project. Please try again.'),
+    onError: (e) => setToast(e?.status === 403 || e?.status === 429 ? e.message : 'Could not delete the project. Please try again.'),
   })
 
   const handleSubmit = (e) => {
@@ -240,13 +240,18 @@ export default function HomePage() {
                     <span><StatusBadge status={p.status} /></span>
                     <span className="project-row-meta">{relTime(p.created_at)}</span>
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost project-del"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => deleteMutation.mutate(p.id)}
-                    aria-label={`Delete ${p.topic}`}
-                  >Delete</button>
+                  {p.protected ? (
+                    // portfolio demo: read-only on the server, so no delete affordance
+                    <span className="project-demo-tag" title="Demo map: read and ask only">Demo</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-ghost project-del"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate(p.id)}
+                      aria-label={`Delete ${p.topic}`}
+                    >Delete</button>
+                  )}
                 </div>
               ))}
             </div>
