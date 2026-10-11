@@ -8,6 +8,8 @@ import usePrefersReducedMotion from '../usePrefersReducedMotion'
 import { pad, relTime } from '../format'
 import Wordmark from '../components/Wordmark'
 import { myProjectIds, rememberProject, forgetProject } from '../myProjects'
+import { track } from '../analytics'
+import useDocumentMeta from '../useDocumentMeta'
 import LetterSphere from '../components/LetterSphere'
 
 const TOUR_KEY = 'kge-tour-home'
@@ -95,6 +97,11 @@ export default function HomePage() {
     try { localStorage.setItem(TOUR_KEY, '1') } catch { /* ignore */ }
   }
 
+  useDocumentMeta({
+    title: 'Axonis — map any domain: concepts, research and product gaps',
+    description: "Type any domain and get an interactive knowledge graph of its concepts, research and organisations, with scored product opportunities where research exists but products don't. Built from Wikidata and OpenAlex in under a minute.",
+    path: '/',
+  })
   const [mine, setMine] = useState(myProjectIds)
   const { data: projectsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['projects', mine],
@@ -105,6 +112,7 @@ export default function HomePage() {
     mutationFn: async () => {
       const project = await createProject({ topic: topic.trim(), region, goal })
       rememberProject(project.id)
+      track('build_start', { region, goal })
       setMine(myProjectIds())
       await buildProject(project.id)
       return project
@@ -118,7 +126,7 @@ export default function HomePage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteProject(id),
-    onSuccess: (_, id) => { forgetProject(id); setMine(myProjectIds()); qc.invalidateQueries({ queryKey: ['projects'] }) },
+    onSuccess: (_, id) => { track('map_delete'); forgetProject(id); setMine(myProjectIds()); qc.invalidateQueries({ queryKey: ['projects'] }) },
     onError: (e) => setToast(e?.status === 403 || e?.status === 429 ? e.message : 'Could not delete the project. Please try again.'),
   })
 
@@ -206,7 +214,7 @@ export default function HomePage() {
                   disabled={busy}
                   title={demo ? 'Open the demo map' : 'Use this topic'}
                   onClick={() => {
-                    if (demo) { navigate(`/project/${demo.id}`); return }
+                    if (demo) { track('demo_open', { topic: demo.topic, via: 'try' }); navigate(`/project/${demo.id}`); return }
                     setTopic(ex); document.getElementById('topic')?.focus()
                   }}
                 >
@@ -250,7 +258,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     className="project-row-main project-cols"
-                    onClick={() => navigate(`/project/${p.id}`)}
+                    onClick={() => { track(p.protected ? 'demo_open' : 'map_open', p.protected ? { topic: p.topic, via: 'list' } : undefined); navigate(`/project/${p.id}`) }}
                     aria-label={`Open project: ${p.topic}`}
                   >
                     <span className="project-row-id">{pad(i + 1)}</span>

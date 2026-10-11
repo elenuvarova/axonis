@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TYPE_ORDER, typeGlyph, typeLabel } from '../graphTypes'
 import { pad } from '../format'
+import { track } from '../analytics'
 
 // Shape key + filter for the graph. Lists only the entity types present in the
 // current graph, with counts; each row is a toggle that shows/hides that type
@@ -33,6 +34,7 @@ export default function GraphLegend({ nodes = [], cy }) {
   const toggleType = (t) => setHidden((prev) => {
     const next = new Set(prev)
     next.has(t) ? next.delete(t) : next.add(t)
+    track('legend_filter', { type: t, visible: !next.has(t) })
     return next
   })
 
@@ -74,7 +76,7 @@ export default function GraphLegend({ nodes = [], cy }) {
                 type="button"
                 className="graph-legend-item"
                 aria-pressed={!hideIsolated}
-                onClick={() => setHideIsolated((v) => !v)}
+                onClick={() => setHideIsolated((v) => { track('legend_filter', { type: 'isolated', visible: v }); return !v })}
                 title={hideIsolated ? 'Show isolated nodes' : 'Hide isolated nodes'}
               >
                 <span className="legend-glyph" aria-hidden="true">·</span>

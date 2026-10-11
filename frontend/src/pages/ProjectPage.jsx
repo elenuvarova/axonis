@@ -10,6 +10,8 @@ import EntityCard from '../components/EntityCard'
 import GraphLegend from '../components/GraphLegend'
 import CommandPalette from '../components/CommandPalette'
 import NodeList from '../components/NodeList'
+import { track } from '../analytics'
+import useDocumentMeta from '../useDocumentMeta'
 import GraphControls from '../components/GraphControls'
 import ClusterPanel from '../components/ClusterPanel'
 import OpportunityBoard from '../components/OpportunityBoard'
@@ -128,18 +130,18 @@ export default function ProjectPage() {
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const briefMutation = useMutation({
-    mutationFn: () => getBrief(id),
+    mutationFn: () => { track('brief_open'); return getBrief(id) },
     onSuccess: (data) => setBrief(data),
     onError: (e) => setToast(e.message || 'Could not generate brief. Please try again.'),
   })
 
   const rebuildMutation = useMutation({
-    mutationFn: () => buildProject(id),
+    mutationFn: () => { track('rebuild'); return buildProject(id) },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['project', id] }),
   })
 
   const uploadMutation = useMutation({
-    mutationFn: (file) => uploadDocument(id, file),
+    mutationFn: (file) => { track('upload'); return uploadDocument(id, file) },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', id] })
       qc.invalidateQueries({ queryKey: ['graph', id] })
@@ -156,8 +158,11 @@ export default function ProjectPage() {
   }
 
   const askMutation = useMutation({
-    mutationFn: (question) => askQuestion(id, question),
-    onSuccess: (data) => { setAskResult(data); highlightNodes(data.highlighted_nodes) },
+    mutationFn: (question) => { track('ask', { demo: !!project?.protected }); return askQuestion(id, question) },
+    onSuccess: (data) => {
+      track('ask_answer', { citations: (data.answer.match(/\[\d{1,2}\]/g) || []).length })
+      setAskResult(data); highlightNodes(data.highlighted_nodes)
+    },
     onError: () => setAskResult(null),
   })
 
@@ -204,13 +209,32 @@ export default function ProjectPage() {
     return () => clearTimeout(t)
   }, [project, graphData])
 
+  useDocumentMeta({
+    title: project?.topic ? `${project.topic} — knowledge map · Axonis` : null,
+    description: project?.topic
+      ? `An interactive knowledge graph of ${project.topic}: concepts, research and organisations from Wikidata and OpenAlex, clustered and scored for product opportunities.`
+      : null,
+    path: `/project/${id}`,
+  })
+
+  // Build outcome for analytics: seen building, then ready or error.
+  const buildSeen = useRef(null)
+  useEffect(() => {
+    const st = project?.status
+    if (st === 'building' && !buildSeen.current) buildSeen.current = Date.now()
+    if ((st === 'ready' || st === 'error') && buildSeen.current) {
+      track(st === 'ready' ? 'build_done' : 'build_error', { seconds: Math.round((Date.now() - buildSeen.current) / 1000) })
+      buildSeen.current = null
+    }
+  }, [project?.status])
+
   // ⌘K / Ctrl+K opens the node & action palette (map must be ready).
   useEffect(() => {
     if (project?.status !== 'ready') return
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !brief && !tourOpen) {
         e.preventDefault()
-        setPaletteOpen((v) => !v)
+        setPaletteOpen((v) => { if (!v) track('cmdk_open', { via: 'shortcut' }); return !v })
       }
     }
     document.addEventListener('keydown', handler)
@@ -299,6 +323,7 @@ export default function ProjectPage() {
   }
 
   const handleTabClick = (tabId) => {
+    track('tab', { tab: tabId })
     setTab(tabId)
     if (askOpen) { setAskOpen(false); clearAskHighlight() }
     if (tabId === 'clusters') setPanelOpen(true)
@@ -310,6 +335,7 @@ export default function ProjectPage() {
   // fall back to the canvas "ask the map" bar).
   const askReturnFocus = useRef(null)
   const openAsk = () => {
+    track('ask_open')
     askReturnFocus.current = document.activeElement
     setTab('graph')
     setAskOpen(true)
@@ -362,6 +388,7 @@ export default function ProjectPage() {
   }
 
   const pickFromPalette = (node) => {
+    track('cmdk_pick', { kind: 'node' })
     const mapMounted = tab !== 'opportunities'
     setSelectedId(node.id)
     setTab('graph')
@@ -372,7 +399,7 @@ export default function ProjectPage() {
     else pendingCentre.current = node.id
   }
 
-  const paletteActions = [
+  const paletteActionsRaw = [
     { id: 'ask', label: 'Ask the map', hint: 'panel', run: openAsk },
     { id: 'brief', label: 'Generate research brief', hint: 'modal', run: () => briefMutation.mutate() },
     { id: 'map', label: 'Go to map', hint: 'tab', run: () => handleTabClick('graph') },
@@ -381,6 +408,7 @@ export default function ProjectPage() {
     { id: 'list', label: listView ? 'Show the map' : 'Show nodes as a list', hint: 'view', run: () => { handleTabClick('graph'); setListView((v) => !v) } },
     { id: 'tour', label: 'Replay the tour', run: () => setTourOpen(true) },
   ]
+  const paletteActions = paletteActionsRaw.map((a) => ({ ...a, run: () => { track('cmdk_action', { id: a.id }); a.run() } }))
 
   const centreNode = (nid) => {
     if (!cy) return
@@ -471,7 +499,7 @@ export default function ProjectPage() {
               <button
                 type="button"
                 className="cmdk-chip"
-                onClick={() => setPaletteOpen(true)}
+                onClick={() => { track('cmdk_open', { via: 'chip' }); setPaletteOpen(true) }}
                 aria-label="Search nodes and actions"
                 aria-keyshortcuts="Meta+K Control+K"
               >
@@ -607,7 +635,7 @@ export default function ProjectPage() {
                 )}
                 {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
                 <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId}
-                  listView={listView} onToggleList={() => setListView((v) => !v)} />
+                  listView={listView} onToggleList={() => setListView((v) => { track('list_view', { on: !v }); return !v })} />
                 {!askOpen && !listView && (
                   <button type="button" className="ask-bar" onClick={openAsk}>
                     <span aria-hidden="true">&gt;&nbsp;</span>
@@ -648,7 +676,7 @@ export default function ProjectPage() {
                 pending={askMutation.isPending}
                 result={askResult}
                 error={askMutation.isError ? (askMutation.error?.message || 'Ask failed') : ''}
-                onPickSource={centreNode}
+                onPickSource={(nid) => { track('source_click'); centreNode(nid) }}
                 onHoverSource={hoverSource}
                 onClose={closeAsk}
               />
@@ -693,6 +721,7 @@ export default function ProjectPage() {
                   className="btn btn-secondary"
                   aria-label="Download brief as Markdown"
                   onClick={() => {
+                    track('brief_download', { format: 'md' })
                     const blob = new Blob([brief.markdown], { type: 'text/markdown' })
                     const a = document.createElement('a')
                     a.href = URL.createObjectURL(blob)
@@ -708,6 +737,7 @@ export default function ProjectPage() {
                   className="btn btn-secondary"
                   aria-label="Print brief"
                   onClick={() => {
+                    track('brief_download', { format: 'print' })
                     const win = window.open('', '_blank')
                     if (!win) { setToast('Allow pop-ups to print the brief.'); return }
                     win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(brief.filename)}</title>
