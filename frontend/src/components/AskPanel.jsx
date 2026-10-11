@@ -1,10 +1,30 @@
 import { useState, useId, useRef, useEffect } from 'react'
+import { mmss } from '../format'
 
 const SUGGESTIONS = [
   'What are the main themes here?',
   'Where are the biggest gaps?',
   'Which entities connect different areas?',
 ]
+
+// Real elapsed time while a question is in flight (the model call has a 20 s
+// timeout on the server, so past ~12 s say it's still working).
+function PendingLine() {
+  const [t0] = useState(() => Date.now())
+  const [now, setNow] = useState(t0)
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const s = (now - t0) / 1000
+  return (
+    <p className="ask-pending" role="status">
+      <span className="spinner spinner-sm" aria-hidden="true" />
+      Thinking… <span className="ask-elapsed" aria-hidden="true">{mmss(s)}</span>
+      {s > 12 && <span className="ask-slow"> Still working — reading the graph and writing a cited answer.</span>}
+    </p>
+  )
+}
 
 // Split an answer into text and [n] citation markers.
 function withCitations(text, sources, active, setActive, onPick) {
@@ -88,7 +108,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
           </>
         )}
 
-        {pending && <p className="ask-pending" role="status"><span className="spinner spinner-sm" aria-hidden="true" />Thinking…</p>}
+        {pending && <PendingLine />}
 
         {error && <p className="error-msg" role="alert">{error}</p>}
 

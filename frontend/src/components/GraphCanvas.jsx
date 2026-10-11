@@ -60,7 +60,7 @@ function makeStylesheet() {
     // Hubs read larger and in the full text colour.
     { selector: 'node[?hub]', style: { 'font-size': 13, 'color': text } },
     // Reveal the full label whenever a node is focused (hover/select/highlight).
-    { selector: 'node.show-label', style: { 'label': 'data(label)', 'color': text, 'z-index': 19 } },
+    { selector: 'node.show-label, node.focus-label', style: { 'label': 'data(label)', 'color': text, 'z-index': 19 } },
     {
       selector: 'node:selected',
       style: {
@@ -95,6 +95,8 @@ function makeStylesheet() {
     { selector: 'edge.focus-edge', style: { 'line-color': accent, 'z-index': 10 } },
     // Legend filters hide whole types (or isolated nodes); edges go with them.
     { selector: 'node.filtered', style: { 'display': 'none' } },
+    // Focus depth: nodes further than N hops from the selection.
+    { selector: '.out-of-focus', style: { 'display': 'none' } },
   ]
 }
 

@@ -576,7 +576,7 @@ export default function ProjectPage() {
                   onCyInit={setCy}
                 />
                 <GraphLegend nodes={graphData.nodes} cy={cy} />
-                <GraphControls cy={cy} reducedMotion={reducedMotion} />
+                <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId} />
                 {!askOpen && (
                   <button type="button" className="ask-bar" onClick={openAsk}>
                     <span aria-hidden="true">&gt;&nbsp;</span>
