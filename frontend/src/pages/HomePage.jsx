@@ -308,7 +308,8 @@ export default function HomePage() {
   const handleSubmit = (e) => {
     e.preventDefault()
     setErr('')
-    if (!topic.trim()) { setErr('Enter a topic to explore first.'); return }
+    if (startMutation.isPending) return
+    if (!topic.trim()) { setErr('Enter a topic to explore first.'); document.getElementById('topic')?.focus(); return }
     startMutation.mutate()
   }
 
@@ -341,7 +342,22 @@ export default function HomePage() {
             Type a topic. We read Wikidata and OpenAlex, build the graph, and mark where research exists but products don’t.
           </p>
 
-          <form className="query-block" onSubmit={handleSubmit}>
+          {/* The fastest way to value goes first: a ready map, a gap on screen in seconds. */}
+          {bestDemo && (
+            <div className="demo-row">
+              <button
+                type="button"
+                className="btn btn-secondary demo-cta"
+                disabled={busy}
+                onClick={(e) => { track('demo_open', { topic: bestDemo.topic, via: 'hero' }); navigateWithTransition(navigate, `/project/${bestDemo.id}`, { topicEl: e.currentTarget }) }}
+              >
+                See a gap in seconds<span aria-hidden="true">&nbsp;→</span>
+              </button>
+              <span className="demo-note">Demo map: {bestDemo.topic} · no build</span>
+            </div>
+          )}
+
+          <form className="query-block" onSubmit={handleSubmit} noValidate>
             <div className="query-line">
               <span className="query-prompt" aria-hidden="true">&gt;</span>
               <span className="query-caret" aria-hidden="true" />
@@ -350,10 +366,13 @@ export default function HomePage() {
                 id="topic"
                 type="text"
                 autoComplete="off"
-                placeholder="e-waste circularity"
+                placeholder="e.g. e-waste circularity"
+                maxLength={200}
                 value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                disabled={busy}
+                onChange={(e) => { setTopic(e.target.value); if (err) setErr('') }}
+                aria-invalid={err ? 'true' : undefined}
+                aria-describedby={err ? 'topic-error' : undefined}
+                readOnly={busy}
               />
             </div>
             <div className="query-controls">
@@ -371,11 +390,12 @@ export default function HomePage() {
                   </select>
                 </label>
               </div>
-              <button className="btn btn-primary" type="submit" disabled={busy} data-umami-event="build-map">
+              {/* aria-disabled, not disabled: a disabled button drops keyboard focus to <body> mid-build */}
+              <button className="btn btn-primary" type="submit" aria-disabled={busy || undefined} data-umami-event="build-map">
                 {busy ? <><span className="spinner spinner-sm" aria-hidden="true" />Building…</> : <>Build<span aria-hidden="true">&nbsp;↵</span></>}
               </button>
             </div>
-            <InlineError message={err} onDismiss={() => setErr('')} />
+            <InlineError id="topic-error" message={err} onDismiss={() => setErr('')} />
             <span className="qb-edge qb-top" aria-hidden="true" />
             <span className="qb-edge qb-right" aria-hidden="true" />
             <span className="qb-edge qb-bottom" aria-hidden="true" />
@@ -406,19 +426,6 @@ export default function HomePage() {
             })}
           </div>
 
-          {bestDemo && (
-            <div className="demo-row">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={busy}
-                onClick={(e) => { track('demo_open', { topic: bestDemo.topic, via: 'hero' }); navigateWithTransition(navigate, `/project/${bestDemo.id}`, { topicEl: e.currentTarget }) }}
-              >
-                Open a demo map<span aria-hidden="true">&nbsp;→</span>
-              </button>
-              <span className="demo-note">No build, no wait: {bestDemo.topic}</span>
-            </div>
-          )}
         </div>
 
         <Hero intro={intro} />

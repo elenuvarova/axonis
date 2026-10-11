@@ -53,6 +53,14 @@ export default function Tour({ steps = [], open, onClose }) {
 
   useEffect(() => { if (open) cardRef.current?.focus() }, [open, i])
 
+  // Focus goes back to whatever opened the tour (HOW IT WORKS, "?", ⌘K…).
+  const opener = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    opener.current = document.activeElement
+    return () => { const el = opener.current; if (el?.isConnected) el.focus() }
+  }, [open])
+
   const close = useCallback((done) => onClose?.(done), [onClose])
   const next = useCallback(() => { if (last) close(true); else setI((v) => v + 1) }, [last, close])
   const back = useCallback(() => setI((v) => Math.max(0, v - 1)), [])
@@ -61,7 +69,18 @@ export default function Tour({ steps = [], open, onClose }) {
     if (!open) return
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); close(false) }
-      else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); next() }
+      else if (e.key === 'Tab') {
+        // aria-modal: keep Tab inside the card
+        const card = cardRef.current
+        const f = card ? [...card.querySelectorAll('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')] : []
+        if (!f.length) return
+        const first = f[0], lastEl = f[f.length - 1]
+        if (!card.contains(document.activeElement)) { e.preventDefault(); first.focus() }
+        else if (e.shiftKey && (document.activeElement === first || document.activeElement === card)) { e.preventDefault(); lastEl.focus() }
+        else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); first.focus() }
+      }
+      // Enter on a button presses that button (Skip/Back), it doesn't jump ahead
+      else if (e.key === 'ArrowRight' || (e.key === 'Enter' && e.target === cardRef.current)) { e.preventDefault(); next() }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); back() }
     }
     document.addEventListener('keydown', onKey)

@@ -15,7 +15,7 @@ function Metric({ label, value, bar }) {
 
 // Nothing selected: instead of an empty panel, a way in. The best-connected
 // nodes are one click away, and the type mix says what the map is made of.
-function Overview({ nodes = [], onPick, onHover }) {
+function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps }) {
   const hubs = [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, 5)
   const counts = {}
   for (const n of nodes) counts[n.type] = (counts[n.type] || 0) + 1
@@ -25,9 +25,12 @@ function Overview({ nodes = [], onPick, onHover }) {
       <div className="entity-scroll">
         <div className="label">Selection · none</div>
         <p className="entity-overview-hint">Click any node to see its details, metrics and connections, or press <kbd>⌘K</kbd> to find one.</p>
+        {onShowGaps && gapCount > 0 && (
+          <button type="button" className="btn btn-secondary entity-overview-gaps" onClick={onShowGaps}>Show the {gapCount} top gaps</button>
+        )}
         {hubs.length > 0 && (
           <section className="entity-section">
-            <h3 className="label">Best connected</h3>
+            <h2 className="label">Best connected</h2>
             <ul className="entity-overview-hubs">
               {hubs.map((n, i) => (
                 <li key={n.id}>
@@ -46,7 +49,7 @@ function Overview({ nodes = [], onPick, onHover }) {
         )}
         {types.length > 0 && (
           <section className="entity-section">
-            <h3 className="label">On this map · {nodes.length} nodes</h3>
+            <h2 className="label">On this map · {nodes.length} nodes</h2>
             <dl className="entity-overview-types">
               {types.map((t) => (
                 <div key={t} className="metric-row">
@@ -62,11 +65,11 @@ function Overview({ nodes = [], onPick, onHover }) {
   )
 }
 
-export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes }) {
+export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes, gapCount, onShowGaps }) {
   if (loading) return <EntitySkeleton />
 
   if (!entity) {
-    if (nodes?.length) return <Overview nodes={nodes} onPick={onNeighborClick} onHover={onNeighborHover} />
+    if (nodes?.length) return <Overview nodes={nodes} onPick={onNeighborClick} onHover={onNeighborHover} gapCount={gapCount} onShowGaps={onShowGaps} />
     return (
       <div className="entity-card-placeholder">
         <span className="placeholder-mark" aria-hidden="true">+</span>

@@ -12,7 +12,7 @@ function OppCard({ opp, index, onShowOnMap }) {
   return (
     <article className="opp-card">
       <div className="opp-card-top label">
-        <span>Opp_{pad(index + 1)}</span>
+        <span>Gap_{pad(index + 1)}</span>
         <span>Risk · {opp.risk_level}</span>
       </div>
 

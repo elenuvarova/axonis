@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { ClusterSkeleton } from './states'
 import { pad } from '../format'
 
@@ -25,16 +26,20 @@ export default function ClusterPanel({
       <div className="cluster-list">
         {clusters.map((c, i) => {
           const score = Math.min(1, Math.max(0, c.opportunity_score || 0))
+          const pts = Math.round(score * 100) // one scale everywhere: 0-100, like the opportunity cards
+          // clusters with no opportunity signal go under one quiet divider
+          const firstLow = pts === 0 && (i === 0 || Math.round(Math.min(1, Math.max(0, clusters[i - 1].opportunity_score || 0)) * 100) > 0)
+          // a <button>: keyboard operability and role=button for free (C-2, WCAG 2.1.1)
           return (
-            // <button> gives keyboard operability and role=button for free (C-2, WCAG 2.1.1)
+            <Fragment key={c.id}>
+            {firstLow && <div className="label cluster-low-head">Low signal · no opportunity score</div>}
             <button
-              key={c.id}
               type="button"
-              className={`cluster-item${activeClusterId === c.cluster_id ? ' active' : ''}`}
+              className={`cluster-item${activeClusterId === c.cluster_id ? ' active' : ''}${pts === 0 ? ' is-low' : ''}`}
               style={{ '--score': `${score * 100}%` }}
               onClick={() => onClusterClick(c.cluster_id)}
               aria-pressed={activeClusterId === c.cluster_id}
-              aria-label={`${c.name} — ${c.size} nodes, opportunity score ${score.toFixed(2)}`}
+              aria-label={`${c.name} — ${c.size} nodes, opportunity score ${pts} of 100`}
             >
               <span className="cluster-index">{pad(i + 1)}</span>
               <span className="cluster-main">
@@ -43,8 +48,9 @@ export default function ClusterPanel({
                   {c.size} nodes · {c.research_count} research{c.product_count > 0 ? ` · ${c.product_count} products` : ''}
                 </span>
               </span>
-              <span className="cluster-score">{score.toFixed(2)}</span>
+              <span className="cluster-score">{pts}</span>
             </button>
+            </Fragment>
           )
         })}
       </div>

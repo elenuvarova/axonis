@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import ConsentBar from './components/ConsentBar'
 import './styles.css'
 import './ux.css'
+import './nng.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

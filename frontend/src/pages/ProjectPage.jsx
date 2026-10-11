@@ -113,7 +113,8 @@ export default function ProjectPage() {
   // ── Panel Escape to close (mobile sheet / ask mode) (C-3) ────────────────
   useEffect(() => {
     if (!panelOpen && !askOpen) return
-    const handler = (e) => { if (e.key === 'Escape' && !brief && !tourOpen && !paletteOpen) closePanel() }
+    // focus lands on the map, not <body>, after Esc closes the panel
+    const handler = (e) => { if (e.key === 'Escape' && !brief && !tourOpen && !paletteOpen) { closePanel(); document.querySelector('.graph-canvas-wrap')?.focus() } }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [panelOpen, askOpen, brief, tourOpen, paletteOpen]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -192,10 +193,10 @@ export default function ProjectPage() {
   // Gap reveal: once per map per session, after the first layout settles,
   // light the top opportunity clusters with callouts (GapReveal).
   const [reveal, setReveal] = useState(null)
+  const [revealItems, setRevealItems] = useState(null) // kept after the reveal ends, for Replay
   useEffect(() => {
     if (!cy || !oppsData || !clustersData || project?.status !== 'ready') return
     const key = `axonis-reveal-${id}`
-    try { if (sessionStorage.getItem(key)) return } catch { return }
     const byId = new Map((clustersData.clusters || []).map((c) => [c.id, c]))
     const seen = new Set()
     const items = [...(oppsData.opportunities || [])]
@@ -205,6 +206,8 @@ export default function ProjectPage() {
       .slice(0, window.matchMedia?.('(max-width: 767px)').matches ? 2 : 3)
       .map(({ o, c }, i) => ({ rank: i + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
     if (!items.length) return
+    setRevealItems(items) // always available for Replay; only the auto-play is once per session
+    try { if (sessionStorage.getItem(key)) return } catch { return }
     // marked as seen only when it actually shows, so an effect that is set
     // up and torn down early (StrictMode, a quick tab switch) can't eat it
     const show = () => {
@@ -604,7 +607,7 @@ export default function ProjectPage() {
               >
                 {briefMutation.isPending ? '…' : <><Icon name="brief" /><span className="btn-label">Brief</span></>}
               </button>
-              <HelpButton size="sm" className="hide-on-mobile" onClick={() => setTourOpen(true)} label="Replay the tour" />
+              <HelpButton size="sm" className="hide-on-mobile" onClick={() => setTourOpen(true)} label="Replay the tour" text="Tour" />
             </>
           )}
         </div>
@@ -629,6 +632,16 @@ export default function ProjectPage() {
               role="tab"
               aria-selected={tab === t.id}
               aria-controls={PANEL_ID}
+              // APG tabs: one tab in the Tab order, arrows move between them
+              tabIndex={tab === t.id ? 0 : -1}
+              onKeyDown={(e) => {
+                const ids = tabs.map((x) => x.id), at = ids.indexOf(t.id)
+                const to = e.key === 'ArrowRight' ? ids[(at + 1) % ids.length] : e.key === 'ArrowLeft' ? ids[(at - 1 + ids.length) % ids.length]
+                  : e.key === 'Home' ? ids[0] : e.key === 'End' ? ids[ids.length - 1] : null
+                if (!to) return
+                e.preventDefault(); handleTabClick(to)
+                requestAnimationFrame(() => document.getElementById(TAB_ID(to))?.focus())
+              }}
               className={`tab-btn${tab === t.id ? ' active' : ''}`}
               onClick={() => handleTabClick(t.id)}
             >
@@ -693,7 +706,7 @@ export default function ProjectPage() {
       ) : (
         <div className={`graph-view${showClusters ? ' mode-clusters' : ''}`} id={PANEL_ID} role="tabpanel" aria-labelledby={TAB_ID(tab)}>
           {/* Canvas — always mounted so cluster highlights persist across tabs */}
-          <div className="graph-canvas-wrap">
+          <div className="graph-canvas-wrap" tabIndex={-1}>
             {graphData ? (
               <Suspense fallback={<div className="full-center"><div className="spinner" role="status" aria-label="Loading graph" /></div>}>
                 <GraphCanvas
@@ -715,6 +728,11 @@ export default function ProjectPage() {
                 {reveal && tab === 'graph' && !listView && (
                   <GapReveal cy={cy} items={reveal} onDone={() => setReveal(null)}
                     onOpen={() => { setReveal(null); handleTabClick('opportunities') }} />
+                )}
+                {!reveal && revealItems && tab === 'graph' && !listView && (
+                  <button type="button" className="gap-chip" onClick={() => { track('gap_reveal_replay'); setReveal([...revealItems]) }}>
+                    {revealItems.length} gaps · replay
+                  </button>
                 )}
                 <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId}
                   listView={listView} onToggleList={() => { track('list_view', { on: !listView }); setListView(!listView) }}
@@ -770,6 +788,8 @@ export default function ProjectPage() {
                 maxBridge={Math.max(0, ...(graphData?.nodes || []).map((n) => n.bridge_score || 0)) || undefined}
                 loading={!!selectedId && !entityData}
                 nodes={graphData?.nodes}
+                gapCount={revealItems?.length || 0}
+                onShowGaps={revealItems ? () => { track('gap_reveal_replay', { via: 'inspector' }); setReveal([...revealItems]) } : undefined}
                 onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}
                 onNeighborHover={hoverSource}
                 onAsk={selectedId ? openAsk : undefined}

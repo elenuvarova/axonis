@@ -17,7 +17,10 @@ export default function NotFoundPage() {
           variant="empty"
           title="Page not found"
           message="There's nothing at this address. Open a demo map or build your own from the home page."
-          actions={<Link className="btn btn-primary" to="/">Go home</Link>}
+          actions={<>
+            <Link className="btn btn-primary" to="/project/07796417-cbc2-464e-9185-8b1cf1645ee6">Open a demo map</Link>
+            <Link className="btn btn-secondary" to="/">Go home</Link>
+          </>}
         />
       </main>
     </div>
