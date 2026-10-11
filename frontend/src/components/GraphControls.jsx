@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 // many hops from it is hidden, so a hub's neighbourhood can be read on its own.
 const DEPTHS = [0, 1, 2]
 
-export default function GraphControls({ cy, reducedMotion, selectedId }) {
+export default function GraphControls({ cy, reducedMotion, selectedId, listView = false, onToggleList }) {
   const [depth, setDepth] = useState(0)
 
   useEffect(() => {
@@ -41,6 +41,15 @@ export default function GraphControls({ cy, reducedMotion, selectedId }) {
   const nextDepth = DEPTHS[(DEPTHS.indexOf(depth) + 1) % DEPTHS.length]
   const depthLabel = depth ? `Depth ${depth}` : 'Depth ∞'
 
+  const listBtn = onToggleList && (
+    <button type="button" className={listView ? 'is-on' : ''} onClick={onToggleList} aria-pressed={listView}
+      aria-label="List view: the graph's nodes as a sortable table" title="Show the nodes as a list">
+      List
+    </button>
+  )
+  if (listView) {
+    return <div className="graph-controls" role="group" aria-label="Graph view controls">{listBtn}</div>
+  }
   return (
     <div className="graph-controls" role="group" aria-label="Graph view controls">
       <button type="button" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
@@ -58,6 +67,7 @@ export default function GraphControls({ cy, reducedMotion, selectedId }) {
       >
         {depthLabel}
       </button>
+      {listBtn}
     </div>
   )
 }

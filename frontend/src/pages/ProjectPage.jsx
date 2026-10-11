@@ -9,6 +9,7 @@ const GraphCanvas = lazy(() => import('../components/GraphCanvas'))
 import EntityCard from '../components/EntityCard'
 import GraphLegend from '../components/GraphLegend'
 import CommandPalette from '../components/CommandPalette'
+import NodeList from '../components/NodeList'
 import GraphControls from '../components/GraphControls'
 import ClusterPanel from '../components/ClusterPanel'
 import OpportunityBoard from '../components/OpportunityBoard'
@@ -58,6 +59,7 @@ export default function ProjectPage() {
   const [askedText, setAskedText] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [listView, setListView] = useState(false)
   const pendingCentre = useRef(null)
   const [highlightClusterId, setHighlightClusterId] = useState(null)
   const [cy, setCy] = useState(null)
@@ -369,6 +371,7 @@ export default function ProjectPage() {
     { id: 'map', label: 'Go to map', hint: 'tab', run: () => handleTabClick('graph') },
     { id: 'clusters', label: 'Go to clusters', hint: 'tab', run: () => handleTabClick('clusters') },
     { id: 'opps', label: 'Go to opportunities', hint: 'tab', run: () => handleTabClick('opportunities') },
+    { id: 'list', label: listView ? 'Show the map' : 'Show nodes as a list', hint: 'view', run: () => { handleTabClick('graph'); setListView((v) => !v) } },
     { id: 'tour', label: 'Replay the tour', run: () => setTourOpen(true) },
   ]
 
@@ -575,9 +578,18 @@ export default function ProjectPage() {
                   onNodeClick={handleNodeClick}
                   onCyInit={setCy}
                 />
-                <GraphLegend nodes={graphData.nodes} cy={cy} />
-                <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId} />
-                {!askOpen && (
+                {listView && (
+                  <NodeList
+                    nodes={graphData.nodes}
+                    edges={graphData.edges}
+                    selectedId={selectedId}
+                    onSelect={(n) => handleNodeClick(n)}
+                  />
+                )}
+                {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
+                <GraphControls cy={cy} reducedMotion={reducedMotion} selectedId={selectedId}
+                  listView={listView} onToggleList={() => setListView((v) => !v)} />
+                {!askOpen && !listView && (
                   <button type="button" className="ask-bar" onClick={openAsk}>
                     <span aria-hidden="true">&gt;&nbsp;</span>
                     <span className="ask-bar-long">ask the map</span>
