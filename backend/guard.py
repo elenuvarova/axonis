@@ -41,13 +41,31 @@ LIMITS = {
 
 _lock = threading.Lock()
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
+_MAX_KEYS = 50_000  # hard cap on tracked (ip, action) pairs
+_last_sweep = 0.0
+
+
+def _sweep(now: float) -> None:
+    """Drop keys whose window has fully expired (call under _lock)."""
+    global _last_sweep
+    if now - _last_sweep < 60 and len(_hits) < _MAX_KEYS:
+        return
+    _last_sweep = now
+    longest = max(w for _, w in LIMITS.values())
+    for key in [k for k, q in _hits.items() if not q or q[-1] <= now - longest]:
+        del _hits[key]
+    if len(_hits) >= _MAX_KEYS:  # still full (e.g. a flood of fresh IPs): start over
+        _hits.clear()
 
 
 def client_ip(request: Request) -> str:
-    # Behind Coolify's Traefik the client is the first X-Forwarded-For hop.
+    # Traefik (one trusted proxy) APPENDS the address it saw, so the last
+    # X-Forwarded-For entry is the real client. Earlier entries are whatever
+    # the client chose to send and must not be trusted, or a forged header
+    # would give every request a fresh "IP" and bypass the limit.
     fwd = request.headers.get("x-forwarded-for", "")
     if fwd:
-        return fwd.split(",")[0].strip()
+        return fwd.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -60,6 +78,7 @@ def rate_limit(action: str):
         now = time.time()
         key = (client_ip(request), action)
         with _lock:
+            _sweep(now)
             q = _hits[key]
             while q and q[0] <= now - window:
                 q.popleft()
