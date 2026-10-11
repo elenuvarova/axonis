@@ -38,6 +38,7 @@ LIMITS = {
     "ask": (30, 3600),
     "brief": (20, 3600),
     "delete": (30, 3600),
+    "analytics": (600, 3600),
 }
 
 _lock = threading.Lock()

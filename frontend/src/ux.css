@@ -45,11 +45,13 @@
 
 /* Phone: sheet opens at peek height without dimming the map; expand on demand */
 @media (max-width: 767px) {
+  /* three heights, kept in step with SNAPS in SheetHandle.jsx */
   .graph-sidebar, .graph-view.mode-clusters .graph-sidebar {
-    max-height: 46vh; max-height: 46dvh;
-    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), max-height 0.28s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0.28s;
+    height: 36vh; height: 36dvh; max-height: none;
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), height 0.28s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0.28s;
   }
-  .project-page.sheet-full .graph-sidebar { max-height: 88vh; max-height: 88dvh; }
+  .project-page.sheet-half .graph-sidebar { height: 60vh; height: 60dvh; }
+  .project-page.sheet-full .graph-sidebar { height: 90vh; height: 90dvh; }
   .project-page.panel-open:not(.sheet-full) .panel-backdrop { display: none; }
   .sidebar-drag-handle {
     position: relative; width: 100%; height: var(--s-3); margin: 0; background: none; flex-shrink: 0; touch-action: none;

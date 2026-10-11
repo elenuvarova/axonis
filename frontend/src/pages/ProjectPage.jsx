@@ -4,6 +4,8 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { canEdit } from '../myProjects'
 import Ticker from '../components/Ticker'
+import SheetHandle, { SNAPS } from '../components/SheetHandle'
+import BriefModal from '../components/BriefModal'
 import { fitFree } from '../graphFit'
 import { getProject, getGraph, getClusters, getOpportunities, getEntity, getBrief, buildProject, uploadDocument, askQuestion } from '../api'
 
@@ -25,13 +27,11 @@ import HelpButton from '../components/HelpButton'
 import Tour from '../components/Tour'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 import { pad } from '../format'
-import { renderMarkdown, escapeHtml } from '../markdown'
 import Wordmark from '../components/Wordmark'
 import Icon from '../components/icons'
 
 const PANEL_ID   = 'project-sidebar-panel'
 const TAB_ID     = (id) => `tab-${id}`
-const BRIEF_TITLE_ID = 'brief-modal-title'
 
 const STATUS_GLYPH = { ready: '●', building: '◐', pending: '◐', error: '×' }
 
@@ -58,8 +58,6 @@ export default function ProjectPage() {
   const reducedMotion = usePrefersReducedMotion()
   const fileInputRef = useRef(null)
   const briefBtnRef  = useRef(null)
-  const briefModalRef = useRef(null)
-  const briefProgressRef = useRef(null)
   const [tab, setTab] = useState('graph')
   const [askOpen, setAskOpen] = useState(false)
   const [askedText, setAskedText] = useState('')
@@ -73,8 +71,8 @@ export default function ProjectPage() {
   const [cy, setCy] = useState(null)
   const [panelOpen, setPanelOpen] = useState(false)
   // Phone sheet: opens at peek height so the map stays visible; expands on demand.
-  const [sheetFull, setSheetFull] = useState(false)
-  const sheetTouch = useRef(null)
+  const [sheetSnap, setSheetSnap] = useState('peek')
+  const sheetRef = useRef(null)
   const [brief, setBrief] = useState(null)
   const [askResult, setAskResult] = useState(null)
   const [toast, setToast] = useState('')
@@ -101,32 +99,6 @@ export default function ProjectPage() {
     setTourOpen(false)
     try { localStorage.setItem('kge-tour-project', '1') } catch { /* ignore */ }
   }
-
-  // ── Brief focus management (C-3, WCAG 2.4.3, 2.1.2) ──────────────────────
-  useEffect(() => {
-    if (brief && briefModalRef.current) {
-      const firstFocusable = briefModalRef.current.querySelector(
-        'button:not([disabled]), [href], input:not([disabled])'
-      )
-      firstFocusable?.focus()
-    } else if (!brief) {
-      briefBtnRef.current?.focus()
-    }
-  }, [brief])
-
-  const handleBriefKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') { setBrief(null); return }
-    if (e.key !== 'Tab') return
-    const modal = briefModalRef.current
-    if (!modal) return
-    const focusable = [...modal.querySelectorAll(
-      'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )]
-    if (!focusable.length) return
-    const first = focusable[0], last = focusable[focusable.length - 1]
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-  }, [])
 
   // ── Panel Escape to close (mobile sheet / ask mode) (C-3) ────────────────
   useEffect(() => {
@@ -279,12 +251,12 @@ export default function ProjectPage() {
     if (!window.matchMedia?.('(max-width: 767px)').matches) return
     const node = cy.getElementById(selectedId)
     if (!node.length) return
-    const sheet = window.innerHeight * 0.46
+    const sheet = window.innerHeight * SNAPS.peek
     const box = cy.container().getBoundingClientRect()
     const visible = Math.max(80, window.innerHeight - sheet - box.top)
     const p = node.position(), z = cy.zoom()
     cy.animate({ pan: { x: cy.width() / 2 - p.x * z, y: visible / 2 - p.y * z } }, { duration: reducedMotion ? 0 : 300 })
-    setSheetFull(false)
+    setSheetSnap('peek')
   }, [selectedId, cy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Graph interaction ─────────────────────────────────────────────────────
@@ -407,7 +379,7 @@ export default function ProjectPage() {
   }
 
   const closePanel = useCallback(() => {
-    setSheetFull(false)
+    setSheetSnap('peek')
     if (askOpen) { closeAsk(); return }
     setPanelOpen(false)
     if (tab === 'clusters') {
@@ -513,7 +485,6 @@ export default function ProjectPage() {
   const isBuilding = project.status === 'building' || project.status === 'pending'
   const showClusters = tab === 'clusters'
   const sidebarLabel = showClusters ? 'Clusters' : askOpen ? 'Ask the map' : 'Entity detail'
-  const briefDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
   const tabs = [
     { id: 'graph', label: 'Map', short: 'Map' },
@@ -522,7 +493,7 @@ export default function ProjectPage() {
   ]
 
   return (
-    <div className={`project-page${panelOpen ? ' panel-open' : ''}${sheetFull ? ' sheet-full' : ''}`}>
+    <div className={`project-page${panelOpen ? ' panel-open' : ''}${` sheet-${sheetSnap}`}`}>
 
       {/* ── Top bar ── */}
       <header className="topbar">
@@ -718,23 +689,8 @@ export default function ProjectPage() {
           <div className="panel-backdrop" onClick={closePanel} aria-hidden="true" />
 
           {/* Right panel (inspector / ask) · left list for clusters · bottom sheet on mobile */}
-          <aside className="graph-sidebar" aria-label={sidebarLabel}>
-            <button
-              type="button"
-              className="sidebar-drag-handle"
-              aria-label={sheetFull ? 'Shrink panel' : 'Expand panel'}
-              aria-expanded={sheetFull}
-              onClick={() => setSheetFull((v) => !v)}
-              onTouchStart={(e) => { sheetTouch.current = e.touches[0].clientY }}
-              onTouchEnd={(e) => {
-                const start = sheetTouch.current
-                sheetTouch.current = null
-                if (start == null) return
-                const dy = e.changedTouches[0].clientY - start
-                if (dy < -30) setSheetFull(true)
-                else if (dy > 30) { if (sheetFull) setSheetFull(false); else closePanel() }
-              }}
-            />
+          <aside ref={sheetRef} className="graph-sidebar" aria-label={sidebarLabel}>
+            <SheetHandle snap={sheetSnap} onSnap={setSheetSnap} onClose={closePanel} sheetRef={sheetRef} />
             <div className="sidebar-mobile-header">
               <span className="label">{sidebarLabel}</span>
               <button className="panel-close" onClick={closePanel} aria-label="Close panel">×</button>
@@ -776,95 +732,8 @@ export default function ProjectPage() {
       )}
       </main>
 
-      {/* ── Brief modal — reading view ──
-          role="dialog" + aria-modal + aria-labelledby + focus trap + Escape (C-3)  */}
-      {brief && (
-        <div
-          className="brief-overlay"
-          onClick={() => setBrief(null)}
-          aria-hidden="true"
-        >
-          <div
-            ref={briefModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={BRIEF_TITLE_ID}
-            className="brief-modal"
-            data-clarity-mask={project.protected ? undefined : 'true'}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleBriefKeyDown}
-          >
-            <div className="brief-modal-header">
-              <span id={BRIEF_TITLE_ID} className="label brief-modal-title">
-                Research brief · {project.topic} · {project.region} · {briefDate}
-              </span>
-              <div className="brief-modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  aria-label="Download brief as Markdown"
-                  onClick={() => {
-                    track('brief_download', { format: 'md' })
-                    const blob = new Blob([brief.markdown], { type: 'text/markdown' })
-                    const a = document.createElement('a')
-                    a.href = URL.createObjectURL(blob)
-                    a.download = brief.filename
-                    a.click()
-                    URL.revokeObjectURL(a.href)
-                  }}
-                >
-                  .md
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  aria-label="Print brief"
-                  onClick={() => {
-                    track('brief_download', { format: 'print' })
-                    const win = window.open('', '_blank')
-                    if (!win) { setToast('Allow pop-ups to print the brief.'); return }
-                    win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(brief.filename)}</title>
-<style>
-  body{font-family:'Mona Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;max-width:780px;margin:40px auto;padding:0 24px;color:#0E0E0E;line-height:1.6}
-  h1{font-family:'Martian Mono',ui-monospace,Menlo,monospace;font-weight:500;font-size:1.75em;border-bottom:2px solid #0E0E0E;padding-bottom:.3em;margin-bottom:.5em;letter-spacing:-.02em}
-  h2{font-family:'Martian Mono',ui-monospace,Menlo,monospace;font-weight:500;font-size:.75em;text-transform:uppercase;letter-spacing:.08em;color:#555;border-bottom:1px solid #2A2A2A;padding-bottom:.2em;margin:2em 0 .6em}
-  h3{font-size:1.1em;margin:1.5em 0 .4em}
-  p{margin:.7em 0}
-  ul,ol{margin:.7em 0;padding-left:1.4em}
-  li{margin:.25em 0}
-  strong{font-weight:600}
-  a{color:#0E0E0E;text-decoration:underline}
-  code{font-family:'Martian Mono',ui-monospace,Menlo,monospace;background:#EDEDED;padding:0 4px;font-size:.85em}
-  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.95em}
-  th,td{border:1px solid #2A2A2A;padding:7px 12px;text-align:left}
-  th{background:#EDEDED;font-weight:600}
-  hr{border:none;border-top:1px solid #2A2A2A;margin:2em 0}
-  @media print{body{margin:20px}button{display:none}}
-</style></head><body>
-<button onclick="window.print()" style="margin-bottom:24px;padding:8px 16px;cursor:pointer">Print / Save PDF</button>
-<article>${renderMarkdown(brief.markdown)}</article>
-</body></html>`)
-                    win.document.close()
-                  }}
-                >
-                  Print
-                </button>
-                <button type="button" className="btn btn-ghost brief-close" onClick={() => setBrief(null)} aria-label="Close brief">×</button>
-              </div>
-            </div>
-            {/* Reading progress: a hairline under the header that fills as you scroll */}
-            <div className="brief-progress" aria-hidden="true"><span ref={briefProgressRef} /></div>
-            <div
-              className="brief-content brief-rendered"
-              onScroll={(e) => {
-                const el = e.currentTarget, bar = briefProgressRef.current
-                if (bar) bar.style.transform = `scaleX(${el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight)})`
-              }}
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(brief.markdown) }}
-            />
-          </div>
-        </div>
-      )}
+      {/* ── Brief reading view ── */}
+      {brief && <BriefModal brief={brief} project={project} onClose={() => setBrief(null)} returnFocusRef={briefBtnRef} onNotice={setToast} />}
 
       {/* ── Toast — transient errors (replaces alert()) ── */}
       <Toast message={toast} onClose={() => setToast('')} />
