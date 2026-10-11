@@ -16,7 +16,8 @@ async function req(path, opts = {}) {
   return r.json()
 }
 
-export const getProjects = () => req('/projects')
+export const getProjects = (mine = []) =>
+  req(mine.length ? `/projects?mine=${encodeURIComponent(mine.join(','))}` : '/projects')
 export const getProject = (id) => req(`/projects/${id}`)
 export const getGraph = (id) => req(`/projects/${id}/graph`)
 export const getClusters = (id) => req(`/projects/${id}/clusters`)
