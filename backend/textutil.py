@@ -37,4 +37,7 @@ def repair_cluster_name(name: str | None) -> str | None:
 def repair_title(title: str | None) -> str | None:
     if title and title.endswith(_SUFFIX) and len(title) == _OLD_TITLE + len(_SUFFIX):
         return short(title[: -len(_SUFFIX)], 40) + _SUFFIX
+    # a title is not a sentence: drop a closing full stop (keep an ellipsis)
+    if title and title.endswith(".") and not title.endswith(".."):
+        return title[:-1].rstrip()
     return title

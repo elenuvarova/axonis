@@ -87,7 +87,8 @@ def enrich_with_ai(
 
             title = data.get("title")
             if isinstance(title, str) and title.strip():
-                candidate.title = title.strip()
+                # a title, not a sentence: no closing full stop
+                candidate.title = title.strip().rstrip('.').strip() if not title.strip().endswith('...') else title.strip()
             why = data.get("why_it_matters")
             if isinstance(why, str) and why.strip():
                 candidate.why_it_matters = why.strip()

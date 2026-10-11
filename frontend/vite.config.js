@@ -9,7 +9,8 @@ export default defineConfig({
     proxy: {
       // Set API_PROXY_TARGET to point the dev server at another backend (e.g. a deployed site).
       "/api": { target: process.env.API_PROXY_TARGET || "http://localhost:3001", changeOrigin: true, secure: true },
-      "/s": { target: process.env.API_PROXY_TARGET || "http://localhost:3001", changeOrigin: true, secure: true },
+      // a regex key: a plain "/s" prefix would also catch /src/… and proxy the app itself
+      "^/s/": { target: process.env.API_PROXY_TARGET || "http://localhost:3001", changeOrigin: true, secure: true },
     },
   },
   build: {
