@@ -19,7 +19,9 @@ Live at **[axonis.app](https://axonis.app)**.
 - **Ask the map.** Ask a question and get a short answer grounded in the graph. Inline `[n]` citations link to nodes: hover one to light the node, click it to centre the graph.
 - **Research brief.** Export the map as a written brief (Markdown or print).
 
+![First look at a map: the top gaps light up with callouts](docs/screenshots/axonis-gaps.png)
 ![Map with a selected node](docs/screenshots/axonis-map.png)
+![Clusters with short names; the selected one outlined on the map](docs/screenshots/axonis-clusters.png)
 ![Opportunities with score breakdown](docs/screenshots/axonis-opportunities.png)
 
 <img src="docs/screenshots/axonis-mobile.png" alt="Phone: the map with a selected node above the inspector sheet" width="320">
