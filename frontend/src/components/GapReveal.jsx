@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { pad } from '../format'
 import { track } from '../analytics'
+import { pickSpot } from '../gapPlacement'
 
 // The first look at a map answers the product's question straight away:
 // where are the gaps? For a few seconds the map dims and the top-scoring
@@ -11,17 +12,19 @@ import { track } from '../analytics'
 // beside its cluster, not on it. On a phone only gap 01 gets a callout.
 const HOLD_MS = 6500
 const FIXED_UI = '.graph-legend, .graph-controls, .ask-bar, .gap-reveal-head'
-const hits = (a, b) => a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2
+const STAY = 8 // a callout moves only when another spot is this much cheaper (the live layout nudges nodes for a few seconds)
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi))
 
 export default function GapReveal({ cy, items, onOpen, onDone }) {
   const [boxes, setBoxes] = useState([])
   const doneRef = useRef(false)
   const placeRef = useRef(() => {})
+  const lastSpot = useRef({}) // clusterId -> {x, y}
   const ctl = useRef({ pause: () => {}, resume: () => {}, skip: () => {} })
 
   useEffect(() => {
     if (!cy || cy.destroyed() || !items.length) return
+    lastSpot.current = {}
     doneRef.current = false // a fresh run (StrictMode mounts effects twice)
     const restore = () => {
       if (cy.destroyed()) return
@@ -61,43 +64,34 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     const place = () => {
       if (cy.destroyed()) return
       const w = cy.width(), h = cy.height()
+      const single = phone || h < 420 // a phone, or a landscape phone: one callout is all the canvas holds
       const c = cy.container().getBoundingClientRect()
       const wrap = cy.container().closest('.graph-canvas-wrap')
       const taken = [...(wrap?.querySelectorAll(FIXED_UI) || [])].map((el) => {
         const r = el.getBoundingClientRect()
         return { x1: r.left - c.left, y1: r.top - c.top, x2: r.right - c.left, y2: r.bottom - c.top }
       })
-      const nodes = cy.nodes(':visible').map((n) => {
-        const b = n.renderedBoundingBox({ includeLabels: false, includeOverlays: false })
-        return { x1: b.x1 - 4, y1: b.y1 - 4, x2: b.x2 + 4, y2: b.y2 + 4 }
+      const box = (b, by, cost) => ({ x1: b.x1 - by, y1: b.y1 - by, x2: b.x2 + by, y2: b.y2 + by, cost })
+      // what a callout must not sit on, by how much it hurts: nodes, the best-connected
+      // nodes of a lit cluster and their names, and the cluster numbers drawn by graphOverlay.js
+      const nodes = cy.nodes(':visible').map((n) =>
+        box(n.renderedBoundingBox({ includeLabels: false, includeOverlays: false }), 4, n.hasClass('gap-top') ? 25 : 10))
+      cy.nodes('.gap-top').forEach((n) => {
+        if (!n.hasClass('label-hidden')) nodes.push(box(n.renderedBoundingBox({ includeLabels: true, includeOverlays: false }), 2, 15))
       })
+      for (const t of cy._tagBoxes || []) nodes.push(box(t, 3, 15))
       const out = []
       items.forEach((it, i) => {
         const s = sets[i]
-        if (!s.length || (phone && i > 0)) return
+        if (!s.length || (single && i > 0)) return
         const b = s.renderedBoundingBox({ includeLabels: false, includeOverlays: false })
-        // the free spot nearest the cluster: beside it first (right, left, above,
-        // below), then anywhere on a coarse grid; covering a node or another
-        // callout costs far more than distance, so the leader line does the reaching
-        const spots = [
-          [b.x2 + GAP, b.y1], [b.x2 + GAP, b.y2 - H], [b.x1 - GAP - W, b.y1], [b.x1 - GAP - W, b.y2 - H],
-          [b.x2 - W, b.y1 - GAP - H], [b.x1, b.y1 - GAP - H], [b.x2 - W, b.y2 + GAP], [b.x1, b.y2 + GAP],
-        ]
-        // at most ~8 x 7 grid spots, however big the canvas
-        const stepX = Math.max(48, (w - 2 * M - W) / 7), stepY = Math.max(40, (h - 2 * M - H) / 6)
-        for (let gx = M; gx <= w - M - W; gx += stepX) for (let gy = M; gy <= h - M - H; gy += stepY) spots.push([gx, gy])
-        let best = null
-        for (const [sx, sy] of spots) {
-          const x = clamp(sx, M, w - M - W), y = clamp(sy, M, h - M - H)
-          const r = { x1: x, y1: y, x2: x + W, y2: y + H }
-          const dx = Math.max(0, b.x1 - r.x2, r.x1 - b.x2), dy = Math.max(0, b.y1 - r.y2, r.y1 - b.y2)
-          const cost = nodes.filter((n) => hits(r, n)).length * 10
-            + taken.filter((t) => hits(r, t)).length * 200
-            + out.filter((o) => hits(r, o.r)).length * 200
-            + Math.hypot(dx, dy) * 0.04
-            + (Math.abs(x - sx) + Math.abs(y - sy)) * 0.5 // pushed back into the canvas: a worse spot
-          if (!best || cost < best.cost) best = { cost, x, y, r }
-        }
+        // the callout's spot: beside its cluster, clear of nodes, names, numbers and widgets (gapPlacement.js)
+        const spot = pickSpot({
+          b, w, h, W, H, GAP, M, obstacles: nodes, taken: [...taken, ...out.map((o) => o.r)],
+          prev: lastSpot.current[it.clusterId], stay: STAY,
+        })
+        lastSpot.current[it.clusterId] = spot
+        const best = { ...spot, r: { x1: spot.x, y1: spot.y, x2: spot.x + W, y2: spot.y + H } }
         // leader: from the callout to the cluster's nearest node
         const mid = [best.x + W / 2, best.y + H / 2]
         let near = null
@@ -116,7 +110,7 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     // viewport events come every frame while panning or zooming: place once per frame
     let placeFrame = 0
     const placeSoon = () => { if (!placeFrame) placeFrame = requestAnimationFrame(() => { placeFrame = 0; place() }) }
-    cy.on('viewport', placeSoon)
+    cy.on('viewport position', placeSoon)
 
     // the timer pauses while a callout is hovered or focused (a tip that
     // disappears mid-read is worse than no tip)
@@ -134,7 +128,7 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     return () => {
       if (!doneRef.current) { doneRef.current = true; restore() } // unmounted early (tab switch, callout)
       clearTimeout(timer)
-      cy.off('viewport', placeSoon)
+      cy.off('viewport position', placeSoon)
       cancelAnimationFrame(placeFrame)
       container?.removeEventListener('pointerdown', end)
       container?.removeEventListener('wheel', end)

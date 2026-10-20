@@ -31,6 +31,10 @@ function coarsePointer() {
 // drops anything under min-zoomed-font-size) instead of printing 5px noise.
 const LABEL_PX = 10.5
 const HUB_PX = 12
+// The three hubs (and gap / selected names) hold their size down to a much wider view than the
+// rest: a 230-node map fits at zoom ~0.25, and a map that opens with no names on it at all is
+// the worse failure than a hub name beside a small node.
+const HUB_CAP = 44
 const LABEL_FONT = '"Mona Sans", system-ui, -apple-system, sans-serif'
 const fontFor = (view, px, cap) => () => Math.min(cap, px / view.z)
 
@@ -82,7 +86,7 @@ function makeStylesheet(view) {
     },
     // Hubs read larger and in the full text colour.
     // They also paint above the other nodes, so no neighbouring glyph is drawn over a hub's label.
-    { selector: 'node[?hub]', style: { 'font-size': fontFor(view, HUB_PX, 22), 'color': text, 'z-index': 15 } },
+    { selector: 'node[?hub]', style: { 'font-size': fontFor(view, HUB_PX, HUB_CAP), 'color': text, 'z-index': 15 } },
     // Where the label collision pass moved a hub's label: left, above or below its node.
     { selector: 'node.label-l', style: { 'text-halign': 'left', 'text-margin-x': -LABEL_MARGIN } },
     { selector: 'node.label-t', style: { 'text-valign': 'top', 'text-halign': 'center', 'text-margin-x': 0, 'text-margin-y': -TOP_GAP } },
@@ -95,7 +99,7 @@ function makeStylesheet(view) {
     // Gap reveal: a lit cluster shows only its persistent labels, and the
     // three best-connected nodes per cluster speak up in the accent.
     { selector: 'node.gap-lit', style: { 'label': 'data(displayLabel)', 'color': text2 } },
-    { selector: 'node.gap-top', style: { 'label': 'data(label)', 'color': accent, 'font-size': fontFor(view, HUB_PX, 22), 'z-index': 19 } },
+    { selector: 'node.gap-top', style: { 'label': 'data(label)', 'color': accent, 'font-size': fontFor(view, HUB_PX, HUB_CAP), 'z-index': 19 } },
     // The label collision pass (graphLabels.js) drops labels that would cover something or run off the canvas.
     { selector: 'node.label-hidden', style: { 'label': '' } },
     // Reveal the full label whenever a node is focused (hover/select/highlight); after
@@ -104,13 +108,13 @@ function makeStylesheet(view) {
     {
       // the selection is marked by the fill and the bracket corners (graphOverlay.js), no extra ring
       selector: 'node:selected',
-      style: { 'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': fontFor(view, HUB_PX, 22), 'z-index': 20 },
+      style: { 'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': fontFor(view, HUB_PX, HUB_CAP), 'z-index': 20 },
     },
     // Ask: the node behind the citation the pointer / focus is on.
     {
       selector: 'node.cite-focus',
       style: {
-        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': fontFor(view, HUB_PX, 22), 'z-index': 30, 'opacity': 1,
+        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': fontFor(view, HUB_PX, HUB_CAP), 'z-index': 30, 'opacity': 1,
         'outline-width': 1, 'outline-style': 'solid', 'outline-color': accent, 'outline-offset': 6,
       },
     },
@@ -295,7 +299,7 @@ export default function GraphCanvas({
     cy.on('zoom', syncLabelSize)
     cy.one('destroy', () => { cancelAnimationFrame(zoomFrame); clearTimeout(zoomTail) })
     // Mona Sans is loaded on demand: draw the labels again once it is in
-    try { document.fonts?.load('500 12px "Mona Sans"').then(() => { if (!cy.destroyed()) cy.nodes().updateStyle() }) } catch { /* no font API */ }
+    try { document.fonts?.load('500 12px "Mona Sans"').then(() => { if (!cy.destroyed()) cy.nodes().updateStyle() }).catch(() => {}) } catch { /* no font API */ }
 
     // Phase 1: settle nodes into position (finite, fits viewport).
     // Phase 2: once settled, switch to infinite physics so nodes stay alive

@@ -460,6 +460,10 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 
 /* Controls: zoom is one framed group, depth and list another */
 .graph-controls { position: absolute; left: calc(var(--panel-inset) - 1px); bottom: var(--panel-inset); z-index: var(--z-canvas-ui); display: flex; flex-direction: column; gap: var(--s-1); width: var(--w-controls); }
+/* a short canvas (landscape phone): the controls column is as tall as the canvas and would hide the key chip, so the chip moves beside it */
+@media (max-height: 480px) and (min-width: 768px) {
+  .graph-legend { left: calc(var(--panel-inset) + var(--w-controls) + var(--s-1) - 1px); }
+}
 .ctl-group, .graph-controls.is-list { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line-strong); }
 .graph-controls button {
   height: var(--h-ctl); border-top: 1px solid var(--line);
@@ -572,7 +576,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
    line up across a row of cards. Spacing contrast: identity (top, score, title), description (cluster, why,
    evidence), actions (footer) are 8 / 16 / 24 apart; the 32 between cards is wider than any of them. */
 .opp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: var(--s-4); row-gap: 0; }
-.opp-card { display: grid; grid-template-rows: subgrid; grid-row: span 8; row-gap: 0; margin-bottom: var(--s-4); padding: var(--card-pad); background: var(--panel); border: 1px solid var(--line); }
+.opp-card { min-width: 0; overflow-wrap: anywhere; display: grid; grid-template-rows: subgrid; grid-row: span 8; row-gap: 0; margin-bottom: var(--s-4); padding: var(--card-pad); background: var(--panel); border: 1px solid var(--line); }
 /* the top-ranked gap is the entry point: a brighter frame on a raised ground, no accent */
 .opp-card:first-child { border-color: var(--text); background: var(--raised); }
 .opp-card-top { display: flex; justify-content: space-between; gap: var(--s-1); }
@@ -808,7 +812,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .cluster-panel { padding: var(--panel-pad); }
 
   .opp-board { padding: var(--s-3) var(--s-2) var(--s-1); }
-  .opp-grid { grid-template-columns: 1fr; }
+  .opp-grid { grid-template-columns: minmax(0, 1fr); }  /* 1fr alone lets one unbreakable word widen the card past the screen */
   .opp-footer .btn-ghost { min-height: var(--h-ctl-touch); }
 
   .build-screen { padding: var(--s-4) var(--s-2); }

@@ -58,6 +58,15 @@ export default function Tour({ steps = [], open, onClose }) {
     }
   }, [open, measure])
 
+  // Declared before the card takes focus: it must remember what had focus when the tour opened.
+  // Focus goes back to whatever opened the tour (HOW IT WORKS, "?", ⌘K…).
+  const opener = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    opener.current = document.activeElement
+    return () => { const el = opener.current; if (el?.isConnected) el.focus() }
+  }, [open])
+
   useEffect(() => { if (open) cardRef.current?.focus() }, [open, i])
 
   // Place the card by its real height (it grows with copy and padding tokens),
@@ -66,14 +75,6 @@ export default function Tour({ steps = [], open, onClose }) {
     const h = cardRef.current?.offsetHeight
     if (h && h !== cardH) setCardH(h)
   })
-
-  // Focus goes back to whatever opened the tour (HOW IT WORKS, "?", ⌘K…).
-  const opener = useRef(null)
-  useEffect(() => {
-    if (!open) return
-    opener.current = document.activeElement
-    return () => { const el = opener.current; if (el?.isConnected) el.focus() }
-  }, [open])
 
   const close = useCallback((done) => onClose?.(done), [onClose])
   const next = useCallback(() => { if (last) close(true); else setI((v) => v + 1) }, [last, close])
