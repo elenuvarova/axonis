@@ -194,6 +194,7 @@ export default function ProjectPage() {
   // light the top opportunity clusters with callouts (GapReveal).
   const [reveal, setReveal] = useState(null)
   const [revealItems, setRevealItems] = useState(null) // kept after the reveal ends, for Replay
+  const [revealQueued, setRevealQueued] = useState(false) // the auto-play is on its way: the Replay chip waits, so it does not flash up and give way to the banner
   const [gapsChecked, setGapsChecked] = useState(false) // the gaps are worked out (there may be none): the inspector stops holding room for their button
   useEffect(() => {
     if (!cy || !oppsData || !clustersData || project?.status !== 'ready') return
@@ -211,11 +212,13 @@ export default function ProjectPage() {
     setGapsChecked(true)
     if (!items.length) return
     setRevealItems(items) // always available for Replay; only the auto-play is once per session
-    try { if (sessionStorage.getItem(key)) return } catch { return }
+    try { if (sessionStorage.getItem(key)) { setRevealQueued(false); return } } catch { return }
+    setRevealQueued(true)
     // marked as seen only when it actually shows, so an effect that is set
     // up and torn down early (StrictMode, a quick tab switch) can't eat it
     const show = () => {
       if (cy.destroyed()) return
+      setRevealQueued(false)
       try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1') } catch { return }
       setReveal(items)
     }
@@ -744,7 +747,7 @@ export default function ProjectPage() {
                   <GapReveal cy={cy} items={reveal} onDone={() => setReveal(null)}
                     onOpen={() => { setReveal(null); handleTabClick('opportunities') }} />
                 )}
-                {!reveal && revealItems && tab === 'graph' && !listView && (
+                {!reveal && !revealQueued && revealItems && tab === 'graph' && !listView && (
                   <button type="button" className="gap-chip" onClick={() => { track('gap_reveal_replay'); setReveal([...revealItems]) }}>
                     {revealItems.length} gaps · replay
                   </button>

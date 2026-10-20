@@ -13,12 +13,15 @@ import { pickSpot } from '../gapPlacement'
 const HOLD_MS = 6500
 const FIXED_UI = '.graph-legend, .graph-controls, .ask-bar, .gap-reveal-head'
 const STAY = 8 // a callout moves only when another spot is this much cheaper (the live layout nudges nodes for a few seconds)
+const SETTLE_MS = 2200 // after this the live physics has done most of its moving: a callout then stays put unless its spot turns bad
+const STAY_SETTLED = 40
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi))
 
 export default function GapReveal({ cy, items, onOpen, onDone }) {
   const [boxes, setBoxes] = useState([])
   const doneRef = useRef(false)
   const placeRef = useRef(() => {})
+  const clearBannerRef = useRef(() => {})
   const lastSpot = useRef({}) // clusterId -> {x, y}
   const ctl = useRef({ pause: () => {}, resume: () => {}, skip: () => {} })
 
@@ -61,8 +64,10 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     // callouts follow the clusters through pan/zoom
     const phone = window.matchMedia?.('(max-width: 767px)').matches
     const W = phone ? 180 : 220, H = 72, GAP = 12, M = 16
+    const t0 = performance.now()
     const place = () => {
       if (cy.destroyed()) return
+      const stay = performance.now() - t0 > SETTLE_MS ? STAY_SETTLED : STAY
       const w = cy.width(), h = cy.height()
       const single = phone || h < 420 // a phone, or a landscape phone: one callout is all the canvas holds
       const c = cy.container().getBoundingClientRect()
@@ -88,7 +93,7 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
         // the callout's spot: beside its cluster, clear of nodes, names, numbers and widgets (gapPlacement.js)
         const spot = pickSpot({
           b, w, h, W, H, GAP, M, obstacles: nodes, taken: [...taken, ...out.map((o) => o.r)],
-          prev: lastSpot.current[it.clusterId], stay: STAY,
+          prev: lastSpot.current[it.clusterId], stay,
         })
         lastSpot.current[it.clusterId] = spot
         const best = { ...spot, r: { x1: spot.x, y1: spot.y, x2: spot.x + W, y2: spot.y + H } }
@@ -106,7 +111,24 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
       setBoxes(out)
     }
     placeRef.current = place
+    // The banner sits on top of the canvas: if a lit cluster reaches up under it, slide the view down (never zoom) just enough.
+    clearBannerRef.current = () => {
+      const head = cy.container()?.closest('.graph-canvas-wrap')?.querySelector('.gap-reveal-head')
+      if (!head || phone || cy.destroyed()) return
+      const c = cy.container().getBoundingClientRect(), br = head.getBoundingClientRect()
+      const bb = all.renderedBoundingBox({ includeLabels: false, includeOverlays: false })
+      const HULL = 24 // the cluster's outline stands this far outside its nodes
+      if (bb.x2 + HULL < br.left - c.left || bb.x1 - HULL > br.right - c.left) return
+      const need = br.bottom - c.top + 12 - (bb.y1 - HULL)
+      const dy = Math.min(need, cy.height() - 32 - (bb.y2 + HULL)) // keeps the lit clusters off the bottom edge
+      if (dy < 8) return
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      if (reduced) cy.panBy({ x: 0, y: dy })
+      else cy.animate({ panBy: { x: 0, y: dy } }, { duration: 300 })
+    }
     place()
+    // the live physics keeps moving the clusters for a couple of seconds: look again once it has mostly settled
+    const clearTimer = setTimeout(() => clearBannerRef.current(), SETTLE_MS + 400)
     // viewport events come every frame while panning or zooming: place once per frame
     let placeFrame = 0
     const placeSoon = () => { if (!placeFrame) placeFrame = requestAnimationFrame(() => { placeFrame = 0; place() }) }
@@ -128,6 +150,7 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
     return () => {
       if (!doneRef.current) { doneRef.current = true; restore() } // unmounted early (tab switch, callout)
       clearTimeout(timer)
+      clearTimeout(clearTimer)
       cy.off('viewport position', placeSoon)
       cancelAnimationFrame(placeFrame)
       container?.removeEventListener('pointerdown', end)
@@ -139,7 +162,7 @@ export default function GapReveal({ cy, items, onOpen, onDone }) {
   // the banner is not in the DOM on the first pass: place again once it is, so
   // callouts keep clear of it
   const shown = boxes.length > 0
-  useEffect(() => { if (shown) placeRef.current() }, [shown])
+  useEffect(() => { if (shown) { clearBannerRef.current(); placeRef.current() } }, [shown])
 
   if (!boxes.length) return null
   return (

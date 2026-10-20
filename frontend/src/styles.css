@@ -62,7 +62,7 @@
   --panel-pad: var(--s-2);     /* log-panel, build-preview, legend, tour card */
 
   /* layout */
-  --topbar: 56px; --inspector: 360px; --inspector-wide: 576px; --panel-inset: 16px; --page-inset: 80px; --gutter: 8px;
+  --topbar: 56px; --inspector: 360px; --inspector-wide: 576px; --panel-inset: 16px; --page-inset: 80px; --page-pad: max(var(--page-inset), calc((100vw - 1600px) / 2 + var(--page-inset))); --gutter: 8px;
   --w-controls: 74px;
   --w-row-end: 88px;           /* home table: delete / demo cell, header spacer */
 
@@ -338,7 +338,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 /* ghost labels carry 8px padding + a 1px invisible border: pull the last one out so its text, not its box, meets the page edge */
 .topbar-right .btn:last-child { margin-right: calc(-1 * (var(--s-1) + 1px)); }
 /* pages whose content sits on the page inset (home) carry the bar to the same edge; the map keeps 24 */
-.home .topbar, .project-page.is-building .topbar { padding-inline: var(--page-inset); }
+.home .topbar, .project-page.is-building .topbar { padding-inline: var(--page-pad); }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-1); flex-shrink: 0; }
 .header-actions .btn { font-size: var(--fs-ui); line-height: var(--lh-ui); }
 .header-actions .btn-label { display: inline; }
@@ -351,7 +351,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .home-body {
   flex: 1; display: grid; grid-template-columns: minmax(0, 620px) minmax(0, 1fr);
   column-gap: var(--s-5); align-content: start;
-  padding: var(--s-7) var(--page-inset) var(--s-6);
+  padding: var(--s-7) var(--page-pad) var(--s-6);
 }
 .home-left { grid-column: 1; grid-row: 1; }
 .home-kicker { margin-bottom: var(--s-2); text-wrap: balance; }  /* two even lines, never one orphan word */
@@ -606,7 +606,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 ════════════════════════════════════════════════════════════ */
 .build-screen {
   flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
-  column-gap: var(--s-6); align-content: start; padding: var(--s-5) var(--page-inset);
+  column-gap: var(--s-6); align-content: start; padding: var(--s-5) var(--page-pad);
 }
 .build-kicker { margin-bottom: var(--s-3); }
 .build-title { font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: var(--track-h1); margin-bottom: var(--s-2); text-wrap: balance; }
@@ -883,7 +883,8 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .node-list-filter { width: min(280px, 50%); height: var(--h-ctl); padding: 0 var(--s-1); background: transparent; border: 1px solid var(--line-control); color: var(--text); font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); }
 .node-list-filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .node-list-scroll { flex: 1; overflow: auto; }
-@media (min-width: 768px) { .node-list-scroll { padding-bottom: calc(var(--h-ctl) + 2 * var(--panel-inset)); } }
+/* the scroll area ends above the LIST button (a footer strip, not a padding), so rows never slide under it */
+@media (min-width: 768px) { .node-list-scroll { margin-bottom: calc(var(--h-ctl) + 2 * var(--panel-inset)); border-bottom: 1px solid var(--line); } }
 .node-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); }
 .node-table th { position: sticky; top: 0; background: var(--bg); text-align: left; border-bottom: 1px solid var(--line); padding: 0; }
 .node-table th.is-num, .node-table td.is-num { text-align: right; }

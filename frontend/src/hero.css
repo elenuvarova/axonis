@@ -127,3 +127,8 @@ main.home-body .query-block { position: relative; border-color: transparent; }
   /* [ PAUSE ] docked to the sphere's bottom-right corner, inside the band */
   main.home-body .hero-toggle { right: 0; bottom: 0; }
 }
+/* ≤359 (a 320 phone has 288px of text width): "→ OPPORTUNITIES" is 15 glyphs, so the headline steps down from 32px
+   to keep each arrow on its word's line */
+@media (max-width: 359px) {
+  main.home-body .home-title { font-size: 28px; line-height: 32px; }
+}
