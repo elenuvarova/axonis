@@ -11,6 +11,12 @@ describe('shortLabel', () => {
     expect(shortLabel('A global review of consumer behavior')).toBe('A global review…')
   })
 
+  it('does not cut a word in half when there is a boundary to cut at', () => {
+    expect(shortLabel('Corporate Sustainability Reporting Directive')).toBe('Corporate…')
+    expect(shortLabel('nonlinear dimensionality reduction')).toBe('nonlinear…')
+    expect(shortLabel('employment-to-population ratio')).toBe('employment-to…')
+  })
+
   it('never leaves a space or punctuation before the ellipsis', () => {
     for (const name of ['Risk assessment for sustainability in e-waste', 'Managing end-of-life solar photovoltaic e-waste']) {
       expect(shortLabel(name)).toMatch(/[^\s,;:·–-]…$/)

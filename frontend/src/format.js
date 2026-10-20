@@ -47,8 +47,12 @@ const STOP_WORD = /\s+(a|an|and|of|the|for|to|in|on|with|at|by|or|from|as|vs)$/i
 export function shortLabel(name, max = 24) {
   if (name.length <= max) return name
   const cut = name.slice(0, max - 1)
+  // a word boundary wins over a longer cut that ends mid-word ("Corporate…", not "Corporate Sustainabilit…");
+  // a long hyphenated word breaks at its last hyphen; only a single unbroken word is cut hard
   const space = cut.lastIndexOf(' ')
-  let out = (space >= 10 ? cut.slice(0, space) : cut).replace(TRAIL, '')
+  const hyphen = cut.lastIndexOf('-')
+  const at = space >= 6 ? space : hyphen >= 8 ? hyphen : -1
+  let out = (at > 0 ? cut.slice(0, at) : cut).replace(TRAIL, '')
   while (STOP_WORD.test(out)) out = out.replace(STOP_WORD, '').replace(TRAIL, '')
   return out + '…'
 }

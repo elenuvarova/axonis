@@ -58,6 +58,8 @@ export function attachLabelDeclutter(cy, { paused = () => false } = {}) {
     const z = cy.zoom(), w = cy.width(), h = cy.height()
     const bodies = []
     const cands = []
+    // the cluster numbers drawn by graphOverlay.js are obstacles too
+    for (const t of cy._tagBoxes || []) bodies.push({ n: null, r: { x1: t.x1 - PAD, y1: t.y1 - PAD, x2: t.x2 + PAD, y2: t.y2 + PAD } })
     cy.nodes(':visible').forEach((n) => {
       if (n.hasClass('faded')) return
       const b = n.renderedBoundingBox({ includeLabels: false, includeOverlays: false })

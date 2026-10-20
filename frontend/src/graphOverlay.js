@@ -44,6 +44,7 @@ export function attachOverlay(cy, canvas) {
   const colors = {
     line: cssVar('--line-strong', '#3A3A3A'),
     label: cssVar('--text-2', '#8A8A8A'),
+    bg: cssVar('--bg', '#0E0E0E'),
     accent: cssVar('--accent', '#FF2BD6'),
     hull: cssVar('--hull-fill', 'rgba(237, 237, 237, 0.06)'),
     hullLine: cssVar('--hull-line', 'rgba(237, 237, 237, 0.16)'),
@@ -135,6 +136,7 @@ export function attachOverlay(cy, canvas) {
     }
     regions.sort((a, b) => a.g.lit - b.g.lit) // lit regions on top
     const ranks = cy._clusterRanks
+    const tagBoxes = [] // where the cluster numbers sit: the label pass (graphLabels.js) keeps names off them
     ctx.font = font; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'
     for (const { g, poly } of regions) {
       ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath()
@@ -153,11 +155,18 @@ export function attachOverlay(cy, canvas) {
         // the tag sits on the contour's highest point, clear of the nodes inside
         const top = poly.reduce((best, q) => (q[1] < best[1] ? q : best), poly[0])
         if (top[1] > 16) {
+          // a halo in the canvas colour keeps the number legible where it lands on a neighbouring (or overlapping) region
+          const tag = String(num).padStart(2, '0')
+          ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = colors.bg
+          ctx.strokeText(tag, top[0], top[1] - 5)
           ctx.fillStyle = g.lit ? colors.accent : colors.label
-          ctx.fillText(String(num).padStart(2, '0'), top[0], top[1] - 5)
+          ctx.fillText(tag, top[0], top[1] - 5)
+          const tw = ctx.measureText(tag).width / 2
+          tagBoxes.push({ x1: top[0] - tw, x2: top[0] + tw, y1: top[1] - 17, y2: top[1] - 3 })
         }
       }
     }
+    cy._tagBoxes = tagBoxes
     ctx.textAlign = 'start'
 
     // Registration marks at the corners of the visible data. They sit clear of

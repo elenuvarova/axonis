@@ -50,6 +50,16 @@ describe('attachLabelDeclutter', () => {
     expect(hidden(blocked)).toBe(true)
   })
 
+  it('keeps a persistent label off a cluster number drawn by the overlay', () => {
+    const free = makeNode('free', { x: 100, y: 100 })
+    const underTag = makeNode('under tag', { x: 100, y: 200 })
+    const cy = makeCy([free, underTag])
+    cy._tagBoxes = [{ x1: 120, y1: 192, x2: 140, y2: 206 }] // a cluster number where underTag's label would start
+    run(cy)
+    expect(hidden(free)).toBe(false)
+    expect(hidden(underTag)).toBe(true)
+  })
+
   it('lets a higher-priority label win a collision (best connected first)', () => {
     const a = makeNode('Alpha label', { x: 100, y: 100, degree: 5 })
     const b = makeNode('Beta label', { x: 100, y: 108, degree: 1 }) // label boxes overlap

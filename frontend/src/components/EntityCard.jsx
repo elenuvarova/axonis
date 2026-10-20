@@ -15,7 +15,7 @@ function Metric({ label, value, bar }) {
 
 // Nothing selected: instead of an empty panel, a way in. The best-connected
 // nodes are one click away, and the type mix says what the map is made of.
-function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps, hiddenTypes, onToggleType }) {
+function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps, gapsPending, hiddenTypes, onToggleType }) {
   const hubs = [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, 5)
   const counts = {}
   for (const n of nodes) counts[n.type] = (counts[n.type] || 0) + 1
@@ -28,6 +28,8 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps, hidde
         {onShowGaps && gapCount > 0 && (
           <button type="button" className="btn btn-ghost entity-overview-gaps" onClick={onShowGaps}>Show the {gapCount} top gaps <span aria-hidden="true">→</span></button>
         )}
+        {/* the gaps button's room is kept while the opportunities load: the lists below do not jump */}
+        {gapsPending && !onShowGaps && <span className="btn btn-ghost entity-overview-gaps is-pending" aria-hidden="true">Show the 3 top gaps →</span>}
         {hubs.length > 0 && (
           <section className="entity-section">
             <h2 className="label">Best connected</h2>
@@ -73,11 +75,11 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps, hidde
   )
 }
 
-export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes, gapCount, onShowGaps, hiddenTypes, onToggleType }) {
+export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes, gapCount, onShowGaps, gapsPending, hiddenTypes, onToggleType }) {
   if (loading) return <EntitySkeleton />
 
   if (!entity) {
-    if (nodes?.length) return <Overview nodes={nodes} onPick={onNeighborClick} onHover={onNeighborHover} gapCount={gapCount} onShowGaps={onShowGaps} hiddenTypes={hiddenTypes} onToggleType={onToggleType} />
+    if (nodes?.length) return <Overview nodes={nodes} onPick={onNeighborClick} onHover={onNeighborHover} gapCount={gapCount} onShowGaps={onShowGaps} gapsPending={gapsPending} hiddenTypes={hiddenTypes} onToggleType={onToggleType} />
     return (
       <div className="entity-card-placeholder">
         <span className="placeholder-mark" aria-hidden="true">+</span>

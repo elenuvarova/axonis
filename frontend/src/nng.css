@@ -3,8 +3,8 @@
    WCAG 2.2). Loaded last.
 ════════════════════════════════════════════════════════════ */
 
-/* Home: the placeholder must not read as a typed value */
-#topic::placeholder { color: var(--text-2); opacity: 0.7; }
+/* Home: the placeholder (text-2) is a step under the typed value (text), at full opacity so it stays 4.5:1 */
+#topic::placeholder { color: var(--text-2); opacity: 1; }
 
 /* Home: the fastest path to value comes first and looks like an action */
 .demo-row { margin: var(--s-5) 0 var(--s-4); }  /* lede -> 48 -> demo -> 32 -> form -> 16 -> try */
@@ -57,6 +57,7 @@ body.has-consent .project-page { height: calc(100dvh - var(--h-ctl) - var(--s-2)
 /* the canvas chip is the one magenta button for this action; here it is a quiet link-style row */
 .entity-overview-gaps { width: 100%; justify-content: flex-start; gap: var(--s-1); margin-bottom: var(--s-3); padding-inline: 0; color: var(--text); }
 .entity-overview-gaps:hover:not(:disabled) { color: var(--accent); }
+.entity-overview-gaps.is-pending { visibility: hidden; }
 /* "On this map" rows filter the map like the legend does */
 .type-toggle { display: inline-flex; align-items: baseline; gap: var(--s-1); color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .type-toggle:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -96,12 +97,14 @@ body.has-consent .project-page { height: calc(100dvh - var(--h-ctl) - var(--s-2)
 }
 
 /* Lists: names are what people compare — wrap to two lines instead of cutting */
-.node-name > span, .cluster-name {
-  white-space: normal; overflow: hidden; text-overflow: clip;
+.node-name > span, .cluster-name, .cmdk-name, .entity-overview-name {
+  white-space: normal; overflow: hidden; text-overflow: clip; overflow-wrap: break-word;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 /* the clamp sits on the inner span: on the button itself the 44px touch height made the clip box taller than two lines and showed a sliver of the third */
 .node-name { display: flex; align-items: center; }
+/* two-line names need air above and below (the rows' 40px minimum covers one line) */
+.cmdk-item, .entity-overview-hub { padding-block: var(--s-1); }
 
 /* Phone sheet: Ask's heading only once (the handle row is 24px; see ux.css) */
 @media (max-width: 767px) {

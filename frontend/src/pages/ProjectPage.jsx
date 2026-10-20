@@ -167,7 +167,7 @@ export default function ProjectPage() {
 
   const isReady = project?.status === 'ready'
 
-  const { data: graphData } = useQuery({
+  const { data: graphData, isError: graphFailed } = useQuery({
     queryKey: ['graph', id], queryFn: () => getGraph(id), enabled: isReady,
   })
   // Build preview: only once the server is past saving (stage ≥ metrics) —
@@ -194,6 +194,7 @@ export default function ProjectPage() {
   // light the top opportunity clusters with callouts (GapReveal).
   const [reveal, setReveal] = useState(null)
   const [revealItems, setRevealItems] = useState(null) // kept after the reveal ends, for Replay
+  const [gapsChecked, setGapsChecked] = useState(false) // the gaps are worked out (there may be none): the inspector stops holding room for their button
   useEffect(() => {
     if (!cy || !oppsData || !clustersData || project?.status !== 'ready') return
     const key = `axonis-reveal-${id}`
@@ -207,6 +208,7 @@ export default function ProjectPage() {
       .filter(({ c }) => c && !seen.has(c.cluster_id) && seen.add(c.cluster_id))
       .slice(0, 3)
       .map(({ o, c, idx }) => ({ rank: idx + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
+    setGapsChecked(true)
     if (!items.length) return
     setRevealItems(items) // always available for Replay; only the auto-play is once per session
     try { if (sessionStorage.getItem(key)) return } catch { return }
@@ -663,6 +665,9 @@ export default function ProjectPage() {
         </div>
       )}
 
+      {/* the tab bar's room is kept while the graph loads, so the map does not drop by its height when it appears */}
+      {isReady && !graphData && !graphFailed && <div className="project-tab-bar is-pending" aria-hidden="true" />}
+
       {/* ── Body ── */}
       {isBuilding ? (
         <BuildingScreen
@@ -801,6 +806,7 @@ export default function ProjectPage() {
                 hiddenTypes={hiddenTypes}
                 onToggleType={toggleType}
                 gapCount={revealItems?.length || 0}
+                gapsPending={isReady && !gapsChecked}
                 onShowGaps={revealItems ? () => { track('gap_reveal_replay', { via: 'inspector' }); setReveal([...revealItems]) } : undefined}
                 onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}
                 onNeighborHover={hoverSource}
