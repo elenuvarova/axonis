@@ -15,6 +15,7 @@ export default function Tour({ steps = [], open, onClose }) {
   const reduceMotion = usePrefersReducedMotion()
   const [i, setI] = useState(0)
   const [rect, setRect] = useState(null)
+  const [cardH, setCardH] = useState(EST_H)
   const cardRef = useRef(null)
 
   const step = steps[i]
@@ -28,7 +29,13 @@ export default function Tour({ steps = [], open, onClose }) {
     if (!s.target) { setRect(null); return }
     const el = document.querySelector(s.target)
     if (!el) { setRect(null); return }
-    const r = el.getBoundingClientRect()
+    let r = el.getBoundingClientRect()
+    // A target below the fold (phone home, step 3) is brought into view first,
+    // otherwise the card is clamped to the viewport and covers it.
+    if (r.top < 0 || r.bottom > window.innerHeight) {
+      el.scrollIntoView({ block: 'center' })
+      r = el.getBoundingClientRect()
+    }
     setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
   }, [open, i, steps])
 
@@ -52,6 +59,13 @@ export default function Tour({ steps = [], open, onClose }) {
   }, [open, measure])
 
   useEffect(() => { if (open) cardRef.current?.focus() }, [open, i])
+
+  // Place the card by its real height (it grows with copy and padding tokens),
+  // not a guess: a stale guess lets the card overlap the spotlighted target.
+  useLayoutEffect(() => {
+    const h = cardRef.current?.offsetHeight
+    if (h && h !== cardH) setCardH(h)
+  })
 
   // Focus goes back to whatever opened the tour (HOW IT WORKS, "?", ⌘K…).
   const opener = useRef(null)
@@ -99,9 +113,9 @@ export default function Tour({ steps = [], open, onClose }) {
   } else {
     const left = Math.min(Math.max(rect.left, 16), Math.max(16, vw - CARD_W - 16))
     const below = rect.top + rect.height + GAP
-    const above = rect.top - EST_H - GAP
-    const top = below + EST_H <= vh - 8 || above < 16
-      ? Math.min(below, vh - EST_H - 16)
+    const above = rect.top - cardH - GAP
+    const top = below + cardH <= vh - 8 || above < 16
+      ? Math.min(below, vh - cardH - 16)
       : Math.max(16, above)
     cardStyle = { top, left }
   }
