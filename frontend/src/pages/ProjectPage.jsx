@@ -27,7 +27,6 @@ import { BuildingScreen, StateScreen, Toast } from '../components/states'
 import HelpButton from '../components/HelpButton'
 import Tour from '../components/Tour'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
-import { pad } from '../format'
 import Wordmark from '../components/Wordmark'
 import Icon from '../components/icons'
 
@@ -77,6 +76,7 @@ export default function ProjectPage() {
   const paletteOpenRef = useRef(false)
   paletteOpenRef.current = paletteOpen
   const [listView, setListView] = useState(false)
+  const [hiddenTypes, setHiddenTypes] = useState(() => new Set()) // legend + inspector type filter
   const pendingCentre = useRef(null)
   const [highlightClusterId, setHighlightClusterId] = useState(null)
   const [cy, setCy] = useState(null)
@@ -205,7 +205,7 @@ export default function ProjectPage() {
       // map is Gap_02 on the cards even when two gaps share a cluster
       .map((o, idx) => ({ o, idx, c: byId.get(o.cluster_db_id) }))
       .filter(({ c }) => c && !seen.has(c.cluster_id) && seen.add(c.cluster_id))
-      .slice(0, window.matchMedia?.('(max-width: 767px)').matches ? 2 : 3)
+      .slice(0, 3)
       .map(({ o, c, idx }) => ({ rank: idx + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
     if (!items.length) return
     setRevealItems(items) // always available for Replay; only the auto-play is once per session
@@ -527,6 +527,13 @@ export default function ProjectPage() {
   }
 
   const clusters  = clustersData?.clusters ?? []
+  // hull numbers on the map match the Clusters list (01 = best opportunity)
+  const clusterRanks = Object.fromEntries(clusters.map((c, i) => [c.cluster_id, i + 1]))
+  const toggleType = (t) => setHiddenTypes((prev) => {
+    const next = new Set(prev)
+    next.has(t) ? next.delete(t) : next.add(t)
+    return next
+  })
   const opps      = oppsData?.opportunities ?? []
   const oppCount  = opps.length
   const nodeCount = graphData?.stats?.node_count ?? 0
@@ -538,11 +545,11 @@ export default function ProjectPage() {
   const tabs = [
     { id: 'graph', label: 'Map', short: 'Map' },
     { id: 'clusters', label: 'Clusters', short: 'Clusters', count: clusters.length },
-    { id: 'opportunities', label: 'Opportunities', short: 'Opportunities', count: oppCount },
+    { id: 'opportunities', label: 'Opportunities', short: 'Gaps', count: oppCount },
   ]
 
   return (
-    <div className={`project-page${panelOpen ? ' panel-open' : ''}${` sheet-${sheetSnap}`}`}>
+    <div className={`project-page${panelOpen ? ' panel-open' : ''}${` sheet-${sheetSnap}`}${isBuilding ? ' is-building' : ''}`}>
 
       {/* ── Top bar ── */}
       <header className="topbar">
@@ -557,7 +564,7 @@ export default function ProjectPage() {
         <StatusBadge status={project.status} />
         {nodeCount > 0 && (
           <span className="topbar-meta">
-            <Ticker value={nodeCount} digits={3} /> nodes · <Ticker value={edgeCount} digits={3} /> edges · <Ticker value={clusters.length} digits={2} /> clusters
+            <Ticker value={nodeCount} /> nodes · <Ticker value={edgeCount} /> edges · <Ticker value={clusters.length} /> clusters
           </span>
         )}
         {isBuilding && (
@@ -607,7 +614,7 @@ export default function ProjectPage() {
                 title="Generate a research brief"
                 aria-label="Generate a research brief"
               >
-                {briefMutation.isPending ? '…' : <><Icon name="brief" /><span className="btn-label">Brief</span></>}
+                {briefMutation.isPending ? <span className="btn-label">Brief…</span> : <><Icon name="brief" /><span className="btn-label">Brief</span></>}
               </button>
               <HelpButton size="sm" className="hide-on-mobile" onClick={() => setTourOpen(true)} label="Replay the tour" text="Tour" />
             </>
@@ -649,7 +656,7 @@ export default function ProjectPage() {
             >
               <span className="tab-long">{t.label}</span>
               <span className="tab-short">{t.short}</span>
-              {t.count > 0 && <span className="tab-count">{`\u00a0·\u00a0${pad(t.count)}`}</span>}
+              {t.count > 0 && <span className="tab-count">{`\u00a0·\u00a0${t.count}`}</span>}
               {tab === t.id && <span className="tab-ind" aria-hidden="true" />}
             </button>
           ))}
@@ -717,6 +724,7 @@ export default function ProjectPage() {
                   selectedId={selectedId}
                   onNodeClick={handleNodeClick}
                   onCyInit={setCy}
+                  clusterRanks={clusterRanks}
                 />
                 {listView && (
                   <NodeList
@@ -726,7 +734,7 @@ export default function ProjectPage() {
                     onSelect={(n) => handleNodeClick(n)}
                   />
                 )}
-                {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
+                {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} hidden={hiddenTypes} onToggleType={toggleType} />}
                 {reveal && tab === 'graph' && !listView && (
                   <GapReveal cy={cy} items={reveal} onDone={() => setReveal(null)}
                     onOpen={() => { setReveal(null); handleTabClick('opportunities') }} />
@@ -761,7 +769,7 @@ export default function ProjectPage() {
             <SheetHandle snap={sheetSnap} onSnap={setSheetSnap} onClose={closePanel} sheetRef={sheetRef} />
             <div className="sidebar-mobile-header">
               <span className="label">{sidebarLabel}</span>
-              <button className="panel-close" onClick={closePanel} aria-label="Close panel">×</button>
+              <button className="panel-close" onClick={closePanel} aria-label="Close panel"><Icon name="close" size={14} /></button>
             </div>
 
             {showClusters ? (
@@ -790,6 +798,8 @@ export default function ProjectPage() {
                 maxBridge={Math.max(0, ...(graphData?.nodes || []).map((n) => n.bridge_score || 0)) || undefined}
                 loading={!!selectedId && !entityData}
                 nodes={graphData?.nodes}
+                hiddenTypes={hiddenTypes}
+                onToggleType={toggleType}
                 gapCount={revealItems?.length || 0}
                 onShowGaps={revealItems ? () => { track('gap_reveal_replay', { via: 'inspector' }); setReveal([...revealItems]) } : undefined}
                 onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}

@@ -35,7 +35,7 @@ export function InlineError({ message, onDismiss, id }) {
       <AlertIcon />
       <span className="inline-error-text">{message}</span>
       {onDismiss && (
-        <button className="inline-error-close" onClick={onDismiss} aria-label="Dismiss">×</button>
+        <button className="inline-error-close" onClick={onDismiss} aria-label="Dismiss"><CloseIcon /></button>
       )}
     </div>
   )
@@ -67,7 +67,7 @@ export function ClusterSkeleton({ rows = 5 }) {
   return (
     <div className="cluster-panel">
       <SkeletonLine width="40%" height={10} />
-      <div style={{ height: 12 }} />
+      <div style={{ height: 8 }} />
       {Array.from({ length: rows }).map((_, i) => <div key={i} className="skeleton skeleton-card" />)}
     </div>
   )
@@ -93,8 +93,8 @@ export function EntitySkeleton() {
       <SkeletonLine width="100%" /><SkeletonLine width="92%" /><SkeletonLine width="60%" />
       <div style={{ height: 16 }} />
       <div className="entity-meta">
-        <div className="skeleton" style={{ height: 52 }} />
-        <div className="skeleton" style={{ height: 52 }} />
+        <div className="skeleton" style={{ height: 'var(--h-row-2)' }} />
+        <div className="skeleton" style={{ height: 'var(--h-row-2)' }} />
       </div>
     </div>
   )

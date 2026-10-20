@@ -24,21 +24,50 @@ function OppCard({ opp, index, onShowOnMap }) {
 
       <h3 className="opp-card-title">{opp.title}</h3>
 
-      {opp.cluster_name && (
-        <div className="opp-cluster-meta">
-          Cluster: {opp.cluster_name}
-          {opp.cluster_size && <span> · {opp.cluster_size} nodes</span>}
-          {opp.generated_by_ai && <span className="opp-ai-flag"> · AI-written</span>}
-        </div>
-      )}
+      {/* always rendered: it keeps its row, so every card's rows line up across the grid */}
+      <div className="opp-cluster-meta">
+        {opp.cluster_name && <>Cluster: {opp.cluster_name}</>}
+        {opp.cluster_name && opp.cluster_size && <span> · {opp.cluster_size} nodes</span>}
+        {opp.cluster_name && opp.generated_by_ai && <span className="opp-ai-flag"> · AI-written</span>}
+      </div>
 
       <p className="opp-why">{opp.why_it_matters}</p>
+
+      <div className="opp-evidence-block">
+        <div className="opp-evidence">
+          <button type="button" className="label opp-evidence-q" aria-expanded={whyEvidence}
+            aria-controls={`ev-${opp.id}`} onClick={() => setWhyEvidence((v) => !v)}>
+            Evidence <span aria-hidden="true">?</span>
+          </button>
+          <CellBar value={evidence / 5} cells={5} size="lg" />
+          <span className="opp-evidence-n">{evidence}/5</span>
+        </div>
+        {whyEvidence && (
+          <p className="opp-evidence-note" id={`ev-${opp.id}`}>
+            How much backs this gap on the map: the cluster’s research (papers and institutions) and its size, on a 1–5 scale. It is not a market estimate.
+          </p>
+        )}
+      </div>
+
+      <div className="opp-footer">
+        {onShowOnMap && opp.cluster_db_id && (
+          <button type="button" className="btn btn-secondary" onClick={() => onShowOnMap(opp)}>Show on map</button>
+        )}
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'Less' : 'Score, risks & questions'}<span aria-hidden="true">&nbsp;→</span>
+        </button>
+      </div>
 
       {expanded && (
         <div className="opp-more">
           {opp.score_parts?.length > 0 && (
             <div>
-              <div className="label">How the {score} adds up</div>
+              <div className="label label-plain">{`How the ${score} adds up`}</div>
               <ul className="opp-parts">
                 {opp.score_parts.map((p) => (
                   <li key={p.key} className="opp-part">
@@ -59,40 +88,12 @@ function OppCard({ opp, index, onShowOnMap }) {
           )}
           {opp.next_questions?.length > 0 && (
             <div>
-              <div className="label">Next research questions</div>
+              <div className="label label-plain">Next research questions</div>
               <ul className="opp-list">{opp.next_questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
             </div>
           )}
         </div>
       )}
-
-      <div className="opp-evidence">
-        <button type="button" className="label opp-evidence-q" aria-expanded={whyEvidence}
-          aria-controls={`ev-${opp.id}`} onClick={() => setWhyEvidence((v) => !v)}>
-          Evidence <span aria-hidden="true">?</span>
-        </button>
-        <CellBar value={evidence / 5} cells={5} size="lg" />
-        <span className="opp-evidence-n">{evidence}/5</span>
-      </div>
-      {whyEvidence && (
-        <p className="opp-evidence-note" id={`ev-${opp.id}`}>
-          How much backs this gap on the map: the cluster’s research (papers and institutions) and its size, on a 1–5 scale. It is not a market estimate.
-        </p>
-      )}
-
-      <div className="opp-footer">
-        {onShowOnMap && opp.cluster_db_id && (
-          <button type="button" className="btn btn-secondary" onClick={() => onShowOnMap(opp)}>Show on map</button>
-        )}
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-        >
-          {expanded ? 'Less' : 'Score, risks & questions'}<span aria-hidden="true">&nbsp;→</span>
-        </button>
-      </div>
     </article>
   )
 }
@@ -114,7 +115,7 @@ export default function OpportunityBoard({ opportunities = [], loading, onShowOn
 
   return (
     <div className="opp-board">
-      <h2 className="label opp-board-head">{pad(sorted.length)} opportunities · sorted by score</h2>
+      <h2 className="label label-plain opp-board-head">{`${sorted.length} opportunities · sorted by score`}</h2>
       <div className="opp-grid">
         {sorted.map((o, i) => <OppCard key={o.id} opp={o} index={i} onShowOnMap={onShowOnMap} />)}
       </div>

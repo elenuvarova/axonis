@@ -60,9 +60,12 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
   }
   return (
     <div className="graph-controls" role="group" aria-label="Graph view controls">
-      <button type="button" className="ctl-desk" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
-      <button type="button" className="ctl-desk" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">−</button>
-      <button type="button" onClick={fit} aria-label="Fit graph to view">Fit</button>
+      <div className="ctl-group">
+        <button type="button" className="ctl-desk" onClick={() => zoomBy(1.3)} aria-label="Zoom in">+</button>
+        <button type="button" className="ctl-desk" onClick={() => zoomBy(1 / 1.3)} aria-label="Zoom out">−</button>
+        <button type="button" onClick={fit} aria-label="Fit graph to view">Fit</button>
+      </div>
+      <div className="ctl-group">
       <button
         type="button"
         className={`ctl-desk${depth ? ' is-on' : ''}`}
@@ -76,6 +79,7 @@ export default function GraphControls({ cy, reducedMotion, selectedId, listView 
         {depthLabel}
       </button>
       {listBtn}
+      </div>
       {phoneOnly}
     </div>
   )

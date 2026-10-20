@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { track } from '../analytics'
 import { renderMarkdown, escapeHtml } from '../markdown'
+import Icon from './icons'
 import './../brief.css'
 
 const BRIEF_TITLE_ID = 'brief-modal-title'
@@ -148,7 +149,7 @@ export default function BriefModal({ brief, project, onClose, returnFocusRef, on
             >
               Print
             </button>
-            <button type="button" className="btn btn-ghost brief-close" onClick={onClose} aria-label="Close brief">×</button>
+            <button type="button" className="brief-close" onClick={onClose} aria-label="Close brief"><Icon name="close" size={14} /></button>
           </div>
         </div>
         {/* Reading progress: a hairline under the header that fills as you scroll */}

@@ -22,7 +22,7 @@ export default function ClusterPanel({
 
   return (
     <div className="cluster-panel">
-      <h2 className="label cluster-head">{pad(clusters.length)} clusters · ranked by opportunity</h2>
+      <h2 className="label label-plain cluster-head">{`${clusters.length} clusters · ranked by opportunity`}</h2>
       <div className="cluster-list">
         {clusters.map((c, i) => {
           const score = Math.min(1, Math.max(0, c.opportunity_score || 0))

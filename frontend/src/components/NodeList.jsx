@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { typeGlyph, typeLabel } from '../graphTypes'
-import { pad } from '../format'
+import { pad, displayName } from '../format'
 
 // List view of the graph: the same nodes as a sortable table, for keyboard and
 // screen-reader users (and anyone who wants to scan rather than look). Each
@@ -48,7 +48,7 @@ export default function NodeList({ nodes = [], edges = [], selectedId, onSelect 
   return (
     <div className="node-list">
       <div className="node-list-head">
-        <label className="label" htmlFor="node-list-filter">List · {pad(rows.length, 3)} of {pad(nodes.length, 3)} nodes</label>
+        <label className="label label-plain" htmlFor="node-list-filter">{`List · ${rows.length} of ${nodes.length} nodes`}</label>
         <input
           id="node-list-filter"
           ref={filterRef}
@@ -79,7 +79,7 @@ export default function NodeList({ nodes = [], edges = [], selectedId, onSelect 
             {rows.map((n) => (
               <tr key={n.id} className={n.id === selectedId ? 'is-selected' : ''} aria-current={n.id === selectedId ? 'true' : undefined}>
                 <td>
-                  <button type="button" className="node-name" onClick={() => onSelect(n)} title={n.name}>{n.name}</button>
+                  <button type="button" className="node-name" onClick={() => onSelect(n)} title={n.name}><span>{displayName(n.name)}</span></button>
                 </td>
                 <td className="node-type"><span aria-hidden="true">{typeGlyph(n.type)} </span>{typeLabel(n.type)}</td>
                 <td className="is-num">{pad(n.links, 3)}</td>

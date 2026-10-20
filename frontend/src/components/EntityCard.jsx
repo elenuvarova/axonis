@@ -1,7 +1,7 @@
 import { EntitySkeleton } from './states'
 import CellBar from './CellBar'
-import { typeGlyph, typeLabel, TYPE_ORDER } from '../graphTypes'
-import { pad, shortLabel } from '../format'
+import { typeGlyph, typeGlyphOutline, typeLabel, TYPE_ORDER } from '../graphTypes'
+import { pad, shortLabel, displayName } from '../format'
 
 function Metric({ label, value, bar }) {
   return (
@@ -15,7 +15,7 @@ function Metric({ label, value, bar }) {
 
 // Nothing selected: instead of an empty panel, a way in. The best-connected
 // nodes are one click away, and the type mix says what the map is made of.
-function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps }) {
+function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps, hiddenTypes, onToggleType }) {
   const hubs = [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, 5)
   const counts = {}
   for (const n of nodes) counts[n.type] = (counts[n.type] || 0) + 1
@@ -26,7 +26,7 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps }) {
         <div className="label">Selection · none</div>
         <p className="entity-overview-hint">Click any node to see its details, metrics and connections, or press <kbd>⌘K</kbd> to find one.</p>
         {onShowGaps && gapCount > 0 && (
-          <button type="button" className="btn btn-secondary entity-overview-gaps" onClick={onShowGaps}>Show the {gapCount} top gaps</button>
+          <button type="button" className="btn btn-ghost entity-overview-gaps" onClick={onShowGaps}>Show the {gapCount} top gaps <span aria-hidden="true">→</span></button>
         )}
         {hubs.length > 0 && (
           <section className="entity-section">
@@ -40,7 +40,7 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps }) {
                     onFocus={() => onHover?.(n.id)} onBlur={() => onHover?.(null)}>
                     <span className="entity-overview-rank" aria-hidden="true">{pad(i + 1)}</span>
                     <span className="entity-overview-glyph" aria-hidden="true">{typeGlyph(n.type)}</span>
-                    <span className="entity-overview-name">{n.name}</span>
+                    <span className="entity-overview-name">{displayName(n.name)}</span>
                   </button>
                 </li>
               ))}
@@ -49,11 +49,19 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps }) {
         )}
         {types.length > 0 && (
           <section className="entity-section">
-            <h2 className="label">On this map · {nodes.length} nodes</h2>
+            <h2 className="label">{`On this map · ${nodes.length} nodes`}</h2>
             <dl className="entity-overview-types">
               {types.map((t) => (
                 <div key={t} className="metric-row">
-                  <dt className="metric-label"><span aria-hidden="true">{typeGlyph(t)} </span>{typeLabel(t)}</dt>
+                  <dt className="metric-label">
+                    {onToggleType ? (
+                      // the same filter as the map legend: a hidden type is struck through and its glyph hollow
+                      <button type="button" className="type-toggle" aria-pressed={!hiddenTypes?.has(t)} onClick={() => onToggleType(t)}
+                        title={hiddenTypes?.has(t) ? `Show ${typeLabel(t)} on the map` : `Hide ${typeLabel(t)} from the map`}>
+                        <span aria-hidden="true">{hiddenTypes?.has(t) ? typeGlyphOutline(t) : typeGlyph(t)} </span>{typeLabel(t)}
+                      </button>
+                    ) : (<><span aria-hidden="true">{typeGlyph(t)} </span>{typeLabel(t)}</>)}
+                  </dt>
                   <dd className="metric-value">{counts[t]}</dd>
                 </div>
               ))}
@@ -65,11 +73,11 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps }) {
   )
 }
 
-export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes, gapCount, onShowGaps }) {
+export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes, gapCount, onShowGaps, hiddenTypes, onToggleType }) {
   if (loading) return <EntitySkeleton />
 
   if (!entity) {
-    if (nodes?.length) return <Overview nodes={nodes} onPick={onNeighborClick} onHover={onNeighborHover} gapCount={gapCount} onShowGaps={onShowGaps} />
+    if (nodes?.length) return <Overview nodes={nodes} onPick={onNeighborClick} onHover={onNeighborHover} gapCount={gapCount} onShowGaps={onShowGaps} hiddenTypes={hiddenTypes} onToggleType={onToggleType} />
     return (
       <div className="entity-card-placeholder">
         <span className="placeholder-mark" aria-hidden="true">+</span>
@@ -85,11 +93,11 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
     <div className="entity-card">
       <div className="entity-scroll">
         <div className="label entity-type-tag">
-          <span className="accent-dot" aria-hidden="true" />
+          <span className="entity-type-glyph" aria-hidden="true">{typeGlyph(entity.type)}</span>
           <span>{typeLabel(entity.type)}</span>
           {clusterTag && <span className="entity-cluster-tag">· {clusterTag}</span>}
         </div>
-        <h2 className="entity-name">{entity.fullName || entity.name}</h2>
+        <h2 className="entity-name" title={entity.fullName || entity.name}>{displayName(entity.fullName || entity.name)}</h2>
 
         {entity.description && <p className="entity-desc">{entity.description}</p>}
 
@@ -98,7 +106,7 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
           {/* bridge_score = betweenness / degree (capped at 10), not 0–1, so the bar is
               relative to the strongest bridge in this map; the number stays raw. */}
           <Metric label="Bridge" value={fmt(entity.bridge_score)} bar={maxBridge ? (entity.bridge_score || 0) / maxBridge : entity.bridge_score} />
-          {entity.neighbors && <Metric label="Links" value={pad(entity.neighbors.length, 3)} />}
+          {entity.neighbors && <Metric label="Links" value={entity.neighbors.length} />}
         </div>
 
         <div className="entity-source">
@@ -124,12 +132,12 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
                     onFocus={() => onNeighborHover?.(n.id)}
                     onBlur={() => onNeighborHover?.(null)}
                   >
-                    {shortLabel(n.name, 26)}
+                    {shortLabel(displayName(n.name), 32)}
                   </button>
                 ) : (
                   // Static label — no pointer affordance (avoids dead interactive-looking elements)
                   <span key={n.id} className="chip chip-static" title={n.name}>
-                    {shortLabel(n.name, 26)}
+                    {shortLabel(displayName(n.name), 32)}
                   </span>
                 )
               )}

@@ -10,7 +10,7 @@
 .brief-modal .brief-kicker {
   margin: 0 0 var(--s-3);
   font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-caps);
-  text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent);
+  text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--text-2);
 }
 .brief-modal .brief-cover-title {
   margin: 0 0 var(--s-3);
@@ -37,7 +37,7 @@
   margin: var(--s-6) 0 var(--s-2); padding-top: var(--s-2);
   border-top: 1px solid var(--line);
 }
-.brief-modal .brief-num { color: var(--accent); font-variant-numeric: tabular-nums; }
+.brief-modal .brief-num { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .brief-modal .brief-body h3 { margin: var(--s-4) 0 var(--s-1); }
 .brief-modal .brief-body p,
 .brief-modal .brief-body li { line-height: var(--lh-body); }
@@ -48,7 +48,7 @@
 /* Pull quote */
 .brief-modal .brief-body blockquote {
   margin: var(--s-4) 0; padding: var(--s-1) 0 var(--s-1) var(--s-3);
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-control);
   font-size: var(--fs-h2); line-height: var(--lh-h2); color: var(--text); text-wrap: balance;
 }
 .brief-modal .brief-body blockquote p { margin: 0; }
@@ -61,6 +61,6 @@
 
 @media (max-width: 767px) {
   .brief-modal .brief-content { padding-top: var(--s-4); }
-  .brief-modal .brief-cover-title { font-size: var(--fs-display-sm); line-height: var(--lh-display-sm); }
+  .brief-modal .brief-cover-title { font-size: var(--fs-counter-sm); line-height: var(--lh-counter-sm); }
   .brief-cover { margin-bottom: var(--s-4); }
 }

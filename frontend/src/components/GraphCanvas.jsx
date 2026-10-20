@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useCallback } from 'react'
 import CytoscapeComponent from 'react-cytoscapejs'
 import Cytoscape from 'cytoscape'
 import cola from 'cytoscape-cola'
-import { typeShape } from '../graphTypes'
+import { typeShape, SHAPE_SCALE } from '../graphTypes'
 import { shortLabel } from '../format'
 import { initialView } from '../graphFit'
 import { attachOverlay } from '../graphOverlay'
+import { attachLabelDeclutter, LABEL_MARGIN, TOP_GAP } from '../graphLabels'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
 
 // Register the cola physics layout once (guard against HMR double-registration).
@@ -25,13 +26,23 @@ function coarsePointer() {
   try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
 }
 
-function makeStylesheet() {
+// Node labels keep one size ON SCREEN (px), whatever the zoom: the model-space
+// font is px / zoom, capped so a far-out view hides its labels (Cytoscape
+// drops anything under min-zoomed-font-size) instead of printing 5px noise.
+const LABEL_PX = 10.5
+const HUB_PX = 12
+const LABEL_FONT = '"Mona Sans", system-ui, -apple-system, sans-serif'
+const fontFor = (view, px, cap) => () => Math.min(cap, px / view.z)
+
+// `view.z` is the current zoom; makeStylesheet closes over it and
+// handleCy refreshes the style whenever the zoom moves.
+function makeStylesheet(view) {
   const text    = cssVar('--text', '#EDEDED')
   const text2   = cssVar('--text-2', '#8A8A8A')
   const bg      = cssVar('--bg', '#0E0E0E')
-  const edge    = cssVar('--line-strong', '#3A3A3A')
+  const edge    = cssVar('--graph-edge', '#4A4A4A')
+  const edgeStrong = cssVar('--line-control', '#6A6A6A')
   const accent  = cssVar('--accent', '#FF2BD6')
-  const mono    = '"Martian Mono", ui-monospace, monospace'
 
   return [
     {
@@ -44,22 +55,24 @@ function makeStylesheet() {
         'label': 'data(displayLabel)',
         'width': 'data(size)',
         'height': 'data(size)',
-        'font-family': mono,
-        'font-size': 11,
-        // Below ~9px on screen a label is noise, not information: hide it
+        'font-family': LABEL_FONT,
+        'font-weight': 500,
+        'font-size': fontFor(view, LABEL_PX, 20),
+        // Below ~10px on screen a label is noise, not information: hide it
         // until the user zooms in (hover and selection still reveal it).
-        'min-zoomed-font-size': 9,
+        'min-zoomed-font-size': 9.5,
         'color': text2,
         'text-valign': 'center',
         'text-halign': 'right',
-        'text-margin-x': 6,
-        // Label plate: a bg-coloured block behind the text so crossing edges
-        // and neighbouring labels never run through the letters.
-        'text-background-color': bg,
-        'text-background-opacity': 0.88,
-        'text-background-padding': 2,
-        'text-background-shape': 'rectangle',
-        'border-width': 0,
+        'text-margin-x': LABEL_MARGIN,
+        // Text outline in the canvas colour keeps crossing edges from running
+        // through the letters without a plate punching holes in the hulls.
+        'text-outline-color': bg,
+        'text-outline-width': 3,
+        'text-outline-opacity': 0.9,
+        // a hairline of canvas colour keeps nodes apart in dense clusters
+        'border-width': 1,
+        'border-color': bg,
         // A bigger invisible hit area on touch screens: nodes are 6-10px on a phone.
         'overlay-padding': coarsePointer() ? 14 : 8,
         'overlay-opacity': 0,
@@ -68,41 +81,53 @@ function makeStylesheet() {
       },
     },
     // Hubs read larger and in the full text colour.
-    { selector: 'node[?hub]', style: { 'font-size': 13, 'color': text } },
-    // Reveal the full label whenever a node is focused (hover/select/highlight).
-    { selector: 'node.show-label, node.focus-label', style: { 'label': 'data(label)', 'color': text, 'z-index': 19 } },
-    {
-      selector: 'node:selected',
-      style: {
-        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': 13, 'z-index': 20,
-        'outline-width': 1, 'outline-style': 'dashed', 'outline-color': accent, 'outline-offset': 6,
-      },
-    },
+    // They also paint above the other nodes, so no neighbouring glyph is drawn over a hub's label.
+    { selector: 'node[?hub]', style: { 'font-size': fontFor(view, HUB_PX, 22), 'color': text, 'z-index': 15 } },
+    // Where the label collision pass moved a hub's label: left, above or below its node.
+    { selector: 'node.label-l', style: { 'text-halign': 'left', 'text-margin-x': -LABEL_MARGIN } },
+    { selector: 'node.label-t', style: { 'text-valign': 'top', 'text-halign': 'center', 'text-margin-x': 0, 'text-margin-y': -TOP_GAP } },
+    { selector: 'node.label-b', style: { 'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-x': 0, 'text-margin-y': TOP_GAP } },
+    // A lit cluster (Clusters tab, Ask): accent outline on the node, labels in the text colour.
     {
       selector: 'node.highlighted',
-      style: {
-        'border-width': 1.5, 'border-color': accent, 'color': accent, 'label': 'data(label)', 'z-index': 18,
-        'outline-width': 1, 'outline-style': 'solid', 'outline-color': accent, 'outline-offset': 5,
-      },
+      style: { 'border-width': 1.5, 'border-color': accent, 'color': text, 'label': 'data(label)', 'z-index': 18 },
     },
-    // faded nodes drop their label too, so it can't run under the focused ones
+    // Gap reveal: a lit cluster shows only its persistent labels, and the
+    // three best-connected nodes per cluster speak up in the accent.
+    { selector: 'node.gap-lit', style: { 'label': 'data(displayLabel)', 'color': text2 } },
+    { selector: 'node.gap-top', style: { 'label': 'data(label)', 'color': accent, 'font-size': fontFor(view, HUB_PX, 22), 'z-index': 19 } },
+    // The label collision pass (graphLabels.js) drops labels that would cover something or run off the canvas.
+    { selector: 'node.label-hidden', style: { 'label': '' } },
+    // Reveal the full label whenever a node is focused (hover/select/highlight); after
+    // label-hidden, so a hovered node whose label was dropped shows it at once.
+    { selector: 'node.show-label, node.focus-label', style: { 'label': 'data(label)', 'color': text, 'z-index': 19 } },
+    {
+      // the selection is marked by the fill and the bracket corners (graphOverlay.js), no extra ring
+      selector: 'node:selected',
+      style: { 'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': fontFor(view, HUB_PX, 22), 'z-index': 20 },
+    },
     // Ask: the node behind the citation the pointer / focus is on.
     {
       selector: 'node.cite-focus',
       style: {
-        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': 13, 'z-index': 30, 'opacity': 1,
+        'background-color': accent, 'color': accent, 'label': 'data(label)', 'font-size': fontFor(view, HUB_PX, 22), 'z-index': 30, 'opacity': 1,
         'outline-width': 1, 'outline-style': 'solid', 'outline-color': accent, 'outline-offset': 6,
       },
     },
+    // faded nodes drop their label too, so it can't run under the focused ones
     { selector: 'node.faded', style: { 'opacity': 0.2, 'label': '' } },
     {
       selector: 'edge',
       style: { 'width': 1, 'line-color': edge, 'opacity': 1, 'curve-style': 'straight' },
     },
-    { selector: 'edge.highlighted', style: { 'line-color': accent, 'opacity': 1, 'width': 1 } },
+    // Edges by relation, without adding colour: structural links (is-a, part-of)
+    // are brighter, weak or inferred ones dotted, the rest plain.
+    { selector: 'edge[relation_type = "subclass_of"], edge[relation_type = "part_of"], edge[relation_type = "has_part"], edge[relation_type = "narrower"]', style: { 'line-color': edgeStrong, 'opacity': 0.8 } },
+    { selector: 'edge[relation_type = "co_concept"], edge[relation_type = "search_result"]', style: { 'line-style': 'dotted' } },
+    { selector: 'edge.highlighted', style: { 'line-color': accent, 'line-style': 'solid', 'opacity': 0.6, 'width': 1 } },
     { selector: 'edge.faded', style: { 'opacity': 0.2 } },
     // Edges of the hovered / selected node light up so its connections read at a glance.
-    { selector: 'edge.focus-edge', style: { 'line-color': accent, 'z-index': 10 } },
+    { selector: 'edge.focus-edge', style: { 'line-color': accent, 'line-style': 'solid', 'opacity': 0.75, 'z-index': 10 } },
     // Legend filters hide whole types (or isolated nodes); edges go with them.
     { selector: 'node.filtered', style: { 'display': 'none' } },
     // Focus depth: nodes further than N hops from the selection.
@@ -147,10 +172,11 @@ const COLA_LIVE = {
 
 function buildElements(nodes, edges) {
   // Persistent labels go to the most-connected nodes only, so a dense graph
-  // isn't an unreadable wall of overlapping text. Everything else reveals its
+  // isn't an unreadable wall of overlapping text (graphLabels.js then drops
+  // the ones that would still cover something). Everything else reveals its
   // label on hover / selection / cluster highlight. Small graphs label all.
   const N = nodes.length
-  const K = N <= 12 ? N : Math.min(20, Math.max(10, Math.round(N * 0.2)))
+  const K = N <= 12 ? N : Math.min(28, Math.max(12, Math.round(N * 0.3)))
   const labelled = new Set(
     [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0)).slice(0, K).map((n) => n.id)
   )
@@ -171,7 +197,10 @@ function buildElements(nodes, edges) {
   for (const n of nodes) {
     const degree = n.degree || 0
     const bridge = n.bridge_score || 0
-    const size = Math.max(7, Math.min(22, 7 + degree * 60 + bridge * 14))
+    // 9px floor: a circle and a square under that are the same speck. Shapes are
+    // scaled so a diamond carries the same visual weight as a square.
+    const shape = typeShape(n.type)
+    const size = Math.min(26, Math.max(9, Math.min(22, 7 + degree * 60 + bridge * 14)) * (SHAPE_SCALE[shape] || 1))
     const label = shortLabel(n.name)
     const isHub = hubs.has(n.id)
     const r = rank.get(n.id) ?? 0
@@ -179,7 +208,7 @@ function buildElements(nodes, edges) {
       position: { x: Math.cos(r * GOLDEN) * 18 * Math.sqrt(r + 1), y: Math.sin(r * GOLDEN) * 18 * Math.sqrt(r + 1) },
       data: {
         id: n.id, label, displayLabel: labelled.has(n.id) ? label : '',
-        fullName: n.name, type: n.type, shape: typeShape(n.type), hub: isHub,
+        fullName: n.name, type: n.type, shape, hub: isHub,
         size,
         cluster_id: n.cluster_id || '0',
         source: n.source, source_url: n.source_url, description: n.description,
@@ -202,6 +231,7 @@ export default function GraphCanvas({
   selectedId, onNodeClick, onCyInit,
   fitPadding = COLA.padding, // smaller for the build-screen preview box
   overlay = true,            // ruler, registration marks, selection brackets
+  clusterRanks,              // { cluster_id: 1-based place in the Clusters list }, numbers the hulls
 }) {
   // Respect the user's motion preference: disable Cytoscape physics animation and
   // cy.animate() calls when prefers-reduced-motion is active (WCAG 2.3.3).
@@ -218,7 +248,11 @@ export default function GraphCanvas({
 
   const elements = useMemo(() => buildElements(nodes, edges), [nodes, edges])
   const presetLayout = useMemo(() => ({ name: 'preset' }), [])
-  const initialStylesheet = useMemo(() => makeStylesheet(), [])
+  const clusterRanksRef = useRef(clusterRanks)
+  const ranksKey = clusterRanks ? Object.entries(clusterRanks).join('|') : '' // a new object each render, same content
+  clusterRanksRef.current = clusterRanks
+  const labelView = useRef({ z: 1 })
+  const initialStylesheet = useMemo(() => makeStylesheet(labelView.current), [])
 
   const handleCy = useCallback((cy) => {
     // react-cytoscapejs calls this on every re-render, not just on mount; set
@@ -228,11 +262,40 @@ export default function GraphCanvas({
     if (liveLayout.current) { liveLayout.current.stop(); liveLayout.current = null }
     cyRef.current = cy
     cy._highlightedCluster = null
+    cy._clusterRanks = clusterRanksRef.current || null
     if (onCyInit) onCyInit(cy)
     if (overlayRef.current) {
       const detach = attachOverlay(cy, overlayRef.current)
       cy.one('destroy', detach)
     }
+    // the label pass waits while the layout is moving nodes (boot layout, live physics)
+    let booting = true
+    cy.one('destroy', attachLabelDeclutter(cy, { paused: () => booting || !!liveLayout.current }))
+
+    // Label size is constant on screen, so the model-space font follows the
+    // zoom. Only nodes are restyled, at most once a frame and only after the zoom
+    // moved by more than 5%; a trailing update settles the exact value at the end.
+    let zoomFrame = 0, zoomTail = 0
+    const applyZoom = () => {
+      if (cy.destroyed()) return
+      labelView.current.z = cy.zoom()
+      cy.nodes().updateStyle()
+    }
+    const syncLabelSize = () => {
+      if (!zoomFrame) {
+        zoomFrame = requestAnimationFrame(() => {
+          zoomFrame = 0
+          if (cy.destroyed()) return
+          if (Math.abs(cy.zoom() / labelView.current.z - 1) > 0.05) applyZoom()
+        })
+      }
+      clearTimeout(zoomTail)
+      zoomTail = setTimeout(() => { if (cy.zoom() !== labelView.current.z) applyZoom() }, 160)
+    }
+    cy.on('zoom', syncLabelSize)
+    cy.one('destroy', () => { cancelAnimationFrame(zoomFrame); clearTimeout(zoomTail) })
+    // Mona Sans is loaded on demand: draw the labels again once it is in
+    try { document.fonts?.load('500 12px "Mona Sans"').then(() => { if (!cy.destroyed()) cy.nodes().updateStyle() }) } catch { /* no font API */ }
 
     // Phase 1: settle nodes into position (finite, fits viewport).
     // Phase 2: once settled, switch to infinite physics so nodes stay alive
@@ -242,6 +305,7 @@ export default function GraphCanvas({
     const edgeLength = cy.nodes().length < 40 ? 120 : COLA.edgeLength
     const bootLayout = cy.layout({ ...COLA, padding: fitPaddingRef.current, edgeLength, animate: !reducedRef.current })
     bootLayout.one('layoutstop', () => {
+      booting = false
       if (cy.destroyed()) return
       // Fit into the area the floating legend/controls/ask bar leave free
       // (zoomed to a readable level around the main hub on a phone).
@@ -336,6 +400,14 @@ export default function GraphCanvas({
       })
     })
   }, [onCyInit])
+
+  // Hull numbers follow the Clusters list: same order, same "01"
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy) return
+    cy._clusterRanks = clusterRanksRef.current || null
+    cy.emit('render')
+  }, [ranksKey])
 
   // Stop live layout if the component unmounts while a node is being dragged.
   useEffect(() => () => { if (liveLayout.current) liveLayout.current.stop() }, [])

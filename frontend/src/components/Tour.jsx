@@ -97,12 +97,12 @@ export default function Tour({ steps = [], open, onClose }) {
   if (centered) {
     cardStyle = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
   } else {
-    const left = Math.min(Math.max(rect.left, 12), Math.max(12, vw - CARD_W - 12))
+    const left = Math.min(Math.max(rect.left, 16), Math.max(16, vw - CARD_W - 16))
     const below = rect.top + rect.height + GAP
     const above = rect.top - EST_H - GAP
-    const top = below + EST_H <= vh - 8 || above < 12
-      ? Math.min(below, vh - EST_H - 12)
-      : Math.max(12, above)
+    const top = below + EST_H <= vh - 8 || above < 16
+      ? Math.min(below, vh - EST_H - 16)
+      : Math.max(16, above)
     cardStyle = { top, left }
   }
 
@@ -115,7 +115,7 @@ export default function Tour({ steps = [], open, onClose }) {
           className="tour-spotlight"
           // moved with transform, not top/left: moving a fixed box by its offsets
           // is reported as layout shift (CLS) on every step
-          style={{ top: 0, left: 0, transform: `translate(${rect.left - 6}px, ${rect.top - 6}px)`, width: rect.width + 12, height: rect.height + 12 }}
+          style={{ top: 0, left: 0, transform: `translate(${rect.left - 8}px, ${rect.top - 8}px)`, width: rect.width + 16, height: rect.height + 16 }}
           aria-hidden="true"
         />
       ) : (
