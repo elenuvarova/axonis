@@ -60,6 +60,12 @@
 }
 @keyframes hs-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
 
+/* three columns: one body height and stretched visuals, so tops AND bottoms of the three boxes line up
+   (the SVG boxes scale with width, the text box does not: fixed min-heights always left a 10px step) */
+@media (min-width: 1101px) {
+  .hs-body { min-height: calc(3 * var(--lh-body-sm)); }
+  .hs-visual { margin-top: 0; flex: 1 0 auto; }
+}
 @media (max-width: 1100px) {
   .home-story { margin-top: var(--s-6); }
   .hs-steps { grid-template-columns: 1fr; gap: var(--s-5); }

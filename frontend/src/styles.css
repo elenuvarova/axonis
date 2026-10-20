@@ -565,7 +565,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .cluster-selected-actions { display: flex; gap: var(--s-2); align-items: center; }
 
 /* Opportunities */
-.opp-board { flex: 1; min-width: 0; padding: var(--s-4) var(--page-inset) var(--s-1); }
+.opp-board { flex: 1; min-width: 0; padding: var(--s-4) var(--s-3) var(--s-1); }  /* 24: the project chrome (logo, tabs) sits there, so the screen keeps one left edge */
 .opp-board-head { margin-bottom: var(--s-3); }
 /* Cards share the grid's rows (subgrid): top / score / title / cluster / why / evidence / footer / details
    line up across a row of cards. Spacing contrast: identity (top, score, title), description (cluster, why,
@@ -895,6 +895,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .node-table th:nth-child(4), .node-table td:nth-child(4), .node-table th:nth-child(5), .node-table td:nth-child(5) { display: none; }
   .node-name { max-width: 22ch; min-height: var(--h-ctl-touch); }
   .node-table td { padding-block: 0; } /* the 44px name button is the row's height */
+  .node-table { border-collapse: separate; border-spacing: 0; }  /* collapsed borders gave 44.5px rows: every line after the first sat on a half pixel */
 }
 
 /* Build screen: real counters + live preview of the saved graph */

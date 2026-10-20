@@ -40,6 +40,12 @@ export function freePads(cy) {
       pads.b = Math.max(pads.b, needB)
     }
   }
+  // Phone: the inspector / cluster list is a bottom sheet over the canvas, not a side panel.
+  const sheet = window.innerWidth < 768 ? wrap.closest('.graph-view')?.querySelector('.graph-sidebar') : null
+  if (sheet && getComputedStyle(sheet).visibility !== 'hidden') {
+    const r = sheet.getBoundingClientRect()
+    if (r.height && r.top > c.top) pads.b = Math.max(pads.b, c.bottom - r.top + GAP)
+  }
   // Never squeeze the graph into less than half the canvas.
   if (pads.l + pads.r > c.width / 2) pads.l = Math.max(GAP, c.width / 2 - pads.r)
   if (pads.t + pads.b > c.height / 2) pads.t = Math.max(GAP, c.height / 2 - pads.b)

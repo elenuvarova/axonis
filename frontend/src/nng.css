@@ -13,6 +13,7 @@
   .home-body { padding-top: var(--s-5); }
   .demo-row { margin: var(--s-4) 0 var(--s-3); }
 }
+.demo-row.is-pending { visibility: hidden; }  /* reserves the row while projects load (no layout jump) */
 .demo-cta { border-color: var(--accent); color: var(--text); }
 .demo-cta:hover, .demo-cta:focus-visible { background: var(--accent-soft); }
 

@@ -343,17 +343,19 @@ export default function HomePage() {
           </p>
 
           {/* The fastest way to value goes first: a ready map, a gap on screen in seconds. */}
-          {bestDemo && (
-            <div className="demo-row">
+          {/* While the list loads the row is laid out but hidden, so the form below does not jump when it arrives. */}
+          {(bestDemo || isLoading) && (
+            <div className={`demo-row${bestDemo ? '' : ' is-pending'}`} aria-hidden={bestDemo ? undefined : 'true'}>
               <button
                 type="button"
                 className="btn btn-secondary demo-cta"
-                disabled={busy}
+                disabled={busy || !bestDemo}
+                tabIndex={bestDemo ? undefined : -1}
                 onClick={(e) => { track('demo_open', { topic: bestDemo.topic, via: 'hero' }); navigateWithTransition(navigate, `/project/${bestDemo.id}`, { topicEl: e.currentTarget }) }}
               >
                 See a gap in seconds<span aria-hidden="true">&nbsp;→</span>
               </button>
-              <span className="demo-note">{`Demo map: ${bestDemo.topic} · no build`}</span>
+              <span className="demo-note">{`Demo map: ${bestDemo ? bestDemo.topic : 'AI tutoring'} · no build`}</span>
             </div>
           )}
 
