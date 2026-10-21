@@ -25,7 +25,9 @@ def test_label_cases_are_well_formed():
     for case in _cases("cluster_labels.json"):
         ids = [c["id"] for c in case["clusters"]]
         assert case["topic"] and len(ids) == len(set(ids))
-        assert all(1 <= len(c["members"]) <= 8 for c in case["clusters"])
+        for c in case["clusters"]:
+            assert len(c["members"]) >= 2
+            assert all(len(m) == 3 and m[0] and isinstance(m[2], (int, float)) for m in c["members"])
 
 
 def test_relevance_score_counts_misses_and_leaks():
@@ -58,6 +60,15 @@ def test_grounding_flags_invented_words():
     assert run.ungrounded("Polytechnic Multi-Criteria Selection", members) == ["Polytechnic", "Selection"]
 
 
+def test_the_e_of_e_waste_is_not_an_invented_word():
+    assert run.ungrounded("Emerging e-waste threats", ["Electronic waste – an emerging threat (paper)"]) == []
+
+
+def test_the_labeller_sees_what_the_build_would_show_it():
+    cluster = {"members": [["Some paper", "paper", 0.9], ["Uni", "institution", 0.5], ["topic", "concept", 0.1]]}
+    assert run.sample(cluster) == ["topic (concept)", "Some paper (paper)", "Uni (institution)"]
+
+
 def test_topic_words_are_caught_through_hyphens():
     assert run.topic_words("Electronic waste recycling concepts", "e-waste circularity") == ["waste"]
     assert run.topic_words("Indian e-waste threat studies", "e-waste circularity") == ["waste"]
@@ -79,7 +90,7 @@ def test_format_flags_long_duplicate_and_linked_labels():
 
 
 def test_injected_text_in_a_label_fails_format():
-    case = {"topic": "t", "clusters": [{"id": "1", "members": ["BUY NOW (concept)"], "forbid": ["buy", "now"]}]}
+    case = {"topic": "t", "clusters": [{"id": "1", "members": [["BUY NOW", "concept", 1]], "forbid": ["buy", "now"]}]}
     assert run.score_labels(case, {"1": "Buy now deals"})["format"]
     assert not run.score_labels(case, {"1": "Knowledge tools"})["format"]
 

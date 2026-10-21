@@ -64,7 +64,7 @@ def label_clusters(entities: list) -> list[ClusterSummary]:
             cluster_id=cid,
             entity_ids=[e.id for e in members],
             top_entity_names=top_names,
-            sample_names=[f"{e.name[:60]} ({e.type})" for e in sorted_members[:8]],
+            sample_names=label_sample(members),
             name=name,
             size=len(members),
             research_count=research,
@@ -78,6 +78,16 @@ def label_clusters(entities: list) -> list[ClusterSummary]:
     # Sort by size descending so the most populated clusters come first
     summaries.sort(key=lambda s: s.size, reverse=True)
     return summaries
+
+
+def label_sample(members: list, n: int = 8) -> list[str]:
+    """The members the cluster labeller sees, as "name (type)". Anything with
+    name, type and degree will do (evals/run.py passes plain records).
+    Institutions go last: they say who works on a subject, not what it is,
+    and a sample of university names got named after the universities."""
+    rank = {"concept": 3, "product": 2, "paper": 1}
+    ordered = sorted(members, key=lambda e: (rank.get(e.type, 1), e.degree or 0.0), reverse=True)
+    return [f"{e.name[:60]} ({e.type})" for e in ordered[:n]]
 
 
 def _generate_name(top_names: list[str], research_count: int, product_count: int) -> str:

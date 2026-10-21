@@ -25,7 +25,13 @@ def test_ai_labels_are_cleaned(monkeypatch):
     import groq
     monkeypatch.setattr(groq, "Groq", lambda **k: object())
     out = cluster_labeler.label_clusters_ai("t", [("1", ["a"]), ("2", ["b"])])
-    assert out == {"1": "Adaptive learning systems", "2": "one two three four"}
+    # too long is dropped, not cut mid-phrase
+    assert out == {"1": "Adaptive learning systems"}
+
+
+def test_the_prompt_names_the_topic_words_to_leave_out():
+    assert cluster_labeler._topic_words("e-waste circularity") == ["waste", "circularity"]
+    assert cluster_labeler._topic_words("AI tutoring") == ["tutoring"]
 
 
 def test_clusters_api_prefers_the_label(client, db):

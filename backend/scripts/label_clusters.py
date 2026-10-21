@@ -16,8 +16,9 @@ import sys
 
 from database import SessionLocal
 from main import ensure_columns
-from models import Cluster, ResearchProject
+from models import Cluster, Entity, ResearchProject
 from ai.cluster_labeler import label_clusters_ai
+from graph.clustering import label_sample
 
 
 def run(ids: list[str], force: bool = False) -> tuple[int, int]:
@@ -36,7 +37,13 @@ def run(ids: list[str], force: bool = False) -> tuple[int, int]:
                 if not todo:
                     continue
                 asked += len(todo)
-                pairs = [(c.cluster_id, json.loads(c.top_entities or "[]")) for c in todo]
+                # the members a build would show the labeller; the stored top
+                # names only for clusters whose members are gone
+                members: dict[str, list] = {}
+                for e in db.query(Entity).filter_by(project_id=pid).all():
+                    members.setdefault(e.cluster_id or "0", []).append(e)
+                pairs = [(c.cluster_id, label_sample(members[c.cluster_id]) if members.get(c.cluster_id)
+                          else json.loads(c.top_entities or "[]"), c.size) for c in todo]
                 db.rollback()  # don't hold a transaction open while the model thinks
                 labels = label_clusters_ai(topic, pairs)
                 # a rebuild may have replaced this map's clusters meanwhile

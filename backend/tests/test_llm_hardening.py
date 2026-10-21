@@ -100,7 +100,7 @@ def test_clean_keeps_apostrophes_and_rejects_links_and_long_text():
     assert cluster_labeler._clean("<img src=x>") == ""
     assert cluster_labeler._clean("[Verify](x)") == ""
     assert cluster_labeler._clean("学" * 85) == ""
-    assert cluster_labeler._clean("one two three four five") == "one two three four"
+    assert cluster_labeler._clean("one two three four five") == ""  # dropped, not cut mid-phrase
 
 
 def test_more_than_sixteen_clusters_go_in_batches(fake_groq):
@@ -183,6 +183,16 @@ def test_force_replaces_only_what_the_model_named(db, ready_project, monkeypatch
     assert label_clusters.main(["--force", ready_project]) == 0
     db.expire_all()
     assert db.get(models.Cluster, cid).label == "New label"
+
+
+def test_backfill_shows_the_members_a_build_would(db, ready_project, monkeypatch):
+    from scripts import label_clusters
+    seen = {}
+    monkeypatch.setattr(label_clusters, "label_clusters_ai",
+                        lambda topic, pairs: seen.update(pairs=pairs) or {"0": "New label"})
+    assert label_clusters.main(["--force", ready_project]) == 0
+    members = seen["pairs"][0][1]
+    assert members and all(m.endswith(")") for m in members)  # "name (type)", as in a build
 
 
 def test_backfill_rejects_unknown_options(capsys):
