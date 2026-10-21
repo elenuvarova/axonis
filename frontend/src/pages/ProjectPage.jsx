@@ -93,16 +93,17 @@ export default function ProjectPage() {
   const projectTour = [
     { target: '.graph-canvas-wrap', placement: 'center', before: () => setTab('graph'),
       title: 'Your knowledge map',
-      body: 'Each node is an entity, sized by how central it is, and its shape tells you the type. Drag nodes, scroll to zoom, double-click to refit — and hover any node to reveal its label and connections.' },
+      body: 'Each node is an entity, sized by how central it is; its shape tells you the type. Drag to move, scroll or pinch to zoom, and select a node to see its label and connections.' },
     { target: '.graph-legend', placement: 'bottom', before: () => setTab('graph'),
       title: 'Shape = type',
       body: 'The legend maps each shape to an entity type — concepts, research papers, organisations and products.' },
     { target: '.project-tab-bar', placement: 'bottom',
       title: 'Three ways to read it',
-      body: 'Clusters groups related concepts and Opportunities surfaces scored product openings. Use “ask the map” on the canvas to question the domain in plain English.' },
+      // The tab reads Gaps on a phone, so the tour names whichever label is on screen.
+      body: <>Map shows the whole graph, Clusters groups related concepts, and <span className="tab-long">Opportunities</span><span className="tab-short">Gaps</span> scores the places where research exists but products don’t. Ask the map questions in plain English from the canvas.</> },
     { target: '.header-actions', placement: 'bottom',
       title: 'Enrich & export',
-      body: 'Upload a PDF or CSV to fold new entities into the map, or generate a one-click research Brief you can download or print.' },
+      body: 'On your own maps, upload a PDF, CSV, TXT or Markdown file to add its entities. Brief writes a research summary you can download or print.' },
   ]
 
   const closeTour = () => {
@@ -124,7 +125,7 @@ export default function ProjectPage() {
   const briefMutation = useMutation({
     mutationFn: () => { track('brief_open'); return getBrief(id) },
     onSuccess: (data) => setBrief(data),
-    onError: (e) => setToast(e.message || 'Could not generate brief. Please try again.'),
+    onError: (e) => setToast(e.message || 'Couldn’t generate the brief. Please try again.'),
   })
 
   const rebuildMutation = useMutation({
@@ -250,6 +251,7 @@ export default function ProjectPage() {
       ? `An interactive knowledge graph of ${publicTopic}: concepts, research and organisations from Wikidata and OpenAlex, clustered and scored for product opportunities.`
       : null,
     path: `/project/${id}`,
+    noindex: !!project && !publicTopic,
   })
 
   // Build outcome for analytics: seen building, then ready or error.
@@ -524,7 +526,7 @@ export default function ProjectPage() {
         <main id="main" className="project-main" tabIndex={-1}>
         <StateScreen
           variant="error"
-          title={notFound ? 'Map not found' : 'Could not load this map'}
+          title={notFound ? 'Map not found' : 'Couldn’t load this map'}
           message={notFound
             ? "This map doesn't exist or was deleted. Build a new one from the home page."
             : "The server didn't respond. Check your connection and try again."}
@@ -541,7 +543,7 @@ export default function ProjectPage() {
   }
 
   if (!project) {
-    return <div className="full-center" style={{ minHeight: '100vh' }}><div className="spinner" role="status" aria-label="Loading project" /></div>
+    return <div className="full-center" style={{ minHeight: '100vh' }}><div className="spinner" role="status" aria-label="Loading map" /></div>
   }
 
   const clusters  = clustersData?.clusters ?? []
@@ -616,7 +618,7 @@ export default function ProjectPage() {
                 className="btn btn-ghost btn-icon-mobile"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadMutation.isPending}
-                title="Add a PDF or CSV to enrich the graph"
+                title="Add a PDF, CSV, TXT or Markdown file to enrich the graph"
                 aria-label="Upload a document to enrich the graph"
               >
                 {uploadMutation.isPending ? '…' : <><Icon name="upload" /><span className="btn-label">Upload</span></>}
@@ -649,7 +651,7 @@ export default function ProjectPage() {
       <main id="main" className="project-main" tabIndex={-1}>
       {/* ── Tab bar — exposed as tablist (M-2, WCAG 4.1.2) ── */}
       {isReady && nodeCount > 0 && (
-        <div className="project-tab-bar" role="tablist" aria-label="Project views">
+        <div className="project-tab-bar" role="tablist" aria-label="Map views">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -718,7 +720,7 @@ export default function ProjectPage() {
         <StateScreen
           variant="empty"
           title="No graph to show"
-          message="This topic didn't return enough open data to build a graph. Try a broader or more specific topic."
+          message="This topic didn't return enough open data to build a graph. Try a broader topic or different wording."
           actions={<Link className="btn btn-secondary" to="/">New topic</Link>}
         />
 
