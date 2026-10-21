@@ -49,8 +49,7 @@ def enrich_with_ai(
         return candidates
 
     try:
-        from groq import Groq
-        client = Groq(api_key=api_key, timeout=20.0)
+        client = llm.client(timeout=20.0)
     except ImportError:
         print("[ai] groq package not installed")
         return candidates
@@ -80,7 +79,7 @@ def enrich_with_ai(
                     {"role": "user", "content": prompt},
                 ],
             )
-            raw = response.choices[0].message.content.strip()
+            raw = llm.text(response)
             data = json.loads(raw)
             if not isinstance(data, dict):
                 raise ValueError("model did not return a JSON object")

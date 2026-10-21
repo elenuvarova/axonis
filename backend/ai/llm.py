@@ -10,8 +10,27 @@ GROQ_MODELS: comma-separated, first is preferred.
 from __future__ import annotations
 
 import os
+import re
+import time
 
 DEFAULT_MODELS = "openai/gpt-oss-120b,qwen/qwen3.8-27b"
+
+
+def client(timeout: float):
+    """A Groq client without the SDK's own retries (two by default): create()
+    already walks the model list and callers retry once at most, so SDK
+    retries multiplied a slow minute into several."""
+    from groq import Groq
+    return Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=timeout, max_retries=0)
+
+
+_THINK = re.compile(r"<think>.*?(</think>|$)", re.S | re.I)
+
+
+def text(resp) -> str:
+    """The reply's text without a reasoning block: the fallback model can
+    write its <think>…</think> into content."""
+    return _THINK.sub("", resp.choices[0].message.content or "").strip()
 
 
 def models() -> list[str]:
@@ -25,19 +44,23 @@ def _extra(model: str) -> dict:
     return {"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else {}
 
 
-def create(client, *, messages: list[dict], max_tokens: int):
+def create(client, *, messages: list[dict], max_tokens: int, deadline: float = 45.0):
     """Like client.chat.completions.create, but walks the model list.
     Returns the first response that has non-empty content; raises the last
-    error if every model fails."""
+    error if every model fails. No new model is tried once `deadline`
+    seconds have passed, so one request can't stack timeouts for minutes."""
     last: Exception | None = None
+    start = time.monotonic()
     for i, model in enumerate(models()):
+        if i and time.monotonic() - start > deadline:
+            print(f"[llm] deadline passed, not trying {model}")
+            break
         try:
             resp = client.chat.completions.create(
                 model=model, max_tokens=max_tokens, messages=messages,
                 extra_body=_extra(model) or None,
             )
-            content = (resp.choices[0].message.content or "").strip()
-            if content:
+            if text(resp):
                 if i:
                     print(f"[llm] fell back to {model}")
                 return resp

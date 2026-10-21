@@ -39,8 +39,7 @@ def extract_graph(text: str, topic: str, csv_rows: list[dict] | None = None):
 
 
 def _ai_extract(text: str, topic: str, api_key: str):
-    from groq import Groq
-    client = Groq(api_key=api_key, timeout=20.0)
+    client = llm.client(timeout=20.0)
 
     prompt = (
         f'Topic context: "{topic}".\n\n'
@@ -61,7 +60,7 @@ def _ai_extract(text: str, topic: str, api_key: str):
             {"role": "user", "content": prompt},
         ],
     )
-    data = json.loads(response.choices[0].message.content.strip())
+    data = json.loads(llm.text(response))
     if not isinstance(data, dict):
         raise ValueError("model did not return a JSON object")
 

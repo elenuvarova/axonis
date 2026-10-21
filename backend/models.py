@@ -19,7 +19,7 @@ class ResearchProject(Base):
     status = Column(String(20), default="pending")
     error_message = Column(Text)
     # sha256 of the owner token handed to the creating browser; NULL for maps
-    # made before tokens existed (those stay editable by anyone, as before).
+    # made before tokens existed (those are read-only, see require_owner).
     owner_token_hash = Column(String(64))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -97,3 +97,14 @@ class Opportunity(Base):
     risk_level = Column(String(20), default="medium")
     score = Column(Float, default=0.0)
     generated_by_ai = Column(Boolean, default=False)
+
+
+class UsageCounter(Base):
+    """Daily counts of LLM-backed actions (guard.spend): the service-wide
+    budget has to survive deploys and restarts, so it lives here, not in
+    process memory like the per-IP limits."""
+    __tablename__ = "usage_counters"
+
+    key = Column(String(80), primary_key=True)   # "ask" or "ask:<project id>"
+    day = Column(String(10), primary_key=True)   # UTC date, YYYY-MM-DD
+    count = Column(Integer, default=0, nullable=False)

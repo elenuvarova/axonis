@@ -15,7 +15,7 @@ describe('owner tokens', () => {
     rememberProject('a', 'tok-a')
     expect(canEdit({ id: 'a', locked: true })).toBe(true)
     expect(canEdit({ id: 'b', locked: true })).toBe(false)
-    expect(canEdit({ id: 'c', locked: false })).toBe(true)
+    expect(canEdit({ id: 'c', locked: false })).toBe(false)
     expect(canEdit({ id: 'a', locked: true, protected: true })).toBe(false)
   })
 })

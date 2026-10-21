@@ -41,3 +41,23 @@ def repair_title(title: str | None) -> str | None:
     if title and title.endswith(".") and not title.endswith(".."):
         return title[:-1].rstrip()
     return title
+
+
+def lead_name(top_names: list[str]) -> str:
+    """A cluster's stand-in name when the model gave it none: its
+    best-connected member, cut on a word boundary."""
+    return short(top_names[0], 32) if top_names else "Unnamed cluster"
+
+
+def cluster_name(c) -> str:
+    """What every screen, Ask and the brief call a cluster: the AI label, or
+    the lead member when the model didn't name it (label stays NULL so a
+    backfill can still find it)."""
+    if getattr(c, "label", None):
+        return c.label
+    import json
+    try:
+        names = json.loads(getattr(c, "top_entities", None) or "[]")
+    except (TypeError, ValueError):
+        names = []
+    return lead_name(names) if names else (repair_cluster_name(getattr(c, "name", None)) or "Unnamed cluster")

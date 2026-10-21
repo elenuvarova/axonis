@@ -17,11 +17,12 @@ def test_protected_project_rejects_delete_build_upload(client, db, monkeypatch):
     assert client.get(f"/api/projects/{pid}").status_code == 200
 
 
-def test_unprotected_project_can_still_be_deleted(client, db, monkeypatch):
-    pid = _proj(db)
+def test_unprotected_project_can_still_be_deleted(client, monkeypatch):
     monkeypatch.setenv("PROTECTED_PROJECT_IDS", "")
-    assert client.get(f"/api/projects/{pid}").json()["protected"] is False
-    assert client.delete(f"/api/projects/{pid}").status_code == 204
+    made = client.post("/api/projects", json={"topic": "mine"}).json()
+    assert client.get(f"/api/projects/{made['id']}").json()["protected"] is False
+    r = client.delete(f"/api/projects/{made['id']}", headers={"X-Owner-Token": made["owner_token"]})
+    assert r.status_code == 204
 
 
 def test_rate_limit_returns_429_per_ip(client, monkeypatch):

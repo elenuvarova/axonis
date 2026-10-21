@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from graph.opportunities import cluster_maxes, score_parts
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
-from textutil import repair_cluster_name, repair_title
+from textutil import cluster_name, repair_cluster_name, repair_title
 
 router = APIRouter(prefix="/projects", tags=["graph"])
 
@@ -84,7 +84,7 @@ def get_opportunities(project_id: str, db: Session = Depends(get_db)):
     opps = (
         db.query(Opportunity)
         .filter_by(project_id=project_id)
-        .order_by(Opportunity.score.desc())
+        .order_by(Opportunity.score.desc(), Opportunity.id)
         .all()
     )
 
@@ -114,7 +114,7 @@ def _cluster_out(c: Cluster) -> dict:
         "id": c.id,
         "cluster_id": c.cluster_id,
         # the short label when there is one; the member names become the terms
-        "name": c.label or repair_cluster_name(c.name),
+        "name": cluster_name(c),
         "terms": repair_cluster_name(c.name),
         "top_entities": _parse_json(c.top_entities, []),
         "size": c.size,
@@ -130,7 +130,7 @@ def _opportunity_out(o: Opportunity, cluster: Cluster | None) -> dict:
     return {
         "id": o.id,
         "cluster_db_id": o.cluster_db_id,
-        "cluster_name": (cluster.label or repair_cluster_name(cluster.name)) if cluster else None,
+        "cluster_name": cluster_name(cluster) if cluster else None,
         "cluster_size": cluster.size if cluster else None,
         "title": repair_title(o.title),
         "why_it_matters": o.why_it_matters,
