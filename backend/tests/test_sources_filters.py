@@ -4,7 +4,7 @@ from sources.wikidata import is_namesake
 def test_namesakes_are_filtered():
     for d in ["2017 video game", "family name", "Wikimedia disambiguation page",
               "American economist (1925–2010)", "album by Radiohead", "1999 film directed by X",
-              "scientific article published on 24 May 2024", "edition; published in 1993", "book (work)",
+              "scientific article published on 24 May 2024", "scholarly article published in 2017", "edition; published in 1993", "book (work)",
               "academic conference", "conference proceedings published in 2017", "academic journal"]:
         assert is_namesake(d), d
 
@@ -43,3 +43,18 @@ def test_null_related_concepts_do_not_drop_openalex(monkeypatch):
     monkeypatch.setattr(oa, "get_top_institutions", lambda q: [])
     out = oa.fetch_entities_for_topic("Data Science")
     assert out["related_concepts"] == [] and len(out["works"]) == 1
+
+
+def test_descriptive_terms_fall_back_to_full_text_search(monkeypatch):
+    # label search finds nothing for "Utility-scale solar farm"; full text
+    # does, minus undescribed items and articles
+    import sources.wikidata as wd
+    monkeypatch.setattr(wd, "search_entities", lambda term, limit: [])
+    monkeypatch.setattr(wd, "search_fulltext", lambda term: [
+        {"id": "Q1", "label": "A paper", "description": ""},
+        {"id": "Q2", "label": "Site selection study", "description": "scholarly article published in 2017"},
+        {"id": "Q3", "label": "solar power plant", "description": "large solar power-collecting facility"},
+    ])
+    monkeypatch.setattr(wd, "get_related", lambda qid: [])
+    out = wd.fetch_entities_for_terms(["Utility-scale solar farm"])
+    assert [r["label"] for r in out] == ["solar power plant"]
