@@ -87,7 +87,10 @@ export default function ProjectPage() {
   const sheetRef = useRef(null)
   const [brief, setBrief] = useState(null)
   const [askResult, setAskResult] = useState(null)
-  const [toast, setToast] = useState('')
+  // { message, tone }: errors by default; upload results that went fine say so with tone 'ok'
+  const [toast, setToastState] = useState(null)
+  const setToast = useCallback((message, tone = 'error') => setToastState(message ? { message, tone } : null), [])
+  const closeToast = useCallback(() => setToastState(null), [])  // stable, or each re-render restarts the toast's timer
   const [tourOpen, setTourOpen] = useState(false)
   const pendingCluster = useRef(null)
 
@@ -177,9 +180,9 @@ export default function ProjectPage() {
     if (project?.status !== 'ready' || !uploadSent.current || !u) return
     uploadSent.current = false
     if (u.error) setToast(`Upload failed: ${u.error}`)
-    else if (!u.added) setToast(`No new entities found in ${u.filename}.`)
-    else setToast(`Added ${u.added} ${u.added === 1 ? 'entity' : 'entities'} from ${u.filename}.`)
-  }, [project?.status, project?.last_upload])
+    else if (!u.added) setToast(`No new entities found in ${u.filename}.`, 'ok')
+    else setToast(`Added ${u.added} ${u.added === 1 ? 'entity' : 'entities'} from ${u.filename}.`, 'ok')
+  }, [project?.status, project?.last_upload, setToast])
 
   const { data: graphData, isError: graphFailed } = useQuery({
     queryKey: ['graph', id], queryFn: () => getGraph(id), enabled: isReady,
@@ -845,7 +848,7 @@ export default function ProjectPage() {
       {brief && <BriefModal brief={brief} project={project} onClose={() => setBrief(null)} returnFocusRef={briefBtnRef} onNotice={setToast} nodeCount={nodeCount} />}
 
       {/* ── Toast — transient errors (replaces alert()) ── */}
-      <Toast message={toast} onClose={() => setToast('')} />
+      <Toast message={toast?.message} tone={toast?.tone} onClose={closeToast} />
 
       {/* ── Guided tour ── */}
       <Tour steps={projectTour} open={tourOpen} onClose={closeTour} />

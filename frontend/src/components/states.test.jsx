@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { StateScreen, InlineError, BuildingScreen } from './states'
+import { StateScreen, InlineError, BuildingScreen, Toast } from './states'
 
 describe('StateScreen', () => {
   it('renders title, message and actions', () => {
@@ -24,6 +24,29 @@ describe('InlineError', () => {
     expect(screen.getByText('Enter a topic')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Dismiss'))
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Toast', () => {
+  it('tags an ok outcome [OK] as a status, an error [ERR] as an alert', () => {
+    const { rerender } = render(<Toast message="Added 3 entities from a.pdf." tone="ok" onClose={() => {}} />)
+    expect(screen.getByRole('status')).toHaveTextContent('[OK]')
+    rerender(<Toast message="Upload failed: File too large (max 5 MB)" onClose={() => {}} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('[ERR]')
+  })
+
+  it('closes itself: ok after 4 s, errors after 9 s', () => {
+    vi.useFakeTimers()
+    const onClose = vi.fn()
+    const { rerender } = render(<Toast message="done" tone="ok" onClose={onClose} />)
+    vi.advanceTimersByTime(4000)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    rerender(<Toast message="broke" onClose={onClose} />)
+    vi.advanceTimersByTime(8999)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1)
+    expect(onClose).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
   })
 })
 
