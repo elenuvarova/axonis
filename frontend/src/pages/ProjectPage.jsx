@@ -431,6 +431,7 @@ export default function ProjectPage() {
     setTab('graph')
     setAskOpen(true)
     setPanelOpen(true)
+    setSheetSnap('half') // phone sheet: at peek height the suggested questions sit under the fold
   }
 
   const closeAsk = () => {
@@ -516,7 +517,7 @@ export default function ProjectPage() {
     return (
       <div className="project-page">
         <header className="topbar">
-          <Link to="/" className="crumb-brand" aria-label="Back to home"><Wordmark /></Link>
+          <Link to="/" className="crumb-brand" aria-label="Axonis home"><Wordmark /></Link>
           <span className="crumb-sep" aria-hidden="true">/</span>
           <span className="crumb-name">Project</span>
         </header>
@@ -571,7 +572,7 @@ export default function ProjectPage() {
       {/* ── Top bar ── */}
       <header className="topbar">
         {/* aria-label supplements the visible glyphs — the crumb alone is not a reliable name (M-5) */}
-        <Link to="/" className="crumb-brand" aria-label="Back to home">
+        <Link to="/" className="crumb-brand" aria-label="Axonis home">
           <span className="crumb-back" aria-hidden="true">←</span>
           <span className="crumb-kge" aria-hidden="true"><Wordmark /></span>
         </Link>
@@ -603,12 +604,11 @@ export default function ProjectPage() {
                 type="button"
                 className="cmdk-chip"
                 onClick={() => { track('cmdk_open', { via: 'chip' }); setPaletteOpen(true) }}
-                aria-label="Search nodes and actions"
                 aria-keyshortcuts="Meta+K Control+K"
               >
                 <Icon name="search" size={14} />
-                <span className="cmdk-chip-label">Search</span>
-                <kbd className="cmdk-kbd">⌘K</kbd>
+                <span className="cmdk-chip-label">Search</span><span className="sr-only"> nodes and actions</span>
+                <kbd className="cmdk-kbd" aria-hidden="true">⌘K</kbd>
               </button>
 {canEdit(project) && (
               <button

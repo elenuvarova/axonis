@@ -11,7 +11,7 @@ describe('BriefModal', () => {
     const dialog = screen.getByRole('dialog', { name: /research brief · ai tutoring/i })
     expect(dialog).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Brief' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /download brief as markdown/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /download brief as \.md/i })).toBeInTheDocument()
   })
 
   it('closes on Escape', () => {

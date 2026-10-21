@@ -122,7 +122,7 @@ export default function BriefModal({ brief, project, onClose, returnFocusRef, on
             <button
               type="button"
               className="btn btn-secondary"
-              aria-label="Download brief as Markdown"
+              aria-label="Download brief as .md"
               onClick={() => {
                 track('brief_download', { format: 'md' })
                 const blob = new Blob([brief.markdown], { type: 'text/markdown' })
