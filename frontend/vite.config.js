@@ -15,6 +15,9 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    // fonts always ship as files: Vite would inline the small unicode-range subsets as data: URIs,
+    // which the CSP (font-src 'self') blocks
+    assetsInlineLimit: (file) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
   },
   test: {
     environment: "jsdom",
