@@ -39,7 +39,7 @@ def test_related_query_is_balanced():
 def test_null_related_concepts_do_not_drop_openalex(monkeypatch):
     import sources.openalex as oa
     monkeypatch.setattr(oa, "search_concepts", lambda q: [{"display_name": "Data science", "related_concepts": None}])
-    monkeypatch.setattr(oa, "get_top_works", lambda q: [{"title": "p"}])
+    monkeypatch.setattr(oa, "get_top_works", lambda q, **k: [{"title": "p"}])
     monkeypatch.setattr(oa, "get_top_institutions", lambda q: [])
     out = oa.fetch_entities_for_topic("Data Science")
     assert out["related_concepts"] == [] and len(out["works"]) == 1
