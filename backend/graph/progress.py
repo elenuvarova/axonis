@@ -72,3 +72,25 @@ def snapshot(project_id: str) -> dict | None:
             "counts": dict(run["counts"]),
             "log": list(run["log"]),
         }
+
+
+# Outcome of the last document upload per map, for the page that sent it:
+# "Added 12 entities" or why nothing was added. Kept until the next upload or
+# build; a restart forgets it, which costs only the toast.
+_uploads: dict[str, dict] = {}
+
+
+def upload_result(project_id: str, filename: str, added: int | None = None, error: str | None = None) -> None:
+    with _lock:
+        _uploads[project_id] = {"filename": filename, "added": added, "error": error}
+
+
+def clear_upload(project_id: str) -> None:
+    with _lock:
+        _uploads.pop(project_id, None)
+
+
+def last_upload(project_id: str) -> dict | None:
+    with _lock:
+        u = _uploads.get(project_id)
+        return dict(u) if u else None

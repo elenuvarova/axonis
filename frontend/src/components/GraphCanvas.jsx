@@ -161,6 +161,12 @@ const COLA = {
 // dragging any node creates ripples across the whole graph (including small
 // isolated nodes that have no direct edges to the dragged one).
 // ungrabifyWhileSimulating must be false so the user can keep dragging.
+// Above this the live physics costs more than it shows: every tick runs over
+// the whole graph on the main thread, about 70% of the CPU a 1000-node map
+// takes after load (benchmarked in headless Chromium). Dragging then moves
+// just the node.
+const LIVE_MAX_NODES = 300
+
 const COLA_LIVE = {
   name: 'cola',
   animate: true,
@@ -315,8 +321,8 @@ export default function GraphCanvas({
       // (zoomed to a readable level around the main hub on a phone).
       initialView(cy)
       if (reducedRef.current) return
-      startLive()
-      settleSoon()
+      // a touch screen has no hover to wake it, so it starts on the first drag
+      if (!window.matchMedia?.('(pointer: coarse)').matches) { startLive(); settleSoon() }
     })
     bootLayout.run()
 
@@ -325,7 +331,7 @@ export default function GraphCanvas({
     // forever. Pointer activity or a drag wakes it again.
     let idleTimer = null
     function startLive() {
-      if (liveLayout.current || reducedRef.current || cy.destroyed()) return
+      if (liveLayout.current || reducedRef.current || cy.destroyed() || cy.nodes().length > LIVE_MAX_NODES) return
       liveLayout.current = cy.layout({ ...COLA_LIVE, edgeLength })
       liveLayout.current.run()
     }

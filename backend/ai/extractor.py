@@ -99,16 +99,17 @@ def _ai_extract(text: str, topic: str, api_key: str):
 
 
 def _csv_fallback(rows: list[dict]) -> list[dict]:
-    """Use the first column of a CSV as concept entities."""
+    """Use the first column of names in a CSV as concept entities."""
+    column = _name_column(rows)
     entities = []
     seen = set()
     for row in rows:
         if not row:
             continue
-        first_value = next((v for v in row.values() if v and str(v).strip()), None)
-        if not first_value:
+        value = row.get(column) if column is not None else None
+        if not isinstance(value, str) or not value.strip():
             continue
-        name = str(first_value).strip()[:200]
+        name = value.strip()[:200]
         if name.lower() in seen:
             continue
         seen.add(name.lower())
@@ -116,3 +117,15 @@ def _csv_fallback(rows: list[dict]) -> list[dict]:
         if len(entities) >= 50:
             break
     return entities
+
+
+def _name_column(rows: list[dict]):
+    """The first column whose values are mostly words: an "id" or "year"
+    column first in the file would otherwise turn 1, 2, 3 into map nodes."""
+    columns = list(rows[0].keys()) if rows else []
+    for col in columns:
+        values = [str(r.get(col) or "").strip() for r in rows[:50]]
+        values = [v for v in values if v]
+        if values and sum(any(c.isalpha() for c in v) for v in values) >= 0.8 * len(values):
+            return col
+    return None

@@ -4,6 +4,7 @@ import secrets
 from collections import OrderedDict
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Header
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -93,6 +94,7 @@ def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Sessio
     spend("build")
     project.status = "building"
     db.commit()
+    progress.clear_upload(project_id)
     background_tasks.add_task(_run_build, project_id)
     return {"status": "building", "project_id": project_id}
 
@@ -172,11 +174,22 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="The uploaded file is empty")
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 5 MB)")
+
+    # Parse here, not in the background: a file with no readable text gets an
+    # answer now and leaves the map as it was.
+    from sources.uploads import parse_document, csv_rows
+    text = await run_in_threadpool(parse_document, filename, content)
+    rows = csv_rows(filename, content)
+    if not text and not rows:
+        hint = (" It may be a scan without a text layer, password-protected or damaged."
+                if filename.lower().endswith(".pdf") else "")
+        raise HTTPException(status_code=422, detail=f"No readable text in this file.{hint}")
     spend("upload")
 
     project.status = "building"
     db.commit()
-    background_tasks.add_task(_run_ingest, project_id, filename, content)
+    progress.clear_upload(project_id)
+    background_tasks.add_task(_run_ingest, project_id, filename, text, rows)
     return {"status": "building", "filename": filename}
 
 
@@ -213,12 +226,15 @@ def _run_build(project_id: str):
         db.close()
 
 
-def _run_ingest(project_id: str, filename: str, content: bytes):
-    """Parse an uploaded document, extract a sub-graph, merge it into the
-    project's graph, and recompute clusters/opportunities."""
+def _run_ingest(project_id: str, filename: str, text: str, rows: list[dict]):
+    """Extract a sub-graph from an uploaded document's text, merge it into the
+    project's graph, and recompute clusters/opportunities.
+
+    A failure goes back to "ready", not "error": the map from before the
+    upload is still there, and "error" would hide it behind a rebuild button.
+    """
     db = SessionLocal()
     try:
-        from sources.uploads import parse_document, csv_rows
         from ai.extractor import extract_graph
         from graph.builder import enrich_from_extraction
 
@@ -226,23 +242,18 @@ def _run_ingest(project_id: str, filename: str, content: bytes):
         if not project:
             return
 
-        text = parse_document(filename, content)
-        rows = csv_rows(filename, content)
         entities, relationships = extract_graph(text, project.topic, csv_rows=rows)
-        enrich_from_extraction(project_id, db, entities, relationships)
-
+        added = enrich_from_extraction(project_id, db, entities, relationships)
+        progress.upload_result(project_id, filename, added=added)
+    except Exception as exc:
+        print(f"[upload] project={project_id} failed: {exc}")
+        db.rollback()
+        progress.upload_result(project_id, filename, error="The file could not be processed. Try again, or try another file.")
+    finally:
         project = db.get(ResearchProject, project_id)
         if project:
             project.status = "ready"
             db.commit()
-    except Exception as exc:
-        print(f"[upload] project={project_id} failed: {exc}")
-        project = db.get(ResearchProject, project_id)
-        if project:
-            project.status = "error"
-            project.error_message = "Upload processing failed. Please check the file and try again."
-            db.commit()
-    finally:
         db.close()
 
 
@@ -264,6 +275,7 @@ def _project_out(p: ResearchProject) -> dict:
         "created_at": p.created_at.isoformat() if p.created_at else None,
         # Real pipeline stage + counts while a build runs (None otherwise).
         "progress": progress.snapshot(p.id) if p.status == "building" else None,
+        "last_upload": progress.last_upload(p.id),
         # Portfolio demos: read + ask only (see guard.py).
         "protected": is_protected(p.id),
         # Rebuild/upload/delete need the owner token (see require_owner).

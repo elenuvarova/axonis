@@ -132,9 +132,12 @@ export default function ProjectPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['project', id] }),
   })
 
+  // Set while an upload this tab sent is being processed; its outcome is a toast.
+  const uploadSent = useRef(false)
   const uploadMutation = useMutation({
     mutationFn: (file) => { track('upload'); return uploadDocument(id, file) },
     onSuccess: () => {
+      uploadSent.current = true
       qc.invalidateQueries({ queryKey: ['project', id] })
       qc.invalidateQueries({ queryKey: ['graph', id] })
       qc.invalidateQueries({ queryKey: ['clusters', id] })
@@ -166,6 +169,15 @@ export default function ProjectPage() {
   })
 
   const isReady = project?.status === 'ready'
+
+  useEffect(() => {
+    const u = project?.last_upload
+    if (project?.status !== 'ready' || !uploadSent.current || !u) return
+    uploadSent.current = false
+    if (u.error) setToast(`Upload failed: ${u.error}`)
+    else if (!u.added) setToast(`No new entities found in ${u.filename}.`)
+    else setToast(`Added ${u.added} ${u.added === 1 ? 'entity' : 'entities'} from ${u.filename}.`)
+  }, [project?.status, project?.last_upload])
 
   const { data: graphData, isError: graphFailed } = useQuery({
     queryKey: ['graph', id], queryFn: () => getGraph(id), enabled: isReady,
