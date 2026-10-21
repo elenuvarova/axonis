@@ -5,6 +5,8 @@
 //    "of", "to", "the"…;
 //  - a number is tied to the word after it ("58 nodes");
 //  - a dash or a middle dot never starts a line: the space before it is no-break;
+//  - a short prefix keeps its hyphenated word whole ("e-waste", "co-design"): a word
+//    joiner after the hyphen, since neither web font has a no-break hyphen glyph;
 //  - the same number + word tie holds when React split them into two text
 //    nodes ("{n} nodes" renders as "8" and " nodes"): see tieAcross.
 // Applied to text nodes as they appear, so new copy and model output are
@@ -15,11 +17,13 @@ const FUNCTION_WORDS = 'the|and|for|but|nor|via|per|its|our|not|with|from|into|o
 const SHORT = new RegExp(`(^|[\\s\\u00A0(\\[“‘"'«/])((?:[A-Za-z]{1,2}|${FUNCTION_WORDS})) (?=\\S)`, 'gi')
 const NUMBER = /(\d) (?=[A-Za-z%])/g
 const DASH = / ([—–·]) /g
+const WJ = '\u2060'
+const PREFIX = /(?<![A-Za-z])([A-Za-z]{1,3})-(?=[A-Za-z])/g
 const SKIP = 'input, textarea, select, code, pre, kbd, script, style, svg, canvas, [contenteditable], [data-no-typo]'
 
 export function bind(text) {
   if (!text || text.length < 3) return text
-  let t = text.replace(DASH, `${NBSP}$1 `).replace(NUMBER, `$1${NBSP}`)
+  let t = text.replace(DASH, `${NBSP}$1 `).replace(NUMBER, `$1${NBSP}`).replace(PREFIX, `$1-${WJ}`)
   // twice, so runs like "a map of the domain" bind each short word
   t = t.replace(SHORT, `$1$2${NBSP}`).replace(SHORT, `$1$2${NBSP}`)
   return t

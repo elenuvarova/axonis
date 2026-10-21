@@ -572,11 +572,12 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 /* Opportunities */
 .opp-board { flex: 1; min-width: 0; padding: var(--s-4) var(--s-3) var(--s-1); }  /* 24: the project chrome (logo, tabs) sits there, so the screen keeps one left edge */
 .opp-board-head { margin-bottom: var(--s-3); }
-/* Cards share the grid's rows (subgrid): top / score / title / cluster / why / evidence / footer / details
-   line up across a row of cards. Spacing contrast: identity (top, score, title), description (cluster, why,
-   evidence), actions (footer) are 8 / 16 / 24 apart; the 32 between cards is wider than any of them. */
+/* Cards share the grid's rows (subgrid): top / score / title / cluster / why / evidence / footer
+   line up across a row of cards; the details open as a full-width strip after the row (.opp-detail), so
+   no card stretches its neighbours. Spacing contrast: identity (top, score, title), description (cluster,
+   why, evidence), actions (footer) are 8 / 16 / 24 apart; the 32 between cards is wider than any of them. */
 .opp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: var(--s-4); row-gap: 0; }
-.opp-card { min-width: 0; overflow-wrap: anywhere; display: grid; grid-template-rows: subgrid; grid-row: span 8; row-gap: 0; margin-bottom: var(--s-4); padding: var(--card-pad); background: var(--panel); border: 1px solid var(--line); }
+.opp-card { min-width: 0; overflow-wrap: anywhere; display: grid; grid-template-rows: subgrid; grid-row: span 7; row-gap: 0; margin-bottom: var(--s-4); padding: var(--card-pad); background: var(--panel); border: 1px solid var(--line); }
 /* the top-ranked gap is the entry point: a brighter frame on a raised ground, no accent */
 .opp-card:first-child { border-color: var(--text); background: var(--raised); }
 .opp-card-top { display: flex; justify-content: space-between; gap: var(--s-1); }
@@ -586,7 +587,10 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .opp-card-title { margin-top: var(--s-2); font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--track-h2); text-wrap: balance; }
 .opp-cluster-meta { margin-top: var(--s-1); font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-2); }
 .opp-why { margin-top: var(--s-2); font-family: var(--font-body); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-2); text-wrap: pretty; }
-.opp-more { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
+.opp-card.is-open { border-color: var(--text); }
+.opp-detail { grid-column: 1 / -1; min-width: 0; margin-bottom: var(--s-4); padding: var(--card-pad); background: var(--raised); border: 1px solid var(--text); }
+.opp-detail-title { color: var(--text); text-transform: none; letter-spacing: 0; }
+.opp-more { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-3) var(--s-4); margin-top: var(--s-2); }
 .opp-list { display: flex; flex-direction: column; gap: var(--s-half); margin-top: var(--s-1); }
 .opp-list li { position: relative; padding-left: var(--s-2); font-family: var(--font-body); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-2); }
 .opp-list li::before { content: '>'; position: absolute; left: 0; color: var(--text-2); font-family: var(--font-mono); }
