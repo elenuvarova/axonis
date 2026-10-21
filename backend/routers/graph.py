@@ -159,7 +159,8 @@ def _node_out(e: Entity) -> dict:
         "type": e.type,
         "description": e.description,
         "source": e.source,
-        "source_url": e.source_url,
+        # third-party data (OpenAlex homepages): only web links reach the page
+        "source_url": e.source_url if (e.source_url or "").lower().startswith(("https://", "http://")) else None,
         "wikidata_id": e.wikidata_id,
         "openalex_id": e.openalex_id,
         "degree": e.degree,

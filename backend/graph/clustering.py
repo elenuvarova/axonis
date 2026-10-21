@@ -11,6 +11,8 @@ class ClusterSummary:
     cluster_id: str
     entity_ids: list[str] = field(default_factory=list)
     top_entity_names: list[str] = field(default_factory=list)
+    # up to eight members with their type, for the cluster labeller
+    sample_names: list[str] = field(default_factory=list)
     name: str = ""
     size: int = 0
     research_count: int = 0   # papers + institutions
@@ -62,6 +64,7 @@ def label_clusters(entities: list) -> list[ClusterSummary]:
             cluster_id=cid,
             entity_ids=[e.id for e in members],
             top_entity_names=top_names,
+            sample_names=[f"{e.name[:60]} ({e.type})" for e in sorted_members[:8]],
             name=name,
             size=len(members),
             research_count=research,

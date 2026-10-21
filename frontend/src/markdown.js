@@ -4,8 +4,11 @@
 // brief modal (dangerouslySetInnerHTML) and a print window. We therefore
 // ESCAPE ALL HTML FIRST, so any raw HTML/script in the markdown becomes inert
 // text, and only THEN add our own whitelisted tags. Link hrefs are sanitised
-// to http(s)/mailto/relative — javascript: and data: URLs are dropped. No other
-// attributes are ever emitted, so there is no HTML-injection surface.
+// to relative links and https links to the sources a brief cites (TRUSTED_HOSTS)
+// — javascript:, data: and any other site become plain text, so a prompt-
+// injected "[Verify your account](https://evil…)" can't turn into a link on
+// our page. No other attributes are ever emitted, so there is no
+// HTML-injection surface.
 //
 // Supported subset (exactly what backend/ai/brief_generator.py emits):
 //   # / ## / ### headings · GFM pipe tables · - and 1. lists · --- rules
@@ -20,10 +23,21 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#39;')
 }
 
+const TRUSTED_HOSTS = ['wikidata.org', 'wikipedia.org', 'openalex.org', 'doi.org', 'axonis.app']
+
+function trustedHost(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    return TRUSTED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))
+  } catch {
+    return false
+  }
+}
+
 function safeHref(rawUrl) {
   const url = rawUrl.trim()
-  // Allow only protocols we trust, plus relative/anchor links.
-  if (/^(https?:|mailto:)/i.test(url)) return url
+  // Absolute links only to the sources we cite; relative/anchor links stay.
+  if (/^https?:/i.test(url)) return trustedHost(url) ? url : null
   if (/^[/#]/.test(url)) return url
   if (/^[a-z0-9._~%-]+(\/|$)/i.test(url) && !/^[a-z][a-z0-9+.-]*:/i.test(url)) return url
   return null // unknown / dangerous scheme (javascript:, data:, …) → drop

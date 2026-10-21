@@ -28,6 +28,9 @@ function within(a, b, max) {
 // Exact matches rank first (start of name > start of a word > anywhere);
 // then every query word matching a word of the name allowing a typo or two
 // ("tutorng", "machne lerning"), so a slip of the finger still finds the node.
+// Words are split on anything but letters and digits on both sides, so
+// "self-regulated" finds "Self regulated learning"; words under five letters
+// must match as a prefix ("date" is not "Data").
 export function rank(name, q) {
   const n = name.toLowerCase()
   const i = n.indexOf(q)
@@ -35,8 +38,10 @@ export function rank(name, q) {
   if (i > 0) return /\W/.test(n[i - 1]) ? 2 : 1
   if (q.length < 4) return -1
   const words = n.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
-  const tokens = q.split(/\s+/).filter(Boolean)
+  const tokens = q.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  if (!tokens.length) return -1
   const ok = tokens.every((t) => {
+    if (t.length < 5) return words.some((w) => w.startsWith(t))
     const max = t.length >= 7 ? 2 : 1
     return words.some((w) => w.startsWith(t) || within(t, w.slice(0, t.length + max), max) || within(t, w, max))
   })

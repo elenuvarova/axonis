@@ -90,6 +90,8 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
 
   const fmt = (n) => (n != null ? Number(n).toFixed(3) : '—')
   const clusterTag = entity.cluster_id != null ? `cluster_${pad(entity.cluster_id)}` : null
+  // third-party data (OpenAlex homepages): React renders javascript: hrefs as-is
+  const safeSource = /^https?:\/\//i.test(entity.source_url || '') ? entity.source_url : null
 
   return (
     <div className="entity-card">
@@ -148,11 +150,11 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
         )}
       </div>
 
-      {(onAsk || entity.source_url) && (
+      {(onAsk || safeSource) && (
         <div className="entity-actions">
           {onAsk && <button type="button" className="btn btn-primary" onClick={onAsk}>Ask about this</button>}
-          {entity.source_url && (
-            <a href={entity.source_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
+          {safeSource && (
+            <a href={safeSource} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
               Open source<span className="sr-only"> (opens in a new tab)</span>
             </a>
           )}

@@ -32,9 +32,17 @@ describe('renderMarkdown', () => {
     expect(bad).not.toContain('href')
     expect(bad).toContain('click')
 
-    const good = renderMarkdown('[site](https://example.com)')
-    expect(good).toContain('href="https://example.com"')
+    const good = renderMarkdown('[Q42](https://www.wikidata.org/wiki/Q42)')
+    expect(good).toContain('href="https://www.wikidata.org/wiki/Q42"')
     expect(good).toContain('rel="noopener noreferrer"')
+  })
+
+  it('shows links to other sites as plain text', () => {
+    for (const url of ['https://evil.example/login', 'https://wikidata.org.evil.example/', 'mailto:a@b.c']) {
+      const html = renderMarkdown(`[Verify your account](${url})`)
+      expect(html).not.toContain('href')
+      expect(html).toContain('Verify your account')
+    }
   })
 
   it('escapeHtml escapes the five HTML-significant characters', () => {
