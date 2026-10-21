@@ -10,14 +10,14 @@ _HEADERS = {
     "User-Agent": f"KnowledgeGraphExplorer/1.0 (mailto:{_MAILTO})",
 }
 # Without a key OpenAlex grants $0.10/day per IP, shared by every build.
+# Sent as a header, not ?api_key=, so it never shows up in logged URLs.
 _API_KEY = os.getenv("OPENALEX_API_KEY", "").strip()
 
 
 def _get(path: str, params: dict) -> dict:
     params = {**params, "mailto": _MAILTO}
-    if _API_KEY:
-        params["api_key"] = _API_KEY
-    data = get_json(f"{_BASE}{path}", params=params, headers=_HEADERS, timeout=10)
+    headers = {**_HEADERS, "Authorization": f"Bearer {_API_KEY}"} if _API_KEY else _HEADERS
+    data = get_json(f"{_BASE}{path}", params=params, headers=headers, timeout=10)
     return data or {}
 
 
