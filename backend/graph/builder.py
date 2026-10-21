@@ -362,7 +362,8 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
                                 on_card=lambda msg: progress.log(project_id, "insights", msg))
 
     from ai.cluster_labeler import label_clusters_ai
-    labels = label_clusters_ai(topic, [(s.cluster_id, s.top_entity_names) for s in cluster_summaries])
+    labels = label_clusters_ai(topic, [(s.cluster_id, s.sample_names or s.top_entity_names, s.size)
+                                       for s in cluster_summaries])
 
     # Swap old clusters and opportunities for new ones in one transaction,
     # after every LLM call: a slow model or a crash mid-way leaves the

@@ -23,7 +23,7 @@ Knowledge cluster from the domain graph:
 - Cluster name: {name}
 - Key concepts/entities: {top_entities}
 - Size: {size} connected nodes
-- Research signals: {research_count} papers and institutions
+- Research signals: {research_count} (papers and institutions together; never call this number "papers")
 - Existing products in cluster: {product_count}
 - Bridge entities (connecting this cluster to others): {bridge_list}
 
@@ -80,7 +80,8 @@ def enrich_with_ai(
                 ],
             )
             raw = llm.text(response)
-            data = json.loads(raw)
+            start, end = raw.find("{"), raw.rfind("}")
+            data = json.loads(raw[start:end + 1] if 0 <= start < end else raw)
             if not isinstance(data, dict):
                 raise ValueError("model did not return a JSON object")
 
