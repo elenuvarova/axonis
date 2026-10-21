@@ -175,9 +175,10 @@ export default function GapField({ reducedMotion = false, label = 'GAP 01', subl
       ctx.fillText(label, gap.x, gap.y - 9)
       ctx.font = `400 11px ${font}`
       ctx.fillStyle = text2
+      // a stub like "Nothin…" reads worse than no second line
       let sub = sublabel
       while (sub.length > 4 && ctx.measureText(sub).width > gap.rx * 1.7) sub = `${sub.slice(0, -2)}…`
-      ctx.fillText(sub, gap.x, gap.y + 9)
+      if (sub === sublabel || sub.length >= 10) ctx.fillText(sub, gap.x, gap.y + 9)
       ctx.textAlign = 'start'
 
       // nodes
