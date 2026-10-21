@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { EntitySkeleton } from './states'
 import CellBar from './CellBar'
 import { typeGlyph, typeGlyphOutline, typeLabel, TYPE_ORDER } from '../graphTypes'
@@ -76,6 +77,15 @@ function Overview({ nodes = [], onPick, onHover, gapCount = 0, onShowGaps, gapsP
 }
 
 export default function EntityCard({ entity, loading, onNeighborClick, onNeighborHover, onAsk, maxBridge, nodes, gapCount, onShowGaps, gapsPending, hiddenTypes, onToggleType }) {
+  // The hub or chip that was pressed unmounts with the old card, dropping focus to <body>:
+  // hand it to the new card's name so keyboard people keep their place (WCAG 2.4.3).
+  // Focus elsewhere (the canvas, the Ask field) is left alone.
+  const nameRef = useRef(null)
+  useEffect(() => {
+    const a = document.activeElement
+    if (!a || a === document.body || a.closest?.('.graph-sidebar')) nameRef.current?.focus({ preventScroll: true })
+  }, [entity?.id])
+
   if (loading) return <EntitySkeleton />
 
   if (!entity) {
@@ -101,7 +111,7 @@ export default function EntityCard({ entity, loading, onNeighborClick, onNeighbo
           <span>{typeLabel(entity.type)}</span>
           {clusterTag && <span className="entity-cluster-tag">· {clusterTag}</span>}
         </div>
-        <h2 className="entity-name" title={entity.fullName || entity.name}>{displayName(entity.fullName || entity.name)}</h2>
+        <h2 className="entity-name" ref={nameRef} tabIndex={-1} title={entity.fullName || entity.name}>{displayName(entity.fullName || entity.name)}</h2>
 
         {entity.description && <p className="entity-desc">{entity.description}</p>}
 

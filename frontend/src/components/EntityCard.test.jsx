@@ -34,4 +34,18 @@ describe('EntityCard', () => {
     fireEvent.click(chip)
     expect(handler).toHaveBeenCalledWith('n1')
   })
+
+  it('takes focus to the new name when the pressed button unmounted, and leaves other focus alone', () => {
+    const e1 = { id: 'a', type: 'concept', fullName: 'First', degree: 0.5, bridge_score: 0.2, source: 'wikidata' }
+    const { rerender } = render(<EntityCard entity={null} loading />)
+    rerender(<EntityCard entity={e1} />)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'First' }))
+
+    const field = document.createElement('input')
+    document.body.appendChild(field)
+    field.focus()
+    rerender(<EntityCard entity={{ ...e1, id: 'b', fullName: 'Second' }} />)
+    expect(document.activeElement).toBe(field)
+    field.remove()
+  })
 })

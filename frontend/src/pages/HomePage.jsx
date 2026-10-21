@@ -463,7 +463,6 @@ export default function HomePage() {
                     type="button"
                     className="project-row-main project-cols"
                     onClick={(e) => { track(p.protected ? 'demo_open' : 'map_open', p.protected ? { topic: p.topic, via: 'list' } : undefined); navigateWithTransition(navigate, `/project/${p.id}`, { topicEl: e.currentTarget.querySelector('.project-row-name') }) }}
-                    aria-label={`Open project: ${p.topic}`}
                   >
                     <span className="project-row-id">{pad(i + 1)}</span>
                     <span className="project-row-name" data-clarity-mask={p.protected ? undefined : 'true'}>{p.topic}</span>

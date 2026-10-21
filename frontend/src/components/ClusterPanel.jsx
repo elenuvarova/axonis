@@ -39,7 +39,6 @@ export default function ClusterPanel({
               style={{ '--score': `${score * 100}%` }}
               onClick={() => onClusterClick(c.cluster_id)}
               aria-pressed={activeClusterId === c.cluster_id}
-              aria-label={`${c.name} — ${c.size} nodes, opportunity score ${pts} of 100`}
             >
               <span className="cluster-index">{pad(i + 1)}</span>
               <span className="cluster-main">
@@ -48,7 +47,7 @@ export default function ClusterPanel({
                   {c.size} nodes · {c.research_count} research{c.product_count > 0 ? ` · ${c.product_count} products` : ''}
                 </span>
               </span>
-              <span className="cluster-score">{pts}</span>
+              <span className="cluster-score"><span className="sr-only">opportunity score </span>{pts}<span className="sr-only"> of 100</span></span>
             </button>
             </Fragment>
           )

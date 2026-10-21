@@ -10,7 +10,7 @@ export default function NotFoundPage() {
   return (
     <div className="project-page">
       <header className="topbar">
-        <Link to="/" className="crumb-brand" aria-label="Back to home"><Wordmark /></Link>
+        <Link to="/" className="crumb-brand" aria-label="Axonis home"><Wordmark /></Link>
       </header>
       <main id="main" className="full-center">
         <StateScreen
