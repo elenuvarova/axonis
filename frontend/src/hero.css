@@ -28,8 +28,12 @@
   --fs-hero-max: 64px;
   --fs-hero: clamp(var(--fs-hero-min), 4.4vw, var(--fs-hero-max));
   --lh-hero: 1.1;
-  --hero-band: 200px;           /* phone: height of the sphere band */
+  --hero-band: 160px;           /* phone: height of the sphere band */
   --hero-sphere-max: 320px;     /* tablet: sphere cap */
+}
+/* whole even pixels: 4.4vw alone gave 63.36px at 1440 */
+@supports (width: round(down, 10.5px, 2px)) {
+  :root, :root[data-theme="dark"] { --fs-hero: round(down, clamp(var(--fs-hero-min), 4.4vw, var(--fs-hero-max)), 2px); }
 }
 
 /* ── Keyframes (stepped, mechanical) ── */
@@ -81,7 +85,7 @@ main.home-body .query-block { position: relative; border-color: transparent; }
    COMPOSITION
 ════════════════════════════════════════════════════════════ */
 
-/* ≥768: headline between the display tokens. Phones keep --fs-display-sm from styles.css. */
+/* ≥768: headline between the display tokens. Phones keep --fs-counter-sm from styles.css. */
 @media (min-width: 768px) {
   main.home-body .home-title { font-size: var(--fs-hero); line-height: var(--lh-hero); }
   main.home-body .hero-line { white-space: nowrap; }
@@ -98,8 +102,8 @@ main.home-body .query-block { position: relative; border-color: transparent; }
 @media (min-width: 768px) and (max-width: 1100px) {
   main.home-body { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--s-4); }
   main.home-body .home-hero-media {
-    grid-column: 2; grid-row: 1; justify-self: end; align-self: center;
-    margin-top: 0; width: min(100%, var(--hero-sphere-max));
+    grid-column: 2; grid-row: 1; justify-self: end; align-self: start;
+    margin-top: var(--s-5); width: min(100%, var(--hero-sphere-max));
   }
   main.home-body .home-recent { grid-row: 2; }
 }
@@ -122,4 +126,9 @@ main.home-body .query-block { position: relative; border-color: transparent; }
   main.home-body .home-footer { order: 8; }
   /* [ PAUSE ] docked to the sphere's bottom-right corner, inside the band */
   main.home-body .hero-toggle { right: 0; bottom: 0; }
+}
+/* ≤359 (a 320 phone has 288px of text width): "→ OPPORTUNITIES" is 15 glyphs, so the headline steps down from 32px
+   to keep each arrow on its word's line */
+@media (max-width: 359px) {
+  main.home-body .home-title { font-size: 28px; line-height: 32px; }
 }

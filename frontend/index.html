@@ -20,6 +20,11 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 
+    <!-- The three faces every first screen uses, fetched with the HTML instead of after the CSS (Vite rewrites the hashed URLs) -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource/martian-mono/files/martian-mono-latin-400-normal.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource/martian-mono/files/martian-mono-latin-500-normal.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource/mona-sans/files/mona-sans-latin-400-normal.woff2" />
+
     <!-- B² is dark only -->
     <meta name="theme-color" content="#0E0E0E" />
 

@@ -1,5 +1,6 @@
 import { useState, useId, useRef, useEffect } from 'react'
 import { mmss, shortLabel } from '../format'
+import Icon from './icons'
 
 const SUGGESTIONS = [
   'What are the main themes here?',
@@ -83,7 +84,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
       <div className="panel-head">
         <h2 className="label">Ask the map</h2>
         {onClose && (
-          <button type="button" className="panel-close" onClick={onClose} aria-label="Close ask panel">×</button>
+          <button type="button" className="panel-close" onClick={onClose} aria-label="Close ask panel"><Icon name="close" size={14} /></button>
         )}
       </div>
 
@@ -164,7 +165,7 @@ export default function AskPanel({ onAsk, pending, result, error, onPickSource, 
           aria-describedby={result ? answerId : undefined}
         />
         <button
-          className="btn btn-primary"
+          className="btn btn-primary btn-sm"
           type="submit"
           disabled={pending || !q.trim()}
           aria-busy={pending}

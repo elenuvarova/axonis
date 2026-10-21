@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useId } from 'react'
 import { TYPE_ORDER, typeGlyph, typeLabel } from '../graphTypes'
-import { pad } from '../format'
+import { displayName } from '../format'
+import Icon from './icons'
 
 // ⌘K palette: jump to any node, or run an action. A combobox (input keeps
 // focus, ↑/↓ move the active option via aria-activedescendant, Enter runs it,
@@ -156,7 +157,7 @@ export default function CommandPalette({ open, onClose, nodes = [], actions = []
           />
           <kbd className="cmdk-kbd cmdk-esc-hint">esc</kbd>
           {/* touch screens have no Esc and no backdrop to tap */}
-          <button type="button" className="cmdk-close" onClick={onClose} aria-label="Close search">×</button>
+          <button type="button" className="cmdk-close" onClick={onClose} aria-label="Close search"><Icon name="close" size={14} /></button>
         </div>
         <p className="sr-only" aria-live="polite">{items.length ? `${items.length} result${items.length > 1 ? 's' : ''}` : 'No results'}</p>
 
@@ -172,7 +173,7 @@ export default function CommandPalette({ open, onClose, nodes = [], actions = []
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setType(t)}
             >
-              {t === 'all' ? 'All' : typeLabel(t)} <span className="cmdk-tab-count">{pad(t === 'all' ? nodes.length : counts[t], 3)}</span>
+              {t === 'all' ? 'All' : typeLabel(t)} <span className="cmdk-tab-count">{t === 'all' ? nodes.length : counts[t]}</span>
             </button>
           ))}
         </div>
@@ -195,7 +196,7 @@ export default function CommandPalette({ open, onClose, nodes = [], actions = []
                 onClick={() => run(items[i])}
               >
                 <span className="cmdk-glyph" aria-hidden="true">{typeGlyph(n.type)}</span>
-                <span className="cmdk-name"><Highlight text={n.name} q={query} /></span>
+                <span className="cmdk-name"><Highlight text={displayName(n.name)} q={query} /></span>
                 <span className="cmdk-meta">{typeLabel(n.type)}</span>
               </li>
             )

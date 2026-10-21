@@ -15,6 +15,7 @@ export default function Tour({ steps = [], open, onClose }) {
   const reduceMotion = usePrefersReducedMotion()
   const [i, setI] = useState(0)
   const [rect, setRect] = useState(null)
+  const [cardH, setCardH] = useState(EST_H)
   const cardRef = useRef(null)
 
   const step = steps[i]
@@ -28,7 +29,13 @@ export default function Tour({ steps = [], open, onClose }) {
     if (!s.target) { setRect(null); return }
     const el = document.querySelector(s.target)
     if (!el) { setRect(null); return }
-    const r = el.getBoundingClientRect()
+    let r = el.getBoundingClientRect()
+    // A target below the fold (phone home, step 3) is brought into view first,
+    // otherwise the card is clamped to the viewport and covers it.
+    if (r.top < 0 || r.bottom > window.innerHeight) {
+      el.scrollIntoView({ block: 'center' })
+      r = el.getBoundingClientRect()
+    }
     setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
   }, [open, i, steps])
 
@@ -51,8 +58,7 @@ export default function Tour({ steps = [], open, onClose }) {
     }
   }, [open, measure])
 
-  useEffect(() => { if (open) cardRef.current?.focus() }, [open, i])
-
+  // Declared before the card takes focus: it must remember what had focus when the tour opened.
   // Focus goes back to whatever opened the tour (HOW IT WORKS, "?", ⌘K…).
   const opener = useRef(null)
   useEffect(() => {
@@ -60,6 +66,15 @@ export default function Tour({ steps = [], open, onClose }) {
     opener.current = document.activeElement
     return () => { const el = opener.current; if (el?.isConnected) el.focus() }
   }, [open])
+
+  useEffect(() => { if (open) cardRef.current?.focus() }, [open, i])
+
+  // Place the card by its real height (it grows with copy and padding tokens),
+  // not a guess: a stale guess lets the card overlap the spotlighted target.
+  useLayoutEffect(() => {
+    const h = cardRef.current?.offsetHeight
+    if (h && h !== cardH) setCardH(h)
+  })
 
   const close = useCallback((done) => onClose?.(done), [onClose])
   const next = useCallback(() => { if (last) close(true); else setI((v) => v + 1) }, [last, close])
@@ -97,12 +112,12 @@ export default function Tour({ steps = [], open, onClose }) {
   if (centered) {
     cardStyle = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
   } else {
-    const left = Math.min(Math.max(rect.left, 12), Math.max(12, vw - CARD_W - 12))
+    const left = Math.min(Math.max(rect.left, 16), Math.max(16, vw - CARD_W - 16))
     const below = rect.top + rect.height + GAP
-    const above = rect.top - EST_H - GAP
-    const top = below + EST_H <= vh - 8 || above < 12
-      ? Math.min(below, vh - EST_H - 12)
-      : Math.max(12, above)
+    const above = rect.top - cardH - GAP
+    const top = below + cardH <= vh - 8 || above < 16
+      ? Math.min(below, vh - cardH - 16)
+      : Math.max(16, above)
     cardStyle = { top, left }
   }
 
@@ -115,7 +130,7 @@ export default function Tour({ steps = [], open, onClose }) {
           className="tour-spotlight"
           // moved with transform, not top/left: moving a fixed box by its offsets
           // is reported as layout shift (CLS) on every step
-          style={{ top: 0, left: 0, transform: `translate(${rect.left - 6}px, ${rect.top - 6}px)`, width: rect.width + 12, height: rect.height + 12 }}
+          style={{ top: 0, left: 0, transform: `translate(${rect.left - 8}px, ${rect.top - 8}px)`, width: rect.width + 16, height: rect.height + 16 }}
           aria-hidden="true"
         />
       ) : (

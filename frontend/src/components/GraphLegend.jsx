@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
-import { TYPE_ORDER, typeGlyph, typeLabel } from '../graphTypes'
-import { pad } from '../format'
+import { TYPE_ORDER, typeGlyph, typeGlyphOutline, typeLabel } from '../graphTypes'
 import { track } from '../analytics'
 
 // Shape key + filter for the graph. Lists only the entity types present in the
 // current graph, with counts; each row is a toggle that shows/hides that type
 // (aria-pressed = visible). "Isolated" hides nodes with no connections.
-export default function GraphLegend({ nodes = [], cy }) {
-  // Collapsed by default on phones so it doesn't cover the graph; still there,
-  // because shape is the only cue for node type.
-  const [open, setOpen] = useState(() =>
-    typeof window === 'undefined' || !window.matchMedia?.('(max-width: 767px)').matches)
-  const [hidden, setHidden] = useState(() => new Set())
+// The hidden set lives in the page, so the inspector's "On this map" rows
+// toggle the same filter. Collapsed to a "Types" chip by default, with the list
+// as an overlay under it: the map keeps its room, the key is one click away
+// (the idle inspector already lists the types).
+const NO_TYPES = new Set()
+const NOOP = () => {}
+
+export default function GraphLegend({ nodes = [], cy, hidden = NO_TYPES, onToggleType = NOOP }) {
+  const [open, setOpen] = useState(false)
   const [hideIsolated, setHideIsolated] = useState(false)
   const rootRef = useRef(null)
 
-  // On phones the open list is an overlay: Escape or a tap outside closes it.
+  // The open list is an overlay: Escape or a tap outside closes it.
   useEffect(() => {
-    if (!open || !window.matchMedia?.('(max-width: 767px)').matches) return undefined
+    if (!open) return undefined
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
     const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false) }
     document.addEventListener('keydown', onKey)
@@ -44,11 +46,7 @@ export default function GraphLegend({ nodes = [], cy }) {
 
   const toggleType = (t) => {
     track('legend_filter', { type: t, visible: hidden.has(t) })
-    setHidden((prev) => {
-      const next = new Set(prev)
-      next.has(t) ? next.delete(t) : next.add(t)
-      return next
-    })
+    onToggleType(t)
   }
 
   if (!types.length) return null
@@ -77,9 +75,9 @@ export default function GraphLegend({ nodes = [], cy }) {
                 onClick={() => toggleType(t)}
                 title={hidden.has(t) ? `Show ${typeLabel(t)}` : `Hide ${typeLabel(t)}`}
               >
-                <span className="legend-glyph" aria-hidden="true">{typeGlyph(t)}</span>
+                <span className="legend-glyph" aria-hidden="true">{hidden.has(t) ? typeGlyphOutline(t) : typeGlyph(t)}</span>
                 <span className="legend-name">{typeLabel(t)}</span>
-                <span className="legend-count">{pad(counts[t], 3)}</span>
+                <span className="legend-count">{counts[t]}</span>
               </button>
             </li>
           ))}
@@ -94,7 +92,7 @@ export default function GraphLegend({ nodes = [], cy }) {
               >
                 <span className="legend-glyph" aria-hidden="true">·</span>
                 <span className="legend-name">Isolated</span>
-                <span className="legend-count">{pad(isolated, 3)}</span>
+                <span className="legend-count">{isolated}</span>
               </button>
             </li>
           )}

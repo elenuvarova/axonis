@@ -4,8 +4,8 @@ import usePrefersReducedMotion from '../usePrefersReducedMotion'
 
 // A number that counts up once, the first time it appears with a real value
 // (a map loading), then simply shows later values: numbers that move when
-// nothing changed would be fake activity. Zero-padded mono digits keep the
-// width fixed, so nothing around it shifts.
+// nothing changed would be fake activity. The box is as wide as the final
+// value (in mono digits), so nothing around it shifts while it counts.
 export default function Ticker({ value = 0, digits = 0, duration = 600 }) {
   const reduced = usePrefersReducedMotion()
   const done = useRef(false)
@@ -27,7 +27,7 @@ export default function Ticker({ value = 0, digits = 0, duration = 600 }) {
 
   const text = digits ? pad(shown, digits) : String(shown)
   return (
-    <span className="ticker">
+    <span className="ticker" style={{ display: 'inline-block', minWidth: `${(digits || String(value).length)}ch` }}>
       <span aria-hidden="true">{text}</span>
       <span className="sr-only">{value}</span>
     </span>

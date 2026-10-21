@@ -60,7 +60,7 @@ function StatusBadge({ status }) {
 function ProjectsSkeleton() {
   return (
     <div className="recent-projects">
-      <div className="skeleton skeleton-line" style={{ width: '30%', height: 10, marginBottom: 16 }} />
+      <div className="skeleton skeleton-line" style={{ width: '30%', height: 8, marginBottom: 16 }} />
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="skeleton skeleton-card" style={{ height: 48 }} />
       ))}
@@ -130,7 +130,7 @@ function Hero({ intro }) {
     <div className="home-hero-media">
       <LetterSphere paused={!playing} reducedMotion={reduced} assemble={intro} />
       {!reduced && (
-        <button type="button" className="btn btn-ghost hero-toggle" onClick={() => setPlaying((p) => !p)} aria-label={playing ? 'Pause background animation' : 'Play background animation'}>
+        <button type="button" className="btn btn-ghost btn-sm hero-toggle" onClick={() => setPlaying((p) => !p)} aria-label={playing ? 'Pause background animation' : 'Play background animation'}>
           {playing ? 'Pause' : 'Play'}
         </button>
       )}
@@ -331,7 +331,7 @@ export default function HomePage() {
 
       <main id="main" className={`home-body${intro ? ' hero-intro' : ''}`} tabIndex={-1}>
         <div className="home-left">
-          <div className="label home-kicker">Knowledge Graph Explorer · open data <span className="hero-arrow" aria-hidden="true">→</span> graph <span className="hero-arrow" aria-hidden="true">→</span> gaps</div>
+          <div className="label home-kicker">Knowledge Graph Explorer · <span className="nw">open data <span className="hero-arrow" aria-hidden="true">→</span></span> <span className="nw">graph <span className="hero-arrow" aria-hidden="true">→</span></span> gaps</div>
           <h1 className="display home-title" aria-label="Map any domain: concepts, research, opportunities">
             <span className="hero-line">Map any domain</span>
             <span className="hero-line"><span className="hero-arrow" aria-hidden="true">→ </span>Concepts</span>
@@ -343,17 +343,19 @@ export default function HomePage() {
           </p>
 
           {/* The fastest way to value goes first: a ready map, a gap on screen in seconds. */}
-          {bestDemo && (
-            <div className="demo-row">
+          {/* While the list loads the row is laid out but hidden, so the form below does not jump when it arrives. */}
+          {(bestDemo || isLoading) && (
+            <div className={`demo-row${bestDemo ? '' : ' is-pending'}`} aria-hidden={bestDemo ? undefined : 'true'}>
               <button
                 type="button"
                 className="btn btn-secondary demo-cta"
-                disabled={busy}
+                disabled={busy || !bestDemo}
+                tabIndex={bestDemo ? undefined : -1}
                 onClick={(e) => { track('demo_open', { topic: bestDemo.topic, via: 'hero' }); navigateWithTransition(navigate, `/project/${bestDemo.id}`, { topicEl: e.currentTarget }) }}
               >
                 See a gap in seconds<span aria-hidden="true">&nbsp;→</span>
               </button>
-              <span className="demo-note">Demo map: {bestDemo.topic} · no build</span>
+              <span className="demo-note">{`Demo map: ${bestDemo ? bestDemo.topic : 'AI tutoring'} · no build`}</span>
             </div>
           )}
 

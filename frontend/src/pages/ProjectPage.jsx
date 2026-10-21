@@ -27,7 +27,6 @@ import { BuildingScreen, StateScreen, Toast } from '../components/states'
 import HelpButton from '../components/HelpButton'
 import Tour from '../components/Tour'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
-import { pad } from '../format'
 import Wordmark from '../components/Wordmark'
 import Icon from '../components/icons'
 
@@ -77,6 +76,7 @@ export default function ProjectPage() {
   const paletteOpenRef = useRef(false)
   paletteOpenRef.current = paletteOpen
   const [listView, setListView] = useState(false)
+  const [hiddenTypes, setHiddenTypes] = useState(() => new Set()) // legend + inspector type filter
   const pendingCentre = useRef(null)
   const [highlightClusterId, setHighlightClusterId] = useState(null)
   const [cy, setCy] = useState(null)
@@ -167,7 +167,7 @@ export default function ProjectPage() {
 
   const isReady = project?.status === 'ready'
 
-  const { data: graphData } = useQuery({
+  const { data: graphData, isError: graphFailed } = useQuery({
     queryKey: ['graph', id], queryFn: () => getGraph(id), enabled: isReady,
   })
   // Build preview: only once the server is past saving (stage ≥ metrics) —
@@ -194,6 +194,8 @@ export default function ProjectPage() {
   // light the top opportunity clusters with callouts (GapReveal).
   const [reveal, setReveal] = useState(null)
   const [revealItems, setRevealItems] = useState(null) // kept after the reveal ends, for Replay
+  const [revealQueued, setRevealQueued] = useState(false) // the auto-play is on its way: the Replay chip waits, so it does not flash up and give way to the banner
+  const [gapsChecked, setGapsChecked] = useState(false) // the gaps are worked out (there may be none): the inspector stops holding room for their button
   useEffect(() => {
     if (!cy || !oppsData || !clustersData || project?.status !== 'ready') return
     const key = `axonis-reveal-${id}`
@@ -205,15 +207,18 @@ export default function ProjectPage() {
       // map is Gap_02 on the cards even when two gaps share a cluster
       .map((o, idx) => ({ o, idx, c: byId.get(o.cluster_db_id) }))
       .filter(({ c }) => c && !seen.has(c.cluster_id) && seen.add(c.cluster_id))
-      .slice(0, window.matchMedia?.('(max-width: 767px)').matches ? 2 : 3)
+      .slice(0, 3)
       .map(({ o, c, idx }) => ({ rank: idx + 1, clusterId: c.cluster_id, score: Math.round(Math.min(1, Math.max(0, o.score || 0)) * 100), title: o.title }))
+    setGapsChecked(true)
     if (!items.length) return
     setRevealItems(items) // always available for Replay; only the auto-play is once per session
-    try { if (sessionStorage.getItem(key)) return } catch { return }
+    try { if (sessionStorage.getItem(key)) { setRevealQueued(false); return } } catch { return }
+    setRevealQueued(true)
     // marked as seen only when it actually shows, so an effect that is set
     // up and torn down early (StrictMode, a quick tab switch) can't eat it
     const show = () => {
       if (cy.destroyed()) return
+      setRevealQueued(false)
       try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1') } catch { return }
       setReveal(items)
     }
@@ -527,6 +532,13 @@ export default function ProjectPage() {
   }
 
   const clusters  = clustersData?.clusters ?? []
+  // hull numbers on the map match the Clusters list (01 = best opportunity)
+  const clusterRanks = Object.fromEntries(clusters.map((c, i) => [c.cluster_id, i + 1]))
+  const toggleType = (t) => setHiddenTypes((prev) => {
+    const next = new Set(prev)
+    next.has(t) ? next.delete(t) : next.add(t)
+    return next
+  })
   const opps      = oppsData?.opportunities ?? []
   const oppCount  = opps.length
   const nodeCount = graphData?.stats?.node_count ?? 0
@@ -538,11 +550,11 @@ export default function ProjectPage() {
   const tabs = [
     { id: 'graph', label: 'Map', short: 'Map' },
     { id: 'clusters', label: 'Clusters', short: 'Clusters', count: clusters.length },
-    { id: 'opportunities', label: 'Opportunities', short: 'Opportunities', count: oppCount },
+    { id: 'opportunities', label: 'Opportunities', short: 'Gaps', count: oppCount },
   ]
 
   return (
-    <div className={`project-page${panelOpen ? ' panel-open' : ''}${` sheet-${sheetSnap}`}`}>
+    <div className={`project-page${panelOpen ? ' panel-open' : ''}${` sheet-${sheetSnap}`}${isBuilding ? ' is-building' : ''}`}>
 
       {/* ── Top bar ── */}
       <header className="topbar">
@@ -557,7 +569,7 @@ export default function ProjectPage() {
         <StatusBadge status={project.status} />
         {nodeCount > 0 && (
           <span className="topbar-meta">
-            <Ticker value={nodeCount} digits={3} /> nodes · <Ticker value={edgeCount} digits={3} /> edges · <Ticker value={clusters.length} digits={2} /> clusters
+            <Ticker value={nodeCount} /> nodes · <Ticker value={edgeCount} /> edges · <Ticker value={clusters.length} /> clusters
           </span>
         )}
         {isBuilding && (
@@ -607,7 +619,7 @@ export default function ProjectPage() {
                 title="Generate a research brief"
                 aria-label="Generate a research brief"
               >
-                {briefMutation.isPending ? '…' : <><Icon name="brief" /><span className="btn-label">Brief</span></>}
+                {briefMutation.isPending ? <span className="btn-label">Brief…</span> : <><Icon name="brief" /><span className="btn-label">Brief</span></>}
               </button>
               <HelpButton size="sm" className="hide-on-mobile" onClick={() => setTourOpen(true)} label="Replay the tour" text="Tour" />
             </>
@@ -649,12 +661,15 @@ export default function ProjectPage() {
             >
               <span className="tab-long">{t.label}</span>
               <span className="tab-short">{t.short}</span>
-              {t.count > 0 && <span className="tab-count">{`\u00a0·\u00a0${pad(t.count)}`}</span>}
+              {t.count > 0 && <span className="tab-count">{`\u00a0·\u00a0${t.count}`}</span>}
               {tab === t.id && <span className="tab-ind" aria-hidden="true" />}
             </button>
           ))}
         </div>
       )}
+
+      {/* the tab bar's room is kept while the graph loads, so the map does not drop by its height when it appears */}
+      {isReady && !graphData && !graphFailed && <div className="project-tab-bar is-pending" aria-hidden="true" />}
 
       {/* ── Body ── */}
       {isBuilding ? (
@@ -717,6 +732,7 @@ export default function ProjectPage() {
                   selectedId={selectedId}
                   onNodeClick={handleNodeClick}
                   onCyInit={setCy}
+                  clusterRanks={clusterRanks}
                 />
                 {listView && (
                   <NodeList
@@ -726,12 +742,12 @@ export default function ProjectPage() {
                     onSelect={(n) => handleNodeClick(n)}
                   />
                 )}
-                {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} />}
+                {!listView && <GraphLegend nodes={graphData.nodes} cy={cy} hidden={hiddenTypes} onToggleType={toggleType} />}
                 {reveal && tab === 'graph' && !listView && (
                   <GapReveal cy={cy} items={reveal} onDone={() => setReveal(null)}
                     onOpen={() => { setReveal(null); handleTabClick('opportunities') }} />
                 )}
-                {!reveal && revealItems && tab === 'graph' && !listView && (
+                {!reveal && !revealQueued && revealItems && tab === 'graph' && !listView && (
                   <button type="button" className="gap-chip" onClick={() => { track('gap_reveal_replay'); setReveal([...revealItems]) }}>
                     {revealItems.length} gaps · replay
                   </button>
@@ -761,7 +777,7 @@ export default function ProjectPage() {
             <SheetHandle snap={sheetSnap} onSnap={setSheetSnap} onClose={closePanel} sheetRef={sheetRef} />
             <div className="sidebar-mobile-header">
               <span className="label">{sidebarLabel}</span>
-              <button className="panel-close" onClick={closePanel} aria-label="Close panel">×</button>
+              <button className="panel-close" onClick={closePanel} aria-label="Close panel"><Icon name="close" size={14} /></button>
             </div>
 
             {showClusters ? (
@@ -790,7 +806,10 @@ export default function ProjectPage() {
                 maxBridge={Math.max(0, ...(graphData?.nodes || []).map((n) => n.bridge_score || 0)) || undefined}
                 loading={!!selectedId && !entityData}
                 nodes={graphData?.nodes}
+                hiddenTypes={hiddenTypes}
+                onToggleType={toggleType}
                 gapCount={revealItems?.length || 0}
+                gapsPending={isReady && !gapsChecked}
                 onShowGaps={revealItems ? () => { track('gap_reveal_replay', { via: 'inspector' }); setReveal([...revealItems]) } : undefined}
                 onNeighborClick={(nid) => { hoverSource(null); setSelectedId(nid) }}
                 onNeighborHover={hoverSource}

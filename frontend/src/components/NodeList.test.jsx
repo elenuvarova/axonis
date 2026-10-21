@@ -15,7 +15,7 @@ describe('NodeList', () => {
     render(<NodeList nodes={nodes} edges={edges} onSelect={onSelect} />)
     const rows = screen.getAllByRole('row').slice(1)
     expect(within(rows[0]).getByRole('button')).toHaveTextContent('NLP')
-    fireEvent.click(screen.getByRole('button', { name: 'adaptive learning' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adaptive learning' }))
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'a', links: 1 }))
   })
 
