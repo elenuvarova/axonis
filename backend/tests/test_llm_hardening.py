@@ -330,3 +330,9 @@ def test_entity_api_drops_non_web_source_urls(client, db, ready_project):
     assert all(n.get("source_url") != "javascript:alert(1)" for n in nodes)
     r = client.get(f"/api/projects/{ready_project}/entities/{e.id}").json()
     assert r["source_url"] is None
+
+
+def test_answer_language_is_named_for_the_model():
+    assert qa.answer_language("Which gaps are about programming education?") == "English"
+    assert qa.answer_language("Какие пробелы есть?") == "Russian"
+    assert qa.answer_language("Quelle est l'économie de la longévité ?") == "the language the question is written in"
