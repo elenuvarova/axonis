@@ -42,7 +42,7 @@ BARS = {
     "labels.no_topic_words": 0.90,     # the prompt asks to leave the domain out
     "labels.sentence_case": 0.90,
     "labels.format": 1.0,              # 1-4 words, no links, unique per map
-    "labels.judged_ok": 0.85,          # a model judge reads the label as a finished name
+    "labels.judged_ok": 0.85,          # a model judge reads the label as a finished name (--judge)
     # the judge against hand-marked labels (judge.json): trust labels.judged_ok
     # only while these hold
     "judge.bad_caught": 0.80,
@@ -204,7 +204,7 @@ def score_labels(case: dict, labels: dict[str, str]) -> dict:
     return out
 
 
-def run_labels(cases: list[dict], pause: float, judged: bool = True) -> dict:
+def run_labels(cases: list[dict], pause: float, judged: bool = False, show: bool = False) -> dict:
     t = {"clusters": 0, "named": 0, "grounded": 0, "no_topic": 0, "case_ok": 0, "format_bad": 0,
          "errors": 0, "judged": 0, "judged_ok": 0, "judge_errors": 0}
     for n, case in enumerate(cases):
@@ -226,6 +226,9 @@ def run_labels(cases: list[dict], pause: float, judged: bool = True) -> dict:
             print(f"    ✗ format: {line}")
         for line in s["notes"]:
             print(f"    · {line}")
+        if show:  # every label, for a person to read: the property checks can't see fragments
+            for cid, label in labels.items():
+                print(f"    = {cid}: {label}")
         if judged:
             time.sleep(pause)
             members = dict((c[0], c[1]) for c in batch)
@@ -368,6 +371,23 @@ def run_judge(cases: list[dict], pause: float) -> dict:
 
 # --------------------------------------------------------------------- main
 
+ANSWERED: dict[str, int] = {}
+
+
+def _count_models() -> None:
+    """Count which model answered each call: past the free-tier limit the
+    fallback model answers, and its labels score far lower (0.72 vs 0.93
+    no-topic-words), which would pass for a prompt effect."""
+    create = llm.create
+
+    def counted(*args, **kwargs):
+        resp = create(*args, **kwargs)
+        model = getattr(resp, "model", None) or "?"
+        ANSWERED[model] = ANSWERED.get(model, 0) + 1
+        return resp
+
+    llm.create = counted
+
 def _rate(n: int, d: int) -> float | None:
     return round(n / d, 3) if d else None
 
@@ -406,7 +426,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--pause", type=float, default=10.0,
                     help="seconds between model calls; the Groq free tier allows 8k tokens a minute")
     ap.add_argument("--no-log", action="store_true", help="don't append to evals/runs.jsonl")
-    ap.add_argument("--no-judge", action="store_true", help="labels: skip the model judge (half the calls)")
+    ap.add_argument("--judge", action="store_true",
+                    help="labels: also ask the model judge (weak so far: catches 0.6 of bad names, see judge.json)")
+    ap.add_argument("--show", action="store_true", help="labels: print every label for a human read")
     ap.add_argument("--note", default="", help="what this run tries, kept in runs.jsonl")
     args = ap.parse_args(argv)
     if not os.getenv("GROQ_API_KEY"):
@@ -415,25 +437,27 @@ def main(argv: list[str]) -> int:
     suites = args.suites or ["relevance", "labels"]
     if set(suites) - {"relevance", "labels", "judge"}:
         ap.error("suites are relevance, labels and judge")
+    _count_models()
     metrics: dict = {}
     for suite in suites:
         print(f"\n== {suite}")
         file = {"relevance": "relevance.json", "labels": "cluster_labels.json", "judge": "judge.json"}[suite]
         cases = json.loads((HERE / file).read_text())["cases"]
         if suite == "labels":
-            metrics.update(run_labels(cases, args.pause, judged=not args.no_judge))
+            metrics.update(run_labels(cases, args.pause, judged=args.judge, show=args.show))
         else:
             metrics.update((run_relevance if suite == "relevance" else run_judge)(cases, args.pause))
     failed = failures(metrics)
     record = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "commit": _commit(),
               "prompt_version": prompt_version(), "judge_version": judge_version(),
-              "models": llm.models(), "metrics": metrics, "passed": not failed}
+              "models": llm.models(), "answered_by": ANSWERED, "metrics": metrics, "passed": not failed}
     if args.note:
         record["note"] = args.note
     print("\n== result")
     for k, v in metrics.items():
         bar = BARS.get(k)
         print(f"  {k}: {v}" + (f"  (bar {bar})" if bar is not None else ""))
+    print(f"  answered by: {ANSWERED}")
     print("  PASS" if not failed else "  FAIL: " + ", ".join(failed))
     if not args.no_log:
         with open(HERE / "runs.jsonl", "a") as f:
