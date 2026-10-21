@@ -207,6 +207,24 @@ def test_per_map_ask_cap(client, ready_project, monkeypatch):
     assert ask().status_code == 503
 
 
+def test_refused_by_the_map_cap_does_not_use_the_global_budget(client, ready_project, monkeypatch):
+    monkeypatch.setitem(guard.PER_MAP_DAILY, "ask", 1)
+    for _ in range(3):
+        client.post(f"/api/projects/{ready_project}/ask", json={"question": "adaptive learning"})
+    db = database.SessionLocal()
+    try:
+        assert db.query(models.UsageCounter).filter_by(key="ask").one().count == 1
+    finally:
+        db.close()
+
+
+def test_demo_maps_have_no_per_map_cap(client, ready_project, monkeypatch):
+    monkeypatch.setenv("PROTECTED_PROJECT_IDS", ready_project)
+    monkeypatch.setitem(guard.PER_MAP_DAILY, "ask", 1)
+    for _ in range(3):
+        assert client.post(f"/api/projects/{ready_project}/ask", json={"question": "adaptive learning"}).status_code == 200
+
+
 def test_env_overrides_the_daily_limit(monkeypatch):
     monkeypatch.setenv("LLM_DAILY_LIMITS", "ask=7, build=x")
     assert guard._daily_limit("ask") == 7
