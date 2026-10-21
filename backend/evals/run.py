@@ -24,7 +24,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from types import SimpleNamespace
+
 from ai import cluster_labeler, llm, relevance
+from graph.clustering import label_sample
 
 HERE = Path(__file__).parent
 
@@ -125,7 +128,7 @@ def ungrounded(label: str, members: list[str]) -> list[str]:
         parts = [p for p in word.split("-") if p] or [word]
         for p in parts:
             low = p.casefold()
-            if low in STOP or low in GENERIC or _stem(p) in stems:
+            if len(p) < 2 or low in STOP or low in GENERIC or _stem(p) in stems:
                 continue
             if p.isupper() and len(p) >= 2 and (low in initials.replace(" ", "") or low in text.casefold()):
                 continue
@@ -160,8 +163,13 @@ def bad_format(labels: dict[str, str]) -> list[str]:
     return problems
 
 
+def sample(cluster: dict) -> list[str]:
+    """What the labeller sees of a cluster, picked as the build picks it."""
+    return label_sample([SimpleNamespace(name=n, type=t, degree=d) for n, t, d in cluster["members"]])
+
+
 def score_labels(case: dict, labels: dict[str, str]) -> dict:
-    members = {c["id"]: c["members"] for c in case["clusters"]}
+    members = {c["id"]: sample(c) for c in case["clusters"]}
     forbid = {c["id"]: c.get("forbid", []) for c in case["clusters"]}
     out = {"clusters": len(members), "named": 0, "grounded": 0, "no_topic": 0, "case_ok": 0,
            "format": bad_format(labels), "notes": []}
@@ -194,7 +202,7 @@ def run_labels(cases: list[dict], pause: float) -> dict:
     for n, case in enumerate(cases):
         if n:
             time.sleep(pause)
-        batch = [(c["id"], c["members"], c["size"]) for c in case["clusters"]]
+        batch = [(c["id"], sample(c), len(c["members"])) for c in case["clusters"]]
         labels = cluster_labeler.label_clusters_ai(case["topic"], batch)
         if not labels:
             t["errors"] += 1
@@ -227,9 +235,11 @@ def _rate(n: int, d: int) -> float | None:
 
 
 def prompt_version() -> str:
-    """Hash of the code that builds both prompts: changes whenever a prompt does."""
+    """Hash of the code that builds both prompts, including which cluster
+    members the labeller sees: changes whenever a prompt does."""
     src = inspect.getsource(relevance._ask_model) + inspect.getsource(cluster_labeler._ask) \
-        + inspect.getsource(cluster_labeler._line) + inspect.getsource(relevance._line)
+        + inspect.getsource(cluster_labeler._line) + inspect.getsource(relevance._line) \
+        + inspect.getsource(label_sample)
     return hashlib.sha1(src.encode()).hexdigest()[:8]
 
 
