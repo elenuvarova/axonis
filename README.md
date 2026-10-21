@@ -47,6 +47,7 @@ backend/
   sources/           Wikidata and OpenAlex clients
   ai/                topic expansion, opportunity writer, Q&A, brief
   tests/             pytest (runs on throwaway SQLite, no external AI)
+  evals/             prompt evals against the real model (python -m evals.run)
 frontend/
   src/pages/         HomePage, ProjectPage
   src/components/    GraphCanvas, GraphLegend, GraphControls, CommandPalette, AskPanel,
@@ -96,6 +97,16 @@ cd frontend && NODE_ENV=test npm test
 ```
 
 `NODE_ENV=test` matters if your shell exports `NODE_ENV=production`, because React's test utilities need the development build.
+
+### Prompt evals
+
+The pytest suite never calls a model. Before and after changing a prompt in `backend/ai/`, `GROQ_MODELS` or the model list, run the evals against the real model:
+
+```bash
+cd backend && GROQ_API_KEY=… python -m evals.run            # or: relevance | labels
+```
+
+They screen hand-labelled OpenAlex candidates (`evals/relevance.json`: real papers for the demo topics, with namesakes such as Mars Scout or the CsrD protein) and name real demo-map clusters (`evals/cluster_labels.json`). Each run prints its misses, checks the pass bars in `evals/run.py` and appends a line with the prompt version to `evals/runs.jsonl`; commit that line with the prompt change.
 
 ## API
 
