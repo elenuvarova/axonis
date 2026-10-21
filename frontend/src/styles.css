@@ -269,16 +269,23 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   display: flex; align-items: center; gap: var(--s-2); z-index: var(--z-toast);
   padding: var(--s-1) var(--s-2); background: var(--raised); border: 1px solid var(--line-strong);
   font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui);
-  max-width: calc(100vw - var(--s-4));
+  width: max-content; max-width: calc(100vw - var(--s-4));
 }
 .toast-tag { color: var(--text); }
 .toast-tag.is-ok { color: var(--accent); }
-/* On a map the bottom edge belongs to the Ask bar and graph controls: drop in under the tabs */
-.project-page .toast { top: calc(var(--topbar) + var(--h-tabs) + var(--s-2)); bottom: auto; }
+/* On a map the bottom edge belongs to the Ask bar and graph controls, the top to TYPES + and the
+   gap reveal's Skip: drop in below that row, over the canvas */
+.project-page .toast { top: calc(var(--topbar) + var(--h-tabs) + var(--gutter) + var(--s-2) + var(--h-ctl-touch) + var(--s-1)); bottom: auto; }
+@media (min-width: 768px) {
+  /* Clusters: the list takes the left; centre over the map instead of the window */
+  .project-page:has(.mode-clusters) .toast { left: calc(50% + var(--inspector-wide) / 2); max-width: calc(100vw - var(--inspector-wide) - var(--s-4)); }
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .project-page:has(.mode-clusters) .toast { left: calc(50% + 208px); max-width: calc(100vw - 416px - var(--s-4)); }
+}
 @media (max-width: 767px) {
-  /* left: 50% capped the width at half the screen, so messages wrapped to three lines */
-  .toast { left: var(--s-2); right: var(--s-2); transform: none; max-width: none; }
-  .project-page .toast { top: calc(var(--topbar) + var(--h-tabs) + var(--s-1) * 2 + var(--s-2)); }
+  .toast { left: var(--s-2); right: var(--s-2); transform: none; width: auto; max-width: none; }
+  .project-page .toast { top: calc(var(--topbar) + var(--h-tabs) + var(--s-1) * 2 + var(--s-2) + var(--h-ctl-touch) + var(--s-2)); }
 }
 
 /* Errors: text + text-2 only, never accent */
