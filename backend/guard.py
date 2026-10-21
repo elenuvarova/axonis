@@ -160,11 +160,15 @@ def spend(action: str, project_id: str | None = None) -> None:
     day = now.strftime("%Y-%m-%d")
     retry = str(int((datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
                      + timedelta(days=1) - now).total_seconds()) + 1)
+    # The map's cap first, so requests it refuses don't eat the service-wide
+    # budget. Demo maps are where everyone asks, so they only have the
+    # service-wide budget: one script can't switch Ask off on a demo.
+    per_map = PER_MAP_DAILY.get(action)
+    if per_map is not None and project_id and not is_protected(project_id) \
+            and _bump(f"{action}:{project_id}", day) > per_map:
+        raise HTTPException(status_code=503, headers={"Retry-After": retry},
+                            detail="This map has reached today's limit for questions. Please try again tomorrow.")
     limit = _daily_limit(action)
     if limit is not None and _bump(action, day) > limit:
         raise HTTPException(status_code=503, headers={"Retry-After": retry},
                             detail="This feature has reached its daily limit. Please try again tomorrow.")
-    per_map = PER_MAP_DAILY.get(action)
-    if per_map is not None and project_id and _bump(f"{action}:{project_id}", day) > per_map:
-        raise HTTPException(status_code=503, headers={"Retry-After": retry},
-                            detail="This map has reached today's limit for questions. Please try again tomorrow.")
