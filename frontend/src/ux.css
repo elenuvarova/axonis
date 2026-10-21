@@ -218,6 +218,22 @@ html.vt-route::view-transition-new(root) { animation: vt-fade-in 280ms 120ms ste
 .project-page { position: relative; }
 .ticker { position: relative; }
 
+/* 404: the address is a gap on the map (NotFound + GapField) */
+.nf { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-3); padding: var(--s-3) var(--s-2) var(--s-5); text-align: center; }
+.nf-stage { width: 100%; max-width: 1040px; height: clamp(220px, 46vh, 480px); flex: none; }
+.nf-field { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: crosshair; }
+.nf-copy { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); animation: nf-rise 600ms 700ms both cubic-bezier(.2, .7, .2, 1); }
+.nf-k { font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-caps); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--accent); }
+.nf-title { font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: var(--track-h1); }
+.nf-message { font-family: var(--font-body); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-2); max-width: 44ch; text-wrap: pretty; }
+@keyframes nf-rise { from { opacity: 0; transform: translateY(var(--s-1)); } }
+@media (max-width: 767px) {
+  .nf { justify-content: flex-start; gap: var(--s-2); }
+  .nf-stage { height: clamp(160px, 50vw, 280px); }
+  .nf-title { font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--track-h2); }
+}
+@media (prefers-reduced-motion: reduce) { .nf-copy { animation: none; } }
+
 /* ── Print (⌘P from the app) ─────────────────────────────────────────
    The app is a fixed-height window with internal scrollers, so a plain
    print kept the dark theme and cut everything below the first screen.

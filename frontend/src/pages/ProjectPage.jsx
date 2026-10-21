@@ -24,6 +24,7 @@ import ClusterPanel from '../components/ClusterPanel'
 import OpportunityBoard from '../components/OpportunityBoard'
 import AskPanel from '../components/AskPanel'
 import { BuildingScreen, StateScreen, Toast } from '../components/states'
+import { NotFound } from '../components/NotFound'
 import HelpButton from '../components/HelpButton'
 import Tour from '../components/Tour'
 import usePrefersReducedMotion from '../usePrefersReducedMotion'
@@ -524,19 +525,24 @@ export default function ProjectPage() {
           <span className="crumb-name">Project</span>
         </header>
         <main id="main" className="project-main" tabIndex={-1}>
-        <StateScreen
-          variant="error"
-          title={notFound ? 'Map not found' : 'Couldn’t load this map'}
-          message={notFound
-            ? "This map doesn't exist or was deleted. Build a new one from the home page."
-            : "The server didn't respond. Check your connection and try again."}
-          actions={
-            <>
-              {!notFound && <button className="btn btn-primary" onClick={() => refetchProject()}>Retry</button>}
-              <Link className="btn btn-secondary" to="/">Go home</Link>
-            </>
-          }
-        />
+        {notFound ? (
+          <NotFound
+            title="Map not found"
+            message="This map doesn’t exist or was deleted. Open a demo, or build a new one from the home page."
+          />
+        ) : (
+          <StateScreen
+            variant="error"
+            title="Couldn’t load this map"
+            message="The server didn't respond. Check your connection and try again."
+            actions={
+              <>
+                <button className="btn btn-primary" onClick={() => refetchProject()}>Retry</button>
+                <Link className="btn btn-secondary" to="/">Go home</Link>
+              </>
+            }
+          />
+        )}
         </main>
       </div>
     )
