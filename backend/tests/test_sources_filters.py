@@ -58,3 +58,15 @@ def test_descriptive_terms_fall_back_to_full_text_search(monkeypatch):
     monkeypatch.setattr(wd, "get_related", lambda qid: [])
     out = wd.fetch_entities_for_terms(["Utility-scale solar farm"])
     assert [r["label"] for r in out] == ["solar power plant"]
+
+
+def test_api_key_is_sent_only_when_set(monkeypatch):
+    import sources.openalex as oa
+    sent = []
+    monkeypatch.setattr(oa, "get_json", lambda url, params, headers, **kw: sent.append((params, headers)) or {})
+    monkeypatch.setattr(oa, "_API_KEY", "")
+    oa._get("/works", {"search": "x"})
+    monkeypatch.setattr(oa, "_API_KEY", "k123")
+    oa._get("/works", {"search": "x"})
+    assert "Authorization" not in sent[0][1] and sent[1][1]["Authorization"] == "Bearer k123"
+    assert all("api_key" not in params for params, _ in sent)
