@@ -45,6 +45,8 @@ def test_events_are_forwarded_with_client_details(client, monkeypatch):
     assert method == "POST" and url.endswith("/api/send")
     assert headers["User-Agent"] == "Mozilla/5.0 test"
     assert headers["X-Forwarded-For"] == "203.0.113.9"
+    # Traefik in front of Umami rewrites X-Real-IP/X-Forwarded-For
+    assert headers["True-Client-IP"] == "203.0.113.9"
 
 
 def test_analytics_outage_never_breaks_the_page(client, monkeypatch):
@@ -53,3 +55,17 @@ def test_analytics_outage_never_breaks_the_page(client, monkeypatch):
             raise httpx.ConnectError("down")
     monkeypatch.setattr(stats.httpx, "AsyncClient", Down)
     assert client.post("/s/api/send", content=b"{}").status_code == 204
+
+
+def test_headless_crawlers_are_dropped(client, monkeypatch):
+    monkeypatch.setattr(stats.httpx, "AsyncClient", FakeClient)
+    FakeClient.calls.clear()
+    iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"
+    for ua, screen in [("Mozilla/5.0 (X11; Linux x86_64)", "800x600"), (iphone, "1920x1080")]:
+        body = ('{"type":"event","payload":{"screen":"%s"}}' % screen).encode()
+        assert client.post("/s/api/send", content=body, headers={"user-agent": ua}).status_code == 204
+    assert FakeClient.calls == []
+    for ua, screen in [(iphone, "390x844"), ("Mozilla/5.0 (Macintosh)", "1512x982")]:
+        body = ('{"type":"event","payload":{"screen":"%s"}}' % screen).encode()
+        assert client.post("/s/api/send", content=body, headers={"user-agent": ua}).status_code == 200
+    assert len(FakeClient.calls) == 2
