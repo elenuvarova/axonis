@@ -67,7 +67,7 @@ _OFF_TOPIC = re.compile(
     r"podcast|painting|sculpture|fictional|character|given name|family name|surname|"
     r"disambiguation|wikimedia|asteroid|ship|village|commune|municipality|river|mountain|"
     r"human settlement|football|footballer|musician|singer|actor|actress|rapper|"
-    r"scientific article|edition|thesis|conference|proceedings|symposium|workshop|journal|magazine|periodical|summer school|summer institute)\b"
+    r"scientific article|scholarly article|edition|thesis|conference|proceedings|symposium|workshop|journal|magazine|periodical|summer school|summer institute)\b"
     r"|\bbook \(work\)"
     r"|\(\d{3,4}\s*[–-]"   # "(1925–2010)": a person
     r"|^\d{4}\s",           # "2017 video game", "1999 film"
@@ -95,6 +95,44 @@ def search_entities(term: str, limit: int = 3) -> list[dict]:
         timeout=8,
     )
     return (data or {}).get("search", [])
+
+
+def search_fulltext(term: str, limit: int = 8) -> list[dict]:
+    """Items whose text matches `term`, shaped like search_entities hits.
+
+    wbsearchentities matches the start of a label, so a descriptive term from
+    the topic expansion ("Solar photovoltaic power plant") finds nothing,
+    while full-text search finds "photovoltaic power station". Its hits carry
+    no description, so a second call fetches labels and descriptions for the
+    namesake filter (full text also finds scientific articles).
+    """
+    found = get_json(
+        _SEARCH,
+        params={"action": "query", "list": "search", "srsearch": term,
+                "srnamespace": "0", "srlimit": str(limit), "format": "json"},
+        headers={"User-Agent": _HEADERS["User-Agent"]},
+        timeout=8,
+    )
+    qids = [h.get("title", "") for h in ((found or {}).get("query") or {}).get("search", [])]
+    qids = [q for q in qids if re.fullmatch(r"Q\d+", q)]
+    if not qids:
+        return []
+    data = get_json(
+        _SEARCH,
+        params={"action": "wbgetentities", "ids": "|".join(qids), "props": "labels|descriptions",
+                "languages": "en", "format": "json"},
+        headers={"User-Agent": _HEADERS["User-Agent"]},
+        timeout=8,
+    )
+    entities = (data or {}).get("entities", {})
+    hits = []
+    for q in qids:  # keep the search ranking
+        e = entities.get(q) or {}
+        label = ((e.get("labels") or {}).get("en") or {}).get("value", "")
+        if label:
+            hits.append({"id": q, "label": label,
+                         "description": ((e.get("descriptions") or {}).get("en") or {}).get("value", "")})
+    return hits
 
 
 def get_related(qid: str) -> list[dict]:
@@ -131,6 +169,10 @@ def fetch_entities_for_terms(terms: list[str]) -> list[dict]:
     for term in terms:
         # Ask for a few more and keep the first three that aren't namesakes.
         hits = [h for h in search_entities(term, limit=8) if not is_namesake(h.get("description", ""))][:3]
+        if not hits:
+            # an item without a description there is nearly always a paper
+            hits = [h for h in search_fulltext(term)
+                    if h.get("description") and not is_namesake(h["description"])][:3]
         for hit in hits:
             qid = hit.get("id", "")
             if not qid or qid in seen_qids:
