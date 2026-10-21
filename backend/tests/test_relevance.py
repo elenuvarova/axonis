@@ -74,3 +74,16 @@ def test_papers_are_searched_for_the_topic_and_three_terms(monkeypatch):
                                        "renewable siting", "grid connection"])
     assert queries == ["solar land scouting", "solar farm site selection", "PV land suitability", "renewable siting"]
     assert len(out["works"]) == 4
+
+
+def test_the_model_sees_each_papers_field(monkeypatch):
+    seen = {}
+    def capture(client, messages, max_tokens):
+        seen["prompt"] = messages[-1]["content"]
+        return _reply('{"fields": ["Biology"], "keep": [0]}')
+    _model(monkeypatch, capture)
+    works = [{"title": "On longevity of I-ball/oscillon",
+              "topics": [{"field": {"display_name": "Physics and Astronomy"}}]}, {"title": "No topics"}]
+    assert relevance.keep_relevant("Longevity Escape Velocity", works) == works[:1]
+    assert "1: No topics\n" in seen["prompt"]
+    assert "0: On longevity of I-ball/oscillon [field: Physics and Astronomy]" in seen["prompt"]
