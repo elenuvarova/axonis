@@ -273,6 +273,13 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 }
 .toast-tag { color: var(--text); }
 .toast-tag.is-ok { color: var(--accent); }
+/* On a map the bottom edge belongs to the Ask bar and graph controls: drop in under the tabs */
+.project-page .toast { top: calc(var(--topbar) + var(--h-tabs) + var(--s-2)); bottom: auto; }
+@media (max-width: 767px) {
+  /* left: 50% capped the width at half the screen, so messages wrapped to three lines */
+  .toast { left: var(--s-2); right: var(--s-2); transform: none; max-width: none; }
+  .project-page .toast { top: calc(var(--topbar) + var(--h-tabs) + var(--s-1) * 2 + var(--s-2)); }
+}
 
 /* Errors: text + text-2 only, never accent */
 .error-msg { font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); color: var(--text); padding: var(--s-1) 0 var(--s-1) var(--s-2); border-left: 2px solid var(--text); }
