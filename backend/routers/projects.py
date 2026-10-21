@@ -178,8 +178,7 @@ async def upload_document(
     # Parse here, not in the background: a file with no readable text gets an
     # answer now and leaves the map as it was.
     from sources.uploads import parse_document, csv_rows
-    text = await run_in_threadpool(parse_document, filename, content)
-    rows = csv_rows(filename, content)
+    text, rows = await run_in_threadpool(lambda: (parse_document(filename, content), csv_rows(filename, content)))
     if not text and not rows:
         hint = (" It may be a scan without a text layer, password-protected or damaged."
                 if filename.lower().endswith(".pdf") else "")
