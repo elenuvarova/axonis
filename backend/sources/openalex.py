@@ -38,7 +38,7 @@ def get_top_works(query: str, per_page: int = 20, pool: int = 40) -> list[dict]:
     data = _get("/works", {
         "search": query,
         "per-page": pool,
-        "select": "id,title,doi,publication_year,cited_by_count,concepts,topics,authorships",
+        "select": "id,title,doi,publication_year,cited_by_count,relevance_score,concepts,topics,authorships",
     })
     works = data.get("results", [])
     works.sort(key=lambda w: w.get("cited_by_count") or 0, reverse=True)
@@ -56,13 +56,34 @@ def get_top_institutions(query: str, per_page: int = 10) -> list[dict]:
     return data.get("results", [])
 
 
-def fetch_entities_for_topic(topic: str) -> dict:
+def merge_works(lists: list[list[dict]]) -> list[dict]:
+    """Interleave several result lists (first of each, then second of each…)
+    without repeats, so no single query fills the map on its own."""
+    seen: set[str] = set()
+    merged: list[dict] = []
+    for i in range(max((len(l) for l in lists), default=0)):
+        for l in lists:
+            if i < len(l):
+                key = l[i].get("id") or (l[i].get("title") or "").strip().lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    merged.append(l[i])
+    return merged
+
+
+def fetch_entities_for_topic(topic: str, terms: list[str] | tuple = ()) -> dict:
     """
     Fetch concepts, top papers, and key institutions for a topic.
     Returns raw OpenAlex data grouped by type.
+
+    Papers are searched for the topic and its first three expanded terms: a
+    topic phrased the way nobody writes papers ("solar land scouting") finds
+    only namesakes, its terms ("solar farm site selection") find the field.
+    The works are candidates; the caller screens them for relevance.
     """
     concepts = search_concepts(topic)
-    works = get_top_works(topic)
+    queries = [topic] + [t for t in terms if t.strip().lower() != topic.strip().lower()][:3]
+    works = merge_works([get_top_works(q, per_page=15) for q in queries])
     institutions = get_top_institutions(topic)
 
     # Also pull related concepts from the top concept hit

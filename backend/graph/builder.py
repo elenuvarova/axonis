@@ -19,7 +19,10 @@ from graph.metrics import compute as compute_metrics
 from graph.clustering import label_clusters
 from graph.opportunities import score_opportunities
 from ai.opportunity_writer import enrich_with_ai
+from ai.relevance import keep_relevant
 from graph import progress
+
+_MAX_PAPERS = 20
 
 
 def build_project_graph(project_id: str, db: Session) -> None:
@@ -69,7 +72,12 @@ def _build(project_id: str, db: Session) -> None:
     # ── Step 3: Fetch from OpenAlex ─────────────────────────────────────────
     progress.stage(project_id, "openalex", "querying OpenAlex works, concepts & institutions")
     try:
-        oa = fetch_entities_for_topic(topic)
+        oa = fetch_entities_for_topic(topic, terms)
+        # Screen before a paper brings in its topics and institutions: one
+        # namesake paper otherwise grows a whole off-topic cluster.
+        candidates = len(oa["works"])
+        oa["works"] = keep_relevant(topic, oa["works"])[:_MAX_PAPERS]
+        print(f"[build] openalex works: {candidates} candidates → {len(oa['works'])} on topic")
 
         for c in oa["concepts"]:
             raw_entities.append(RawEntity(
