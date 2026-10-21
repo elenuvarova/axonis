@@ -9,10 +9,14 @@ _MAILTO = os.getenv("OPENALEX_MAILTO", "kge-research@example.com")
 _HEADERS = {
     "User-Agent": f"KnowledgeGraphExplorer/1.0 (mailto:{_MAILTO})",
 }
+# Without a key OpenAlex grants $0.10/day per IP, shared by every build.
+_API_KEY = os.getenv("OPENALEX_API_KEY", "").strip()
 
 
 def _get(path: str, params: dict) -> dict:
     params = {**params, "mailto": _MAILTO}
+    if _API_KEY:
+        params["api_key"] = _API_KEY
     data = get_json(f"{_BASE}{path}", params=params, headers=_HEADERS, timeout=10)
     return data or {}
 
