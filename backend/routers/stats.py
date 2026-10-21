@@ -9,7 +9,9 @@ stored here.
 """
 from __future__ import annotations
 
+import json
 import os
+import re
 import time
 
 import httpx
@@ -39,13 +41,34 @@ async def tracker() -> Response:
                     headers={"Cache-Control": "public, max-age=3600"})
 
 
+def _is_bot(body: bytes, user_agent: str) -> bool:
+    """Headless crawlers that run the tracker and pass Umami's user-agent
+    check: they report the default 800x600 window, or an iPhone/iPad user
+    agent on a desktop-sized screen. Together they were most of the
+    "visitors" in October 2026 and made the home page look abandoned."""
+    try:
+        screen = ((json.loads(body or b"{}").get("payload") or {}).get("screen") or "")
+        width = int(screen.split("x")[0])
+    except (ValueError, AttributeError, TypeError):
+        return False
+    return screen == "800x600" or (bool(re.search(r"iPhone|iPad", user_agent)) and width > 1400)
+
+
 @router.post("/api/send", dependencies=[Depends(rate_limit("analytics"))])
 async def send(request: Request) -> Response:
     body = await request.body()
+    user_agent = request.headers.get("user-agent", "")
+    if _is_bot(body, user_agent):
+        return Response(status_code=204)
+    ip = client_ip(request)
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": request.headers.get("user-agent", ""),
-        "X-Forwarded-For": client_ip(request),
+        "User-Agent": user_agent,
+        # Umami reads True-Client-IP before X-Real-IP; Traefik in front of
+        # Umami overwrites X-Real-IP and X-Forwarded-For with this server's
+        # own address, which left every session without a country.
+        "True-Client-IP": ip,
+        "X-Forwarded-For": ip,
     }
     try:
         async with httpx.AsyncClient(timeout=5) as c:
