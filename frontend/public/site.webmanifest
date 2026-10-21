@@ -1,7 +1,7 @@
 {
-  "name": "Axonis — knowledge graph explorer",
+  "name": "Axonis — map any domain",
   "short_name": "Axonis",
-  "description": "Type any domain and get a structured, interactive knowledge graph of its concepts, research, organisations and product opportunities.",
+  "description": "Type any domain and get an interactive knowledge graph of its concepts, research and organisations, with scored product gaps where research exists but products don't.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0E0E0E",

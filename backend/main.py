@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import html
 import re
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from database import engine, db_kind, check_connection, Base
@@ -193,14 +193,16 @@ def _project_page_meta(project_id: str):
         db.close()
 
 
-def _shell(public: str, topic: str | None = None, project_id: str | None = None) -> str:
+def _shell(public: str, topic: str | None = None, project_id: str | None = None, noindex: bool = False) -> str:
     """index.html, with the demo map's own title, description and URL baked
     in for a public demo. Crawlers and link unfurlers (Slack, LinkedIn, X)
     don't run JS, so without this every shared demo link previews as the
     home page. Visitors' own maps keep the generic head: their topics stay
-    private."""
+    private, and `noindex` keeps search engines from listing them."""
     with open(os.path.join(public, "index.html"), encoding="utf-8") as f:
         page = f.read()
+    if noindex:
+        page = page.replace("</head>", '<meta name="robots" content="noindex" />\n</head>', 1)
     if not topic:
         return page
     t = html.escape(topic)
@@ -230,11 +232,37 @@ def _shell(public: str, topic: str | None = None, project_id: str | None = None)
     return page
 
 
+def _sitemap() -> str:
+    """The home page and every demo map that exists, dated by its last
+    rebuild. Built from PROTECTED_PROJECT_IDS, so it can't drift from it."""
+    from database import SessionLocal
+    from guard import protected_ids
+    urls = [(f"{_CANONICAL}/", None)]
+    db = SessionLocal()
+    try:
+        for pid in sorted(protected_ids()):
+            p = db.get(models.ResearchProject, pid)
+            if p and p.status == "ready":
+                stamp = p.updated_at or p.created_at
+                urls.append((f"{_CANONICAL}/project/{pid}", stamp.date().isoformat() if stamp else None))
+    finally:
+        db.close()
+    rows = "".join(
+        f"  <url><loc>{loc}</loc>{f'<lastmod>{mod}</lastmod>' if mod else ''}</url>\n" for loc, mod in urls
+    )
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + rows + "</urlset>\n")
+
+
 def mount_frontend(app: FastAPI, public: str) -> None:
     """Serve the built SPA from `public` (production only; tests call it on a scratch app)."""
     _assets = os.path.join(public, "assets")
     if os.path.isdir(_assets):
         app.mount("/assets", ImmutableStatic(directory=_assets), name="assets")
+
+    @app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
+    async def sitemap():
+        return Response(_sitemap(), media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def spa_fallback(full_path: str):
@@ -250,6 +278,8 @@ def mount_frontend(app: FastAPI, public: str) -> None:
                 return FileResponse(candidate, headers={"Cache-Control": "public, max-age=86400"})
         # The shell must always be revalidated: it names the current asset hashes.
         no_cache = {"Cache-Control": "no-cache"}
+        # Only the home page and the demo maps are worth a search result.
+        hidden = {**no_cache, "X-Robots-Tag": "noindex"}
         if full_path in ("", "index.html"):
             return HTMLResponse(_shell(public), headers=no_cache)
         m = _UUID.match(full_path)
@@ -257,8 +287,9 @@ def mount_frontend(app: FastAPI, public: str) -> None:
             exists, topic = _project_page_meta(m.group(1))
             # A missing map still gets the shell (it shows its own message),
             # but with a 404 status so it isn't indexed as a page.
-            return HTMLResponse(_shell(public, topic, m.group(1)), status_code=200 if exists else 404, headers=no_cache)
-        return HTMLResponse(_shell(public), status_code=404, headers=no_cache)
+            return HTMLResponse(_shell(public, topic, m.group(1), noindex=not topic),
+                                status_code=200 if exists else 404, headers=no_cache if topic else hidden)
+        return HTMLResponse(_shell(public, noindex=True), status_code=404, headers=hidden)
 
 
 if os.getenv("NODE_ENV") == "production" and os.path.isdir(_public):

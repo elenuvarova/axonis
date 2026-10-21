@@ -6,7 +6,7 @@ import useDocumentMeta from '../useDocumentMeta'
 // Any URL the router doesn't know. The server answers these with a 404
 // status too, so they never get indexed.
 export default function NotFoundPage() {
-  useDocumentMeta({ title: 'Page not found · Axonis', path: '/' })
+  useDocumentMeta({ title: 'Page not found · Axonis', path: '/', noindex: true })
   return (
     <div className="project-page">
       <header className="topbar">

@@ -142,7 +142,7 @@ export function BuildingScreen({ topic, progress, preview }) {
         <p className="build-subtitle">
           {overrun
             ? <>Taking longer than usual · {mmss(elapsed)}. Wikidata and OpenAlex can be slow; the build is still running.</>
-            : 'This usually takes under a minute. You can leave — the map keeps building and appears in Recent when ready.'}
+            : 'This usually takes under a minute. You can leave — the map keeps building and appears in your list on the home page.'}
         </p>
 
         {!progress && <div className="label build-order-label">Typical order</div>}

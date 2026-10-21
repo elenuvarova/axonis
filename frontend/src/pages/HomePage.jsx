@@ -25,7 +25,7 @@ const HOME_TOUR = [
   { target: '.form-selects', placement: 'bottom', title: 'Focus it (optional)',
     body: 'Narrow by region and pick a research goal to shape the opportunities the map surfaces.' },
   { target: '.home-body .btn-primary', placement: 'top', title: 'Build your map',
-    body: 'In about 30 seconds you get an interactive knowledge graph, clusters, scored product opportunities and a research brief.' },
+    body: 'In under a minute you get an interactive knowledge graph, clusters, scored product gaps and a research brief.' },
 ]
 
 const GOALS = [
@@ -296,13 +296,13 @@ export default function HomePage() {
       qc.invalidateQueries({ queryKey: ['projects'] })
       navigateWithTransition(navigate, `/project/${project.id}`, { topicEl: document.querySelector('.query-line') })
     },
-    onError: (e) => setErr(e.message || 'Could not start the build. Please try again.'),
+    onError: (e) => setErr(e.message || 'Couldn’t start the build. Please try again.'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteProject(id),
     onSuccess: (_, id) => { track('map_delete'); forgetProject(id); setMine(myProjectIds()); qc.invalidateQueries({ queryKey: ['projects'] }) },
-    onError: (e) => setToast(e?.status === 403 || e?.status === 429 ? e.message : 'Could not delete the project. Please try again.'),
+    onError: (e) => setToast(e?.status === 403 || e?.status === 429 ? e.message : 'Couldn’t delete the map. Please try again.'),
   })
 
   const handleSubmit = (e) => {
@@ -339,7 +339,7 @@ export default function HomePage() {
             <span className="hero-line accent"><span className="hero-arrow" aria-hidden="true">→ </span><DecodedWord text="Opportunities" run={intro} /></span>
           </h1>
           <p className="body home-lede">
-            Type a topic. We read Wikidata and OpenAlex, build the graph, and mark where research exists but products don’t.
+            Type a topic. Axonis reads Wikidata and OpenAlex, builds the graph and marks where research exists but products don’t.
           </p>
 
           {/* The fastest way to value goes first: a ready map, a gap on screen in seconds. */}
@@ -432,14 +432,14 @@ export default function HomePage() {
 
         <Hero intro={intro} />
 
-        <section className="home-recent" aria-label="Recent projects">
+        <section className="home-recent" aria-label="Recent maps">
           {isLoading && <ProjectsSkeleton />}
 
           {isError && (
             <div className="recent-projects">
               <StateScreen
                 variant="error"
-                title="Couldn't load your projects"
+                title="Couldn’t load your maps"
                 message="The server didn't respond. Check your connection and try again."
                 actions={<button className="btn btn-secondary" onClick={() => refetch()}>Retry</button>}
               />
@@ -454,7 +454,7 @@ export default function HomePage() {
                 </div>
                 <span className="project-del-spacer" />
               </div>
-              <h2 className="sr-only">Recent projects</h2>
+              <h2 className="sr-only">Recent maps</h2>
               {projects.map((p, i) => (
                 // Row is an inert container; the main area is a keyboard-operable button
                 // and the delete is a sibling button — avoids button-in-interactive-div (C-2).

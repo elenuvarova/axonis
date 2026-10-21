@@ -111,3 +111,40 @@ def test_old_host_still_serves_api(client):
 
 def test_health_answers_head(client):
     assert client.head("/api/health").status_code == 200
+
+
+def test_own_map_page_is_not_indexed(web, db, monkeypatch):
+    pid = _project(db, "my secret topic")
+    monkeypatch.setenv("PROTECTED_PROJECT_IDS", "")
+    r = web.get(f"/project/{pid}")
+    assert r.headers["x-robots-tag"] == "noindex"
+    assert '<meta name="robots" content="noindex" />' in r.text
+
+
+def test_demo_map_page_is_indexable(web, db, monkeypatch):
+    pid = _project(db, "AI tutoring")
+    monkeypatch.setenv("PROTECTED_PROJECT_IDS", pid)
+    r = web.get(f"/project/{pid}")
+    assert "x-robots-tag" not in r.headers
+    assert "noindex" not in r.text
+
+
+def test_home_is_indexable_and_404_is_not(web):
+    home = web.get("/")
+    assert "x-robots-tag" not in home.headers and "noindex" not in home.text
+    assert web.get("/nope").headers["x-robots-tag"] == "noindex"
+
+
+def test_sitemap_lists_home_and_ready_demos_only(web, db, monkeypatch):
+    demo = _project(db, "AI tutoring")
+    own = _project(db, "my secret topic")
+    broken = models.ResearchProject(topic="half built", status="building")
+    db.add(broken)
+    db.commit()
+    monkeypatch.setenv("PROTECTED_PROJECT_IDS", f"{demo},{broken.id},00000000-0000-0000-0000-000000000000")
+    r = web.get("/sitemap.xml")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/xml")
+    assert "<loc>https://axonis.app/</loc>" in r.text
+    assert f"<loc>https://axonis.app/project/{demo}</loc><lastmod>" in r.text
+    assert own not in r.text and broken.id not in r.text and "00000000" not in r.text
