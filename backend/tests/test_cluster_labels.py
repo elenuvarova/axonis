@@ -29,6 +29,12 @@ def test_ai_labels_are_cleaned(monkeypatch):
     assert out == {"1": "Adaptive learning systems"}
 
 
+def test_a_lower_case_label_gets_its_capital():
+    assert cluster_labeler._clean("caloric restriction supplements") == "Caloric restriction supplements"
+    assert cluster_labeler._clean("mRNA vaccines") == "mRNA vaccines"
+    assert cluster_labeler._clean("e-waste policy") == "E-waste policy"
+
+
 def test_the_prompt_names_the_topic_words_to_leave_out():
     assert cluster_labeler._topic_words("e-waste circularity") == ["waste", "circularity"]
     assert cluster_labeler._topic_words("AI tutoring") == ["tutoring"]

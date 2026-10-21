@@ -39,6 +39,11 @@ def _clean(label) -> str:
     # ("Electronic waste and urban")
     if len(label.split()) > _MAX_WORDS or len(label) > _MAX_CHARS:
         return ""
+    # sentence case starts with a capital; the fallback model sometimes
+    # writes all lower case. "mRNA vaccines" keeps its first word.
+    first = label.split()[0]
+    if first.islower():
+        label = label[0].upper() + label[1:]
     return label
 
 
