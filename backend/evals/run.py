@@ -143,11 +143,13 @@ def topic_words(label: str, topic: str) -> list[str]:
 
 
 def bad_case(label: str, members: list[str]) -> list[str]:
-    """Words after the first capitalised without reason: not an acronym and
-    not capitalised in the members (a proper noun)."""
+    """A lower-case first word, or words after it capitalised without reason:
+    not an acronym and not capitalised in the members (a proper noun)."""
     text = " ".join(members)
-    return [w for w in _words(label)[1:]
-            if w[:1].isupper() and not w.isupper() and not re.search(rf"\b{re.escape(w)}\b", text)]
+    words = _words(label)
+    first = words[:1] if words and words[0].islower() else []
+    return first + [w for w in words[1:]
+                    if w[:1].isupper() and not w.isupper() and not re.search(rf"\b{re.escape(w)}\b", text)]
 
 
 def bad_format(labels: dict[str, str]) -> list[str]:

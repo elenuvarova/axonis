@@ -82,6 +82,8 @@ def test_sentence_case_allows_acronyms_and_proper_nouns_only():
     assert run.bad_case("Lobbyists in Murcia", members) == []
     assert run.bad_case("Lobbyist Influence", members) == ["Influence"]
     assert run.bad_case("CRITIC-TOPSIS decision approach", []) == []
+    assert run.bad_case("caloric restriction supplements", []) == ["caloric"]
+    assert run.bad_case("mRNA vaccines", []) == []
 
 
 def test_format_flags_long_duplicate_and_linked_labels():
