@@ -14,6 +14,7 @@ from database import SessionLocal
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 from sources.wikidata import fetch_entities_for_terms
 from sources.openalex import fetch_entities_for_topic
+from sources.descriptions import fill as describe
 from graph.resolver import RawEntity, resolve, MERGE_THRESHOLD
 from graph.metrics import compute as compute_metrics
 from graph.clustering import label_clusters
@@ -178,6 +179,8 @@ def _build(project_id: str, db: Session) -> None:
     print(f"[build] resolved → {len(resolved)} entities, {len(edges)} edges")
     progress.log(project_id, "resolve", f"{len(resolved)} unique entities · {len(edges)} edges",
                  entities=len(resolved), edges=len(edges))
+    described = describe(resolved)
+    print(f"[build] descriptions: {described} filled in")
     progress.stage(project_id, "persist")
 
     # ── Step 5: Persist entities ────────────────────────────────────────────
