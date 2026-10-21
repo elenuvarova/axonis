@@ -6,6 +6,7 @@ from __future__ import annotations
 import codecs
 import csv
 import io
+import itertools
 
 _MAX_CHARS = 12000  # cap text fed downstream to keep AI calls bounded
 
@@ -48,7 +49,7 @@ def csv_rows(filename: str, content: bytes) -> list[dict]:
     try:
         text = decode_text(content)
         reader = csv.DictReader(io.StringIO(text), dialect=_dialect(text))
-        return [row for row in reader][:300]
+        return list(itertools.islice(reader, 300))
     except Exception:
         return []
 
