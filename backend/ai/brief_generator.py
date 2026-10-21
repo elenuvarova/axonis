@@ -4,7 +4,7 @@ Uses Groq (Llama 3.3) if GROQ_API_KEY is set, falls back to a template.
 """
 from __future__ import annotations
 from ai import llm
-from textutil import repair_cluster_name, repair_title
+from textutil import cluster_name, repair_title
 import os
 
 
@@ -42,7 +42,7 @@ def generate_brief(project, entities, clusters, opportunities) -> str:
     )
 
     clusters_text = "\n".join(
-        f"- **{repair_cluster_name(c.name)}**: {c.size} nodes, {c.research_count} research items, score {(c.opportunity_score or 0):.3f}"
+        f"- **{cluster_name(c)}**: {c.size} nodes, {c.research_count} research items, score {(c.opportunity_score or 0):.3f}"
         for c in top_clusters
     )
 
@@ -80,8 +80,7 @@ def generate_brief(project, entities, clusters, opportunities) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     if api_key:
         try:
-            from groq import Groq
-            client = Groq(api_key=api_key, timeout=20.0)
+            client = llm.client(timeout=20.0)
             response = llm.create(client,
                 max_tokens=2048,
                 messages=[
@@ -89,7 +88,7 @@ def generate_brief(project, entities, clusters, opportunities) -> str:
                     {"role": "user", "content": prompt},
                 ],
             )
-            return response.choices[0].message.content.strip()
+            return llm.text(response)
         except Exception as exc:
             print(f"[brief] groq error: {exc}")
 
@@ -106,7 +105,7 @@ def _template_brief(project, top_entities, clusters, top_opps) -> str:
     )
 
     clusters_section = "\n".join(
-        f"\n### {repair_cluster_name(c.name)}\n{c.size} nodes · {c.research_count} research items · opportunity score {(c.opportunity_score or 0):.3f}"
+        f"\n### {cluster_name(c)}\n{c.size} nodes · {c.research_count} research items · opportunity score {(c.opportunity_score or 0):.3f}"
         for c in clusters
     )
 

@@ -361,12 +361,14 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
     candidates = enrich_with_ai(candidates, topic, entities_by_cluster,
                                 on_card=lambda msg: progress.log(project_id, "insights", msg))
 
-    db.query(Opportunity).filter_by(project_id=project_id).delete()
-    db.query(Cluster).filter_by(project_id=project_id).delete()
-    db.commit()
-
     from ai.cluster_labeler import label_clusters_ai
     labels = label_clusters_ai(topic, [(s.cluster_id, s.top_entity_names) for s in cluster_summaries])
+
+    # Swap old clusters and opportunities for new ones in one transaction,
+    # after every LLM call: a slow model or a crash mid-way leaves the
+    # previous results in place, never an empty map.
+    db.query(Opportunity).filter_by(project_id=project_id).delete()
+    db.query(Cluster).filter_by(project_id=project_id).delete()
 
     cluster_id_map: dict[str, str] = {}
     for s in cluster_summaries:
@@ -380,7 +382,6 @@ def _compute_and_persist(project_id: str, db: Session, topic: str) -> None:
         db.add(row)
         db.flush()
         cluster_id_map[s.cluster_id] = row.id
-    db.commit()
 
     for cand in candidates:
         db.add(Opportunity(
@@ -401,8 +402,7 @@ def _expand_topic(topic: str) -> list[str]:
     if not api_key:
         return _simple_expand(topic)
     try:
-        from groq import Groq
-        client = Groq(api_key=api_key, timeout=20.0)
+        client = llm.client(timeout=20.0)
         response = llm.create(client,
             max_tokens=256,
             messages=[{
@@ -415,7 +415,7 @@ def _expand_topic(topic: str) -> list[str]:
                 ),
             }],
         )
-        data = json.loads(response.choices[0].message.content.strip())
+        data = json.loads(llm.text(response))
         raw_terms = data.get("terms", []) if isinstance(data, dict) else []
         # The model occasionally returns a bare string or nested objects; keep
         # only non-empty strings so we never slice a string into characters.

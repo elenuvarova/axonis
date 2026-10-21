@@ -10,10 +10,11 @@ def test_fallback_label_is_the_lead_member_cut_on_a_word():
     assert cluster_labeler.fallback_label([]) == "Unnamed cluster"
 
 
-def test_without_a_key_every_cluster_gets_the_fallback(monkeypatch):
+def test_without_a_key_no_cluster_is_labelled(monkeypatch):
+    # unlabelled clusters stay NULL so a backfill can find them; the screen
+    # shows the lead member (textutil.cluster_name)
     monkeypatch.setenv("GROQ_API_KEY", "")
-    out = cluster_labeler.label_clusters_ai("ai tutoring", [("1", ["Adaptive learning"]), ("2", ["Teacher feedback"])])
-    assert out == {"1": "Adaptive learning", "2": "Teacher feedback"}
+    assert cluster_labeler.label_clusters_ai("ai tutoring", [("1", ["Adaptive learning"])]) == {}
 
 
 def test_ai_labels_are_cleaned(monkeypatch):

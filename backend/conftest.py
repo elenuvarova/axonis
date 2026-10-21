@@ -35,9 +35,14 @@ def _fresh_schema():
     yield
 
 
+# The owner token of ready_project; the client sends it by default, as the
+# creating browser would. Tests about other callers override the header.
+OWNER_TOKEN = "test-owner-token"
+
+
 @pytest.fixture
 def client():
-    with TestClient(main.app) as c:
+    with TestClient(main.app, headers={"X-Owner-Token": OWNER_TOKEN}) as c:
         yield c
 
 
@@ -56,8 +61,10 @@ def ready_project(db):
     without running the external-API build pipeline. Returns the project id."""
     from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 
+    import hashlib
     project = ResearchProject(
         topic="AI tutoring", region="EU", goal="opportunity", status="ready",
+        owner_token_hash=hashlib.sha256(OWNER_TOKEN.encode()).hexdigest(),
     )
     db.add(project)
     db.flush()

@@ -34,9 +34,10 @@ export function ownerToken(id) {
   return typeof t === 'string' ? t : null
 }
 
-// Maps made before owner tokens (locked: false) stay editable by anyone.
+// Only the browser holding a map's owner token can change it. Maps made
+// before owner tokens (locked: false) have no owner, so they are read-only.
 export function canEdit(project) {
-  return !!project && !project.protected && (!project.locked || !!ownerToken(project.id))
+  return !!project && !project.protected && !!project.locked && !!ownerToken(project.id)
 }
 
 export function rememberProject(id, token) {

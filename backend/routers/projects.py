@@ -10,7 +10,7 @@ from typing import Optional
 
 from database import get_db, SessionLocal
 from graph import progress
-from guard import forbid_if_protected, is_protected, protected_ids, rate_limit
+from guard import forbid_if_protected, is_protected, protected_ids, rate_limit, spend
 from models import ResearchProject, Entity, Relationship, Cluster, Opportunity
 from graph.builder import build_project_graph
 
@@ -38,9 +38,11 @@ def _hash(token: str) -> str:
 def require_owner(project: ResearchProject, token: Optional[str]) -> None:
     """With no accounts, the browser that created a map holds its owner token
     (returned once by create). Rebuild, upload and delete need it, so sharing
-    a map's link no longer lets the recipient wipe or overwrite it."""
+    a map's link no longer lets the recipient wipe or overwrite it. Maps made
+    before owner tokens have no owner and are read-only: anyone holding the
+    link could otherwise delete them."""
     if project.owner_token_hash is None:
-        return  # made before owner tokens: unchanged behaviour
+        raise HTTPException(status_code=403, detail="This map was made before maps had owners and can't be changed. Build a new one from the home page.")
     if not token or not hmac.compare_digest(_hash(token), project.owner_token_hash):
         raise HTTPException(status_code=403, detail="Only the browser that created this map can change it. Build your own from the home page.")
 
@@ -88,6 +90,7 @@ def trigger_build(project_id: str, background_tasks: BackgroundTasks, db: Sessio
     require_owner(project, x_owner_token)
     if project.status == "building":
         return {"status": "already_building"}
+    spend("build")
     project.status = "building"
     db.commit()
     background_tasks.add_task(_run_build, project_id)
@@ -114,6 +117,7 @@ def get_brief(project_id: str, db: Session = Depends(get_db)):
         _brief_cache.move_to_end(project_id)
         return cached[1]
 
+    spend("brief")
     entities = db.query(Entity).filter_by(project_id=project_id).all()
     clusters = db.query(Cluster).filter_by(project_id=project_id).all()
     opportunities = db.query(Opportunity).filter_by(project_id=project_id).all()
@@ -136,9 +140,11 @@ def ask_question(project_id: str, body: AskRequest, db: Session = Depends(get_db
     question = (body.question or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question is empty")
+    spend("ask", project_id)
     entities = db.query(Entity).filter_by(project_id=project_id).all()
     clusters = db.query(Cluster).filter_by(project_id=project_id).all()
-    opportunities = db.query(Opportunity).filter_by(project_id=project_id).all()
+    opportunities = (db.query(Opportunity).filter_by(project_id=project_id)
+                     .order_by(Opportunity.score.desc(), Opportunity.id).all())
     from ai.qa import answer_question
     return answer_question(project, entities, question, clusters, opportunities)
 
@@ -166,6 +172,7 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="The uploaded file is empty")
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 5 MB)")
+    spend("upload")
 
     project.status = "building"
     db.commit()

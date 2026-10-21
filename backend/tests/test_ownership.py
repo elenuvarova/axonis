@@ -31,12 +31,17 @@ def test_build_and_upload_need_the_owner_token(client):
     assert r.status_code == 403
 
 
-def test_legacy_maps_without_token_stay_editable(client, db):
+def test_legacy_maps_without_token_are_read_only(client, db):
     p = models.ResearchProject(topic="old map", status="ready")
     db.add(p)
     db.commit()
     assert client.get(f"/api/projects/{p.id}").json()["locked"] is False
-    assert client.delete(f"/api/projects/{p.id}").status_code == 204
+    assert client.delete(f"/api/projects/{p.id}").status_code == 403
+    assert client.delete(f"/api/projects/{p.id}", headers={"X-Owner-Token": "anything"}).status_code == 403
+    assert client.post(f"/api/projects/{p.id}/build").status_code == 403
+    r = client.post(f"/api/projects/{p.id}/upload", files={"file": ("a.txt", b"hello", "text/plain")})
+    assert r.status_code == 403
+    assert client.get(f"/api/projects/{p.id}").status_code == 200
 
 
 def test_topic_and_question_lengths_are_capped(client, ready_project):
