@@ -38,17 +38,20 @@ def models() -> list[str]:
     return [m.strip() for m in raw.split(",") if m.strip()]
 
 
-def _extra(model: str) -> dict:
+def _extra(model: str, effort: str = "low") -> dict:
     # gpt-oss models reason before answering; keep that short so the answer
     # fits in max_tokens and latency stays low.
-    return {"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else {}
+    return {"reasoning_effort": effort} if model.startswith("openai/gpt-oss") else {}
 
 
-def create(client, *, messages: list[dict], max_tokens: int, deadline: float = 45.0):
+def create(client, *, messages: list[dict], max_tokens: int, deadline: float = 45.0,
+           effort: str = "low", temperature: float | None = None):
     """Like client.chat.completions.create, but walks the model list.
     Returns the first response that has non-empty content; raises the last
     error if every model fails. No new model is tried once `deadline`
-    seconds have passed, so one request can't stack timeouts for minutes."""
+    seconds have passed, so one request can't stack timeouts for minutes.
+    effort and temperature are for callers that want a steadier answer (the
+    eval judge); the app keeps the defaults."""
     last: Exception | None = None
     start = time.monotonic()
     for i, model in enumerate(models()):
@@ -58,7 +61,8 @@ def create(client, *, messages: list[dict], max_tokens: int, deadline: float = 4
         try:
             resp = client.chat.completions.create(
                 model=model, max_tokens=max_tokens, messages=messages,
-                extra_body=_extra(model) or None,
+                extra_body=_extra(model, effort) or None,
+                **({"temperature": temperature} if temperature is not None else {}),
             )
             if text(resp):
                 if i:
