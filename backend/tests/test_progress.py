@@ -45,3 +45,40 @@ def test_project_endpoint_exposes_progress_only_while_building(client, db):
     p.status = "ready"
     db.commit()
     assert client.get(f"/api/projects/{p.id}").json()["progress"] is None
+
+
+def test_openalex_counts_include_institutions_and_topics_from_papers(db, monkeypatch):
+    # Institution search by name finds almost nothing; the build screen read
+    # "0 institutions" while the map got 18 from paper authorships.
+    from graph import builder
+    p = ResearchProject(topic="seaweed bioplastics", status="building")
+    db.add(p)
+    db.commit()
+    work = lambda title, insts: {
+        "title": title, "id": "W1",
+        "topics": [{"display_name": "Algal polymers", "score": 0.9, "subfield": {"display_name": "Polymers"}}],
+        "authorships": [{"institutions": [{"display_name": i, "id": "I1"}]} for i in insts],
+    }
+    monkeypatch.setattr(builder, "_expand_topic", lambda t: [t])
+    monkeypatch.setattr(builder, "fetch_entities_for_terms", lambda terms: [])
+    monkeypatch.setattr(builder, "fetch_entities_for_topic", lambda t, terms: {
+        "concepts": [], "related_concepts": [], "institutions": [],
+        "works": [work("Paper A", ["Uni X", "Uni Y"]), work("Paper B", ["Uni X"])],
+    })
+    monkeypatch.setattr(builder, "keep_relevant", lambda topic, works: works)
+    lines = []
+    monkeypatch.setattr(builder.progress, "log", lambda pid, src, msg, **c: lines.append((src, msg, c)))
+
+    class Stop(Exception):
+        pass
+
+    def stop(raw):
+        raise Stop
+    monkeypatch.setattr(builder, "resolve", stop)
+    try:
+        builder._build(p.id, db)
+    except Stop:
+        pass
+    src, msg, counts = next(l for l in lines if l[0] == "openalex")
+    assert counts == {"papers": 2, "institutions": 2}
+    assert msg == "2 papers · 2 concepts · 2 institutions"
