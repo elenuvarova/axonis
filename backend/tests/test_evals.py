@@ -101,3 +101,23 @@ def test_failures_compare_against_the_bars():
     assert run.failures({"relevance.keep_recall": 0.8, "relevance.drop_rate": 1.0, "relevance.errors": 3}) \
         == ["relevance.keep_recall 0.8 < 0.9"]
     assert run.failures({"labels.grounded": None}) == []
+
+
+def test_judge_cases_point_at_real_clusters():
+    clusters = _cases("cluster_labels.json")
+    for case in _cases("judge.json"):
+        source = next(c for c in clusters if c["topic"] == case["topic"])
+        ids = {c["id"] for c in source["clusters"]}
+        for cid, label, mark in case["labels"]:
+            assert cid in ids and label and mark in {"good", "bad", "either"}
+    marks = [m for case in _cases("judge.json") for _, _, m in case["labels"]]
+    assert marks.count("bad") >= 8 and marks.count("good") >= 30
+
+
+def test_the_judge_takes_the_majority_and_survives_a_failed_call(monkeypatch):
+    ballots = iter([{"1": (False, "pile"), "2": (True, "")}, None, {"1": (False, "pile"), "2": (True, "")},
+                    {"1": (True, ""), "2": (False, "cut")}])
+    monkeypatch.setattr(run, "_judge_once", lambda *a: next(ballots))
+    monkeypatch.setattr(run.llm, "client", lambda timeout: None)
+    monkeypatch.setattr(run, "JUDGE_VOTES", 4)
+    assert run.judge("t", [("1", "a", []), ("2", "b", [])]) == {"1": (False, "pile"), "2": (True, "")}

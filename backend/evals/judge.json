@@ -1,0 +1,325 @@
+{
+ "about": "Calibration for the label judge (run.py judge): the labels the demo maps carried on 21 Oct 2026, marked by hand. bad = a fragment, a pile of nouns without grammar, a cut word or a changed meaning; either = arguable, not scored. Members come from cluster_labels.json (the first case with the same topic).",
+ "cases": [
+  {
+   "topic": "AI tutoring",
+   "labels": [
+    [
+     "10",
+     "Intelligent adaptive systems",
+     "good"
+    ],
+    [
+     "4",
+     "AI education applications",
+     "good"
+    ],
+    [
+     "3",
+     "Financial literacy software",
+     "good"
+    ],
+    [
+     "6",
+     "Programming education AI",
+     "bad"
+    ],
+    [
+     "5",
+     "Online adaptive learning",
+     "good"
+    ],
+    [
+     "9",
+     "Teacher acceptance AI",
+     "bad"
+    ],
+    [
+     "12",
+     "Reinforcement learning robotics",
+     "either"
+    ],
+    [
+     "13",
+     "Technology adoption behavior",
+     "good"
+    ],
+    [
+     "11",
+     "Learning outcomes meta",
+     "bad"
+    ],
+    [
+     "8",
+     "Pedagogical agent gestures",
+     "good"
+    ],
+    [
+     "0",
+     "Third space online",
+     "bad"
+    ],
+    [
+     "7",
+     "Learning analytics methodology",
+     "good"
+    ]
+   ]
+  },
+  {
+   "topic": "CSRD reporting",
+   "labels": [
+    [
+     "1",
+     "Corporate sustainability materiality",
+     "good"
+    ],
+    [
+     "7",
+     "Sustainable supply chain governance",
+     "good"
+    ],
+    [
+     "9",
+     "Accounting and governance integration",
+     "good"
+    ],
+    [
+     "14",
+     "European regulatory harmonization",
+     "good"
+    ],
+    [
+     "11",
+     "Non-financial reporting research",
+     "good"
+    ],
+    [
+     "12",
+     "Transition to sustainability legislation",
+     "good"
+    ],
+    [
+     "10",
+     "Lobbyist influence sustainability",
+     "bad"
+    ],
+    [
+     "13",
+     "European non-financial harmonisation",
+     "either"
+    ],
+    [
+     "8",
+     "Integrated corporate sustainability",
+     "good"
+    ],
+    [
+     "2",
+     "Environmental consulting",
+     "good"
+    ],
+    [
+     "3",
+     "Non-financial reporting",
+     "good"
+    ],
+    [
+     "15",
+     "Directive obligations overview",
+     "either"
+    ],
+    [
+     "6",
+     "Corporate ESG reporting",
+     "good"
+    ]
+   ]
+  },
+  {
+   "topic": "e-waste circularity",
+   "labels": [
+    [
+     "5",
+     "Recycling and management techniques",
+     "good"
+    ],
+    [
+     "1",
+     "Urban mining initiatives",
+     "good"
+    ],
+    [
+     "2",
+     "Circular economy concepts",
+     "good"
+    ],
+    [
+     "9",
+     "Environmental education policy",
+     "good"
+    ],
+    [
+     "14",
+     "Heavy metals pollution",
+     "good"
+    ],
+    [
+     "12",
+     "Behavioral reasoning theory",
+     "good"
+    ],
+    [
+     "7",
+     "Extraction and recycling processes",
+     "good"
+    ],
+    [
+     "4",
+     "Extended producer responsibility",
+     "good"
+    ],
+    [
+     "6",
+     "Global e-recycling perspective",
+     "either"
+    ],
+    [
+     "13",
+     "Consumer behavior review",
+     "good"
+    ],
+    [
+     "10",
+     "Electronic management practices",
+     "bad"
+    ],
+    [
+     "8",
+     "Management approaches overview",
+     "good"
+    ],
+    [
+     "11",
+     "Recycling next steps",
+     "either"
+    ],
+    [
+     "0",
+     "Emerging environmental threat",
+     "good"
+    ]
+   ]
+  },
+  {
+   "topic": "Longevity Escape Velocity",
+   "labels": [
+    [
+     "6",
+     "Genetics aging research",
+     "either"
+    ],
+    [
+     "9",
+     "Neuroethics and bioethics",
+     "good"
+    ],
+    [
+     "3",
+     "Hibernation and cryonics",
+     "good"
+    ],
+    [
+     "11",
+     "Global health professions",
+     "either"
+    ],
+    [
+     "1",
+     "Anti-aging movement",
+     "good"
+    ],
+    [
+     "8",
+     "Temperature research institutes",
+     "either"
+    ],
+    [
+     "12",
+     "Mortality demography risk",
+     "bad"
+    ],
+    [
+     "10",
+     "Death anthropology cryonics",
+     "bad"
+    ],
+    [
+     "7",
+     "Cardiac emergency cryonics",
+     "bad"
+    ],
+    [
+     "4",
+     "Senolytics molecular research",
+     "good"
+    ],
+    [
+     "2",
+     "Biogerontology development",
+     "good"
+    ],
+    [
+     "5",
+     "Caloric restriction supplement",
+     "either"
+    ]
+   ]
+  },
+  {
+   "topic": "solar land scouting",
+   "labels": [
+    [
+     "1",
+     "Multi-criteria decision methods",
+     "good"
+    ],
+    [
+     "5",
+     "AI GIS site selection",
+     "good"
+    ],
+    [
+     "7",
+     "Utility-scale sustainability analysis",
+     "good"
+    ],
+    [
+     "2",
+     "GIS ELEC selection",
+     "bad"
+    ],
+    [
+     "6",
+     "Offshore wind-solar integration",
+     "good"
+    ],
+    [
+     "8",
+     "CRITIC TOPSIS approach",
+     "good"
+    ],
+    [
+     "4",
+     "Large-scale PV development",
+     "good"
+    ],
+    [
+     "0",
+     "Specific power plant projects",
+     "good"
+    ]
+   ]
+  }
+ ]
+}
