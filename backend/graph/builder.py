@@ -160,9 +160,14 @@ def _build(project_id: str, db: Session) -> None:
 
         print(f"[build] openalex → added, total raw={len(raw_entities)}")
         papers = sum(1 for w in oa["works"] if (w.get("title") or "").strip())
+        # Count what the step added, not the search hits alone: most institutions
+        # come from paper authorships and most concepts from paper topics.
+        added = lambda kind: len({r.name.lower() for r in raw_entities
+                                  if r.source == "openalex" and r.type == kind and r.name})
+        institutions = added("institution")
         progress.log(project_id, "openalex",
-                     f"{papers} papers · {len(oa['concepts']) + len(oa['related_concepts'])} concepts · {len(oa['institutions'])} institutions",
-                     papers=papers, institutions=len(oa["institutions"]))
+                     f"{papers} papers · {added('concept')} concepts · {institutions} institutions",
+                     papers=papers, institutions=institutions)
     except Exception as exc:
         print(f"[build] openalex error: {exc}")
         progress.log(project_id, "openalex", "request failed")
