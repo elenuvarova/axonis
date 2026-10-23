@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import html
 import re
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from database import engine, db_kind, check_connection, Base
@@ -121,20 +121,12 @@ _CSP = (
 )
 
 
-# The old host still has links pointing at it. Pages move permanently to the
-# canonical domain; /api stays served so nothing that still calls it breaks.
-_OLD_HOSTS = {"knowledge-graph-explorer.ontwrpn.com"}
 _CANONICAL = "https://axonis.app"
 
 
 @app.middleware("http")
 async def security_headers(request, call_next):
-    host = request.headers.get("host", "").split(":")[0].lower()
-    if host in _OLD_HOSTS and not request.url.path.startswith("/api/"):
-        query = f"?{request.url.query}" if request.url.query else ""
-        response = RedirectResponse(_CANONICAL + request.url.path + query, status_code=301)
-    else:
-        response = await call_next(request)
+    response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
