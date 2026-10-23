@@ -101,6 +101,8 @@ def test_failures_compare_against_the_bars():
     assert run.failures({"relevance.keep_recall": 0.8, "relevance.drop_rate": 1.0, "relevance.errors": 3}) \
         == ["relevance.keep_recall 0.8 < 0.9"]
     assert run.failures({"labels.grounded": None}) == []
+    assert run.failures({"judge.bad_caught": None, "judge.good_passed": None, "judge.errors": 5}) \
+        == ["judge: no case scored (5 model errors)"]
 
 
 def test_judge_cases_point_at_real_clusters():
@@ -118,6 +120,6 @@ def test_the_judge_takes_the_majority_and_survives_a_failed_call(monkeypatch):
     ballots = iter([{"1": (False, "pile"), "2": (True, "")}, None, {"1": (False, "pile"), "2": (True, "")},
                     {"1": (True, ""), "2": (False, "cut")}])
     monkeypatch.setattr(run, "_judge_once", lambda *a: next(ballots))
-    monkeypatch.setattr(run.llm, "client", lambda timeout: None)
+    monkeypatch.setattr(run.llm, "client", lambda timeout, provider_name=None: None)
     monkeypatch.setattr(run, "JUDGE_VOTES", 4)
     assert run.judge("t", [("1", "a", []), ("2", "b", [])]) == {"1": (False, "pile"), "2": (True, "")}

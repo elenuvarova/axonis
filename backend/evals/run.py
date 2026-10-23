@@ -5,7 +5,9 @@ Run before changing a prompt, GROQ_MODELS or the model list, and after:
     python -m evals.run relevance       # one suite
     python -m evals.run labels --pause 20
     python -m evals.run judge           # is the label judge itself right?
-Calls the real model (needs GROQ_API_KEY) on the cases in evals/*.json and
+    python -m evals.run labels --provider gemini --judge --judge-provider gemini
+Calls the real model (needs GROQ_API_KEY, or GEMINI_API_KEY for a Gemini
+provider) on the cases in evals/*.json and
 checks properties, not exact strings. Prints every miss, appends a summary
 line to evals/runs.jsonl (commit it with the prompt change) and exits 1 when
 a pass bar below is missed. A model error (rate limit, outage) is counted
@@ -312,6 +314,7 @@ def _judge_once(client, topic: str, items: list[tuple]) -> dict[str, tuple[bool,
 
 
 JUDGE_VOTES = 3
+JUDGE_PROVIDER: str | None = None  # None: the same provider as the labels
 
 
 def judge(topic: str, items: list[tuple], pause: float = 0.0) -> dict[str, tuple[bool, str]] | None:
@@ -319,7 +322,7 @@ def judge(topic: str, items: list[tuple], pause: float = 0.0) -> dict[str, tuple
     by majority of JUDGE_VOTES calls: one call flips on borderline names from
     run to run (0.6 vs 0.9 caught on the same prompt). None when no call
     answered."""
-    client = llm.client(timeout=45.0)
+    client = llm.client(timeout=45.0, provider_name=JUDGE_PROVIDER)
     ballots = []
     for n in range(JUDGE_VOTES):
         if n:
@@ -401,6 +404,10 @@ def prompt_version() -> str:
     return hashlib.sha1(src.encode()).hexdigest()[:8]
 
 
+def _key(provider: str) -> str:
+    return f"{provider.upper()}_API_KEY"
+
+
 def judge_version() -> str:
     """Hash of the judge's prompt: labels.judged_ok is comparable only between
     runs with the same judge."""
@@ -416,8 +423,15 @@ def _commit() -> str:
 
 
 def failures(metrics: dict) -> list[str]:
-    return [f"{k} {metrics[k]} < {bar}" for k, bar in BARS.items()
-            if k in metrics and metrics[k] is not None and metrics[k] < bar]
+    out = [f"{k} {metrics[k]} < {bar}" for k, bar in BARS.items()
+           if k in metrics and metrics[k] is not None and metrics[k] < bar]
+    # A suite whose every case hit a model error (a used-up quota) scored
+    # nothing: that is not a pass.
+    for suite in {k.split(".")[0] for k in metrics}:
+        barred = [metrics[k] for k in BARS if k.startswith(suite + ".") and k in metrics]
+        if metrics.get(f"{suite}.errors") and barred and all(v is None for v in barred):
+            out.append(f"{suite}: no case scored ({metrics[suite + '.errors']} model errors)")
+    return out
 
 
 def main(argv: list[str]) -> int:
@@ -425,16 +439,26 @@ def main(argv: list[str]) -> int:
     ap.add_argument("suites", nargs="*", help="relevance, labels, judge (default: relevance and labels)")
     ap.add_argument("--pause", type=float, default=10.0,
                     help="seconds between model calls; the Groq free tier allows 8k tokens a minute")
+    ap.add_argument("--provider", choices=["groq", "gemini"], default="groq",
+                    help="who answers the prompts under test")
+    ap.add_argument("--judge-provider", choices=["groq", "gemini"],
+                    help="who judges (judge suite and --judge); default: --provider")
     ap.add_argument("--no-log", action="store_true", help="don't append to evals/runs.jsonl")
     ap.add_argument("--judge", action="store_true",
-                    help="labels: also ask the model judge (weak so far: catches 0.6 of bad names, see judge.json)")
+                    help="labels: also ask the model judge (on Groq weak: catches 0.6 of bad names; "
+                         "on Gemini it passed calibration, see runs.jsonl G1)")
     ap.add_argument("--show", action="store_true", help="labels: print every label for a human read")
     ap.add_argument("--note", default="", help="what this run tries, kept in runs.jsonl")
     args = ap.parse_args(argv)
-    if not os.getenv("GROQ_API_KEY"):
-        print("GROQ_API_KEY is not set: the evals call the real model", file=sys.stderr)
-        return 2
+    global JUDGE_PROVIDER
+    os.environ["LLM_PROVIDER"] = args.provider
+    JUDGE_PROVIDER = args.judge_provider or args.provider
     suites = args.suites or ["relevance", "labels"]
+    judging = "judge" in suites or args.judge
+    needed = ({args.provider} if set(suites) - {"judge"} else set()) | ({JUDGE_PROVIDER} if judging else set())
+    for missing in sorted(p for p in needed if not os.getenv(_key(p))):
+        print(f"{_key(missing)} is not set: the evals call the real model", file=sys.stderr)
+        return 2
     if set(suites) - {"relevance", "labels", "judge"}:
         ap.error("suites are relevance, labels and judge")
     _count_models()
@@ -450,7 +474,10 @@ def main(argv: list[str]) -> int:
     failed = failures(metrics)
     record = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "commit": _commit(),
               "prompt_version": prompt_version(), "judge_version": judge_version(),
-              "models": llm.models(), "answered_by": ANSWERED, "metrics": metrics, "passed": not failed}
+              "provider": args.provider, "models": llm.models(args.provider), "answered_by": ANSWERED,
+              "metrics": metrics, "passed": not failed}
+    if judging:
+        record["judge_models"] = llm.models(JUDGE_PROVIDER)
     if args.note:
         record["note"] = args.note
     print("\n== result")
