@@ -86,6 +86,7 @@ To point the dev server at another backend, set `API_PROXY_TARGET` (for example 
 | `SQLITE_PATH` | Location of the SQLite file (local only) |
 | `GROQ_API_KEY` | Enables AI expansion, opportunity copy and Ask. Optional. |
 | `GROQ_MODELS` | Comma-separated Groq models, tried in order (default `openai/gpt-oss-120b,qwen/qwen3.8-27b`) |
+| `GEMINI_API_KEY` | Optional. Used by the evals (`--provider gemini`, `--judge-provider gemini`), not by the app |
 | `OPENALEX_MAILTO` | Contact email for the OpenAlex polite pool |
 | `NODE_ENV=production` | Makes the backend serve the built frontend |
 
@@ -107,6 +108,10 @@ cd backend && GROQ_API_KEY=… python -m evals.run            # or: relevance | 
 ```
 
 They screen hand-labelled OpenAlex candidates (`evals/relevance.json`: real papers for the demo topics, with namesakes such as Mars Scout or the CsrD protein) and name real demo-map clusters (`evals/cluster_labels.json`). Each run prints its misses, checks the pass bars in `evals/run.py` and appends a line with the prompt version to `evals/runs.jsonl`; commit that line with the prompt change.
+
+`--provider gemini` runs the same prompts on Gemini (`GEMINI_API_KEY`, models in `GEMINI_MODELS`, default `gemini-3.5-flash,gemini-3.8-flash`), and `--judge-provider gemini` hands the label judge (`judge` suite, `labels --judge`) to Gemini while the labels still come from Groq. A judged run then costs the app's Groq quota only for the labels. The app itself stays on Groq: `LLM_PROVIDER` is set by the eval runner, not in production.
+
+The Gemini free tier allows 20 requests a day per model, and one `judge` run makes 15–17 of them: plan one judged run a day, or enable billing on the Google project. A suite whose every case hits a model error now fails instead of passing empty.
 
 ## API
 
