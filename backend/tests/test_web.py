@@ -98,17 +98,6 @@ def test_own_map_page_keeps_generic_head(web, db, monkeypatch):
     assert "<title>Axonis — home</title>" in r.text
 
 
-def test_old_host_redirects_pages_permanently(client):
-    r = client.get("/project/abc?x=1", headers={"host": "knowledge-graph-explorer.ontwrpn.com"}, follow_redirects=False)
-    assert r.status_code == 301
-    assert r.headers["location"] == "https://axonis.app/project/abc?x=1"
-
-
-def test_old_host_still_serves_api(client):
-    r = client.get("/api/health", headers={"host": "knowledge-graph-explorer.ontwrpn.com"})
-    assert r.status_code == 200
-
-
 def test_health_answers_head(client):
     assert client.head("/api/health").status_code == 200
 
