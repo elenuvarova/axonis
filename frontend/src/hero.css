@@ -93,14 +93,18 @@ main.home-body .query-block { position: relative; border-color: transparent; }
 
 /* ≥1101: sphere centred on the headline + query block (row 1 holds exactly those). */
 @media (min-width: 1101px) {
-  /* wide enough for "→ OPPORTUNITIES" at 64px on one line */
-  main.home-body { grid-template-columns: minmax(0, 700px) minmax(0, 1fr); }
+  /* the text column follows the headline ("→ OPPORTUNITIES" is 10.06em of --fs-hero), never under 560 for the query
+     block: a fixed 700 left the sphere 242px wide at 1150 */
+  main.home-body { grid-template-columns: minmax(0, max(560px, calc(var(--fs-hero) * 10.1))) minmax(0, 1fr); }
   main.home-body .home-hero-media { align-self: center; }
 }
 
 /* 768-1100: keep two columns (7fr / 5fr) with a capped sphere, instead of stacking. */
 @media (min-width: 768px) and (max-width: 1100px) {
   main.home-body { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--s-4); }
+  /* the 7fr column is (100vw - 2×40 inset - 32 gap) × 7/12 and the headline is 10.06em wide: below ~805 the 40px floor
+     spilled 19px past the column, so the size steps down with it (130 leaves room for a desktop scrollbar) */
+  main.home-body .home-title { font-size: min(var(--fs-hero), round(down, calc((100vw - 130px) * 7 / 12 / 10.1), 1px)); }
   main.home-body .home-hero-media {
     grid-column: 2; grid-row: 1; justify-self: end; align-self: start;
     margin-top: var(--s-5); width: min(100%, var(--hero-sphere-max));
