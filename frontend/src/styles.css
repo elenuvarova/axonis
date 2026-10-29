@@ -529,7 +529,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .entity-scroll, .panel-head { padding-top: var(--canvas-inset); }
   .entity-actions { padding-bottom: var(--canvas-inset); }
 }
-.entity-actions .btn-ghost { font-size: var(--fs-label); line-height: var(--lh-caps); text-transform: uppercase; letter-spacing: var(--track-caps); }
+.entity-actions .btn-ghost { font-size: var(--fs-label); line-height: var(--lh-caps); text-transform: uppercase; letter-spacing: var(--track-caps); padding-inline: var(--s-1); }  /* borderless, so 8 is enough: at 16 the row needed 378 of the 360 sidebar and ran 3px past it */
 .entity-card-placeholder { padding: var(--s-5) var(--panel-inset); display: flex; flex-direction: column; gap: var(--s-2); color: var(--text-2); }
 .placeholder-mark { display: grid; place-items: center; width: var(--s-5); height: var(--s-5); border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: var(--fs-h2); line-height: var(--lh-h2); }
 .entity-card-placeholder p { font-family: var(--font-body); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); max-width: 26ch; text-wrap: pretty; }
@@ -545,8 +545,9 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .ask-pending { display: flex; align-items: center; gap: var(--s-1); font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); color: var(--text-2); }
 .ask-answer-text { white-space: pre-line; font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); margin-bottom: var(--s-3); overflow-wrap: anywhere; }
 .ask-sources .label { margin-bottom: var(--s-1); }
-.source-row { display: grid; grid-template-columns: 24px 1fr; gap: var(--s-2); align-items: center; width: 100%; min-height: var(--h-row); text-align: left; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); }
+.source-row { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--s-2); align-items: center; width: 100%; min-height: var(--h-row); text-align: left; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: var(--fs-ui); line-height: var(--lh-ui); }
 .source-row:hover .source-name { color: var(--accent); }
+.source-name { overflow-wrap: anywhere; }  /* a 40-letter compound or chemical name ran past the panel edge */
 .source-num { line-height: 1; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--accent); color: var(--accent); font-size: var(--fs-label); }
 .ask-form { display: flex; align-items: center; gap: var(--s-1); flex-shrink: 0; margin: var(--panel-inset); padding: var(--s-1) var(--s-1) var(--s-1) var(--s-2); border: 1px solid var(--line-control); }
 .ask-form:focus-within { outline: var(--state-focus); outline-offset: var(--state-focus-offset); }
@@ -674,7 +675,8 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .brief-overlay { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; justify-content: center; align-items: stretch; padding: var(--s-3); background: var(--bg); }
 .brief-modal { display: flex; flex-direction: column; width: 100%; max-width: 920px; background: var(--bg); border: 1px solid var(--line); }
 .brief-modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: var(--panel-pad) var(--card-pad); border-bottom: 1px solid var(--line); flex-shrink: 0; }
-.brief-modal-title { min-width: 0; }
+/* one line: a long topic or URL wrapped beside the buttons; the cover below repeats topic, region and date */
+.brief-modal-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brief-modal-actions { display: flex; align-items: center; gap: var(--s-1); flex-shrink: 0; }
 .brief-content { flex: 1; overflow-y: auto; padding: var(--s-4) var(--s-5) var(--s-6); overflow-wrap: break-word; }
 
@@ -850,6 +852,9 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 
   .brief-overlay { padding: 0; }
   .brief-modal { max-width: none; border: 0; }
+  /* the buttons leave the title ~75px ("RES…"); the cover repeats topic, region and date, so it stays for screen readers only */
+  .brief-modal-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .brief-modal-actions { margin-left: auto; }
   .brief-modal-header { padding: var(--s-1) var(--s-2); }
   .brief-content { padding: var(--s-3) var(--s-2) var(--s-5); }
   .brief-modal-actions .btn { min-width: var(--h-ctl-touch); }
