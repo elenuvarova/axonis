@@ -643,11 +643,20 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 @media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
 .build-back { padding-left: 0; font-size: var(--fs-label); line-height: var(--lh-caps); text-transform: uppercase; letter-spacing: var(--track-caps); }
 
-.counters { display: flex; border-left: 1px solid var(--line); margin-bottom: var(--s-4); }
-.counter { flex: 1; padding: 0 var(--s-3); }
-.counter + .counter { border-left: 1px solid var(--line); }
+/* "00:00" at --fs-counter is 134px, so four counters fit one row from ~650px of column (1440 still does);
+   narrower (two-column build at 1101–1430, phones) they go 2×2 */
+.build-right { container: build-right / inline-size; }
+.counters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: var(--s-4); }
+.counter { padding: 0 var(--s-1) 0 var(--s-2); border-left: 1px solid var(--line); }  /* the next divider is the right edge: 8 is enough */
+@container build-right (max-width: 650px) {
+  .counters { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-3); }
+}
 .counter-num { font-family: var(--font-mono); font-weight: 300; font-size: var(--fs-counter); line-height: var(--lh-counter); letter-spacing: var(--track-display); margin-top: var(--s-1); }
 .counter-of { font-size: var(--fs-h2); line-height: var(--lh-h2); color: var(--text-2); }
+/* even 2×2 is too narrow for 40px digits below ~380 (1101–1160): take the phone size (after .counter-num, same specificity) */
+@container build-right (max-width: 380px) {
+  .counter-num { font-size: var(--fs-counter-sm); line-height: var(--lh-counter-sm); }
+}
 
 .log-panel { background: var(--panel); border: 1px solid var(--line); padding: var(--panel-pad); }
 .log-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-2); }
@@ -656,6 +665,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 .log-line { display: grid; grid-template-columns: 76px 72px minmax(0, 1fr); gap: var(--s-2); padding-left: var(--s-2); border-left: 2px solid var(--line-strong); font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-label); }
 .log-line.is-live { border-left-color: var(--accent); }
 .log-time, .log-source { color: var(--text-2); }
+.log-msg { overflow-wrap: anywhere; }  /* a long compound word or token wraps instead of leaving the panel */
 .log-line.is-live .log-source { color: var(--accent); }
 
 /* ════════════════════════════════════════════════════════════
@@ -741,7 +751,7 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
   .home-body { grid-template-columns: 1fr; padding-top: var(--s-6); }
   .home-hero-media { grid-column: 1; grid-row: 2; justify-self: center; margin-top: var(--s-5); width: min(100%, 420px); }
   .home-recent { grid-row: 3; }
-  .build-screen { grid-template-columns: 1fr; row-gap: var(--s-5); }
+  .build-screen { grid-template-columns: minmax(0, 1fr); row-gap: var(--s-5); }  /* 1fr alone took the counters' min-content and pushed a 375 phone to 491 */
   .graph-view.mode-clusters .graph-sidebar { width: 416px; }
   /* clusters list takes 420 of the width: the ask bar leaves the centre and sits at the corner */
   .graph-view.mode-clusters .ask-bar { left: auto; right: var(--panel-inset); transform: none; min-width: 0; }
@@ -835,9 +845,8 @@ button.chip:hover:not(:disabled) { background: var(--raised); border-color: var(
 
   .build-screen { padding: var(--s-4) var(--s-2); }
   .build-steps { margin: 0 calc(-1 * var(--s-2)) var(--s-3); }
-  .counter { padding: 0 var(--s-2); }
   .counter-num { font-size: var(--fs-counter-sm); line-height: var(--lh-counter-sm); }
-  .log-line { grid-template-columns: 1fr; gap: 0; }
+  .log-line { grid-template-columns: minmax(0, 1fr); gap: 0; }  /* 1fr alone let a 50-letter word scroll the build screen sideways */
 
   .brief-overlay { padding: 0; }
   .brief-modal { max-width: none; border: 0; }
