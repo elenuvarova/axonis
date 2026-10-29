@@ -74,7 +74,8 @@ body.has-consent .project-page { height: calc(100dvh - var(--h-ctl) - var(--s-2)
 @media (pointer: fine) { .cmdk-close { display: none; } }
 @media (pointer: coarse) { .cmdk-esc-hint { display: none; } .cmdk-close { min-width: var(--h-ctl-touch); min-height: var(--h-ctl-touch); } }
 @media (max-width: 767px) {
-  .cmdk-input { font-size: var(--fs-input); } /* 16px or iOS zooms the page on focus */
+  /* 16px or iOS zooms the page on focus (Ask at 13px left Safari at 1.23× with the panel cut off) */
+  .cmdk-input, .ask-form textarea, .node-list-filter { font-size: var(--fs-input); }
   .cmdk-tabs { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
 }
 
